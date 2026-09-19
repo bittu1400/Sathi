@@ -2,6 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { formatAltitude, formatNepalTime } from "@/lib/format";
+import { getRoute } from "@/lib/data";
 import { TopoBackground } from "@/components/ui/topo-background";
 import {
   Shield,
@@ -149,7 +150,7 @@ export default async function FamilySharePage({
                   {trek.display_name}
                 </h1>
                 <p className="text-xs text-text-muted capitalize">
-                  Route: {trek.route_id.replace(/-/g, " ")}
+                  Route: {getRoute(trek.route_id)?.name ?? trek.route_id}
                 </p>
               </div>
 
