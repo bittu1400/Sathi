@@ -30,7 +30,8 @@ import { Card } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const REFRESH_MS = 20_000;
+// Short enough that /demo steps show up on the phone within a stage beat.
+const REFRESH_MS = 10_000;
 const DAY_MS = 86_400_000;
 const nepalDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" });
 const dayIndex = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);
