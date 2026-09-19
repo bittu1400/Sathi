@@ -14,11 +14,8 @@ const buttonVariants = cva(
         ghost: "text-text hover:bg-surface-2 active:bg-surface-3",
         danger: "bg-danger text-ink hover:bg-danger/90 active:bg-danger/80",
         sos: "bg-sos text-ink font-semibold uppercase tracking-wide hover:bg-sos/90 active:bg-sos/80",
-        // Legacy: renders like secondary until RD-12.
-        outline: "bg-surface-2 text-text border border-control-border hover:bg-surface-3 active:bg-surface-3",
       },
       size: {
-        default: "h-12 px-5 text-body rounded-[var(--radius)] min-w-12",
         md: "h-12 px-5 text-body rounded-[var(--radius)] min-w-12",
         lg: "h-14 px-6 text-h2 rounded-[var(--radius)] min-w-14",
         // Desktop consoles only; trekker screens use md.
@@ -27,7 +24,7 @@ const buttonVariants = cva(
         icon: "size-12 p-0 rounded-[var(--radius)]",
       },
     },
-    defaultVariants: { variant: "primary", size: "default" },
+    defaultVariants: { variant: "primary", size: "md" },
   }
 );
 
@@ -35,14 +32,12 @@ export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   state?: "idle" | "busy" | "done" | "error";
-  /** Legacy alias for state="busy". */
-  loading?: boolean;
   asChild?: boolean;
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, state, loading = false, asChild = false, children, disabled, ...props }, ref) => {
-    const current = loading ? "busy" : (state ?? "idle");
+  ({ className, variant, size, state, asChild = false, children, disabled, ...props }, ref) => {
+    const current = state ?? "idle";
     const busy = current === "busy";
     const classes = cn(buttonVariants({ variant, size, className }));
 
