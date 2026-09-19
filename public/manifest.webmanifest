@@ -1,0 +1,30 @@
+{
+  "name": "Sathi — Offline Trekking Safety",
+  "short_name": "Sathi",
+  "description": "Offline-first trekking safety companion for Nepal: route intelligence, AMS monitoring, and SOS.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0A0E13",
+  "theme_color": "#0A0E13",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Trek Mode",
+      "short_name": "Trek",
+      "description": "Open active trek tracking and altitude hero",
+      "url": "/trek"
+    },
+    {
+      "name": "SOS Emergency",
+      "short_name": "SOS",
+      "description": "Trigger emergency rescue alert",
+      "url": "/trek"
+    }
+  ]
+}

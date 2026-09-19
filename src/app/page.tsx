@@ -1,8 +1,18 @@
-export default function Home() {
+import * as React from "react";
+import { LandingHero } from "@/components/landing/LandingHero";
+import { LandingPillars } from "@/components/landing/LandingPillars";
+import { LandingOfflineSteps } from "@/components/landing/LandingOfflineSteps";
+import { LandingPricing } from "@/components/landing/LandingPricing";
+import { LandingFooter } from "@/components/landing/LandingFooter";
+
+export default function HomePage() {
   return (
-    <main className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
-      <h1 className="text-4xl font-semibold tracking-tight">Sathi</h1>
-      <p className="text-muted-foreground">Trek higher. Come home.</p>
-    </main>
+    <div className="space-y-4">
+      <LandingHero />
+      <LandingPillars />
+      <LandingOfflineSteps />
+      <LandingPricing />
+      <LandingFooter />
+    </div>
   );
 }
