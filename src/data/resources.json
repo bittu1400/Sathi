@@ -1,0 +1,80 @@
+[
+  {
+    "id": "hra-pheriche",
+    "name": "HRA Aid Post Pheriche",
+    "kind": "hra_post",
+    "lat": 27.8950,
+    "lng": 86.8190,
+    "altM": 4371,
+    "phone": "+97714440277",
+    "region": "Khumbu",
+    "seasonal": "Spring (Mar–May) & Autumn (Sep–Nov)",
+    "notes": "Himalayan Rescue Association volunteer doctor post, specialized in AMS, HAPE, HACE and high-altitude emergency consultations.",
+    "verified": { "source": "https://www.himalayanrescue.org", "date": "2026-09-19" }
+  },
+  {
+    "id": "khunde-hospital",
+    "name": "Khunde Hospital",
+    "kind": "hospital",
+    "lat": 27.8105,
+    "lng": 86.7160,
+    "altM": 3840,
+    "phone": "+97738540050",
+    "region": "Khumbu",
+    "notes": "Founded by Sir Edmund Hillary. Full primary care, basic X-ray, hyperbaric bag (Gamow bag), and high-altitude medicine.",
+    "verified": { "source": "https://www.himalayanrescue.org", "date": "2026-09-19" }
+  },
+  {
+    "id": "lukla-hospital",
+    "name": "Pasang Lhamu Nicole Niquille Hospital (Lukla)",
+    "kind": "hospital",
+    "lat": 27.6890,
+    "lng": 86.7320,
+    "altM": 2860,
+    "phone": "+97738550122",
+    "region": "Khumbu",
+    "verified": { "source": "Official hospital record", "date": "2026-09-19" }
+  },
+  {
+    "id": "simrik-air-heli",
+    "name": "Simrik Air Helicopter Operations",
+    "kind": "heli_operator",
+    "lat": 27.6966,
+    "lng": 85.3590,
+    "phone": "+97714115990",
+    "region": "Kathmandu / Nepal-wide",
+    "notes": "High-altitude rescue helicopters with long-line capability.",
+    "verified": { "source": "https://www.simrikair.com.np", "date": "2026-09-19" }
+  },
+  {
+    "id": "helipad-pheriche",
+    "name": "Pheriche Helipad",
+    "kind": "helipad",
+    "lat": 27.8955,
+    "lng": 86.8195,
+    "altM": 4370,
+    "region": "Khumbu",
+    "verified": { "source": "OpenStreetMap aeroway=helipad", "date": "2026-09-19" }
+  },
+  {
+    "id": "helipad-namche",
+    "name": "Namche Bazaar Army Helipad",
+    "kind": "helipad",
+    "lat": 27.8080,
+    "lng": 86.7165,
+    "altM": 3500,
+    "region": "Khumbu",
+    "verified": { "source": "OpenStreetMap aeroway=helipad", "date": "2026-09-19" }
+  },
+  {
+    "id": "tourist-police-kathmandu",
+    "name": "Nepal Tourist Police HQ",
+    "kind": "police",
+    "lat": 27.7150,
+    "lng": 85.3120,
+    "phone": "+97714247041",
+    "region": "Kathmandu",
+    "notes": "24/7 Tourist Assistance Hotline (1144 within Nepal)",
+    "verified": { "source": "Nepal Police", "date": "2026-09-19" }
+  }
+]

@@ -1,0 +1,62 @@
+{
+  "id": "ebc",
+  "name": "Everest Base Camp",
+  "region": "Khumbu",
+  "summary": "Trek through the heart of Sherpa country to the foot of Mt. Everest.",
+  "difficulty": "strenuous",
+  "days": [12, 14],
+  "maxAltitudeM": 5645,
+  "startPoint": "Lukla",
+  "terrain": ["alpine", "glacier", "cultural", "river_valley"],
+  "permits": ["Sagarmatha National Park entry", "Khumbu Pasang Lhamu Rural Municipality fee"],
+  "bestSeasons": ["spring", "autumn"],
+  "heroImage": "/images/routes/ebc.webp",
+  "hasFullData": true,
+  "tilesUrl": "https://example.supabase.co/storage/v1/object/public/tiles/ebc.pmtiles",
+  "tilesBytes": 12500000,
+  "bbox": [86.65, 27.65, 86.95, 28.05],
+  "hazards": [
+    "High altitude AMS/HAPE/HACE risk above 3,000m",
+    "Khumbu Icefall / glacier movement hazards near Gorak Shep",
+    "Extreme rapid weather drops and high wind on Kala Patthar",
+    "Freezing temperatures overnight (-15°C to -20°C in spring/autumn)"
+  ],
+  "waypoints": [
+    { "id": "ebc-lukla", "name": "Lukla", "lat": 27.6870, "lng": 86.7314, "altM": 2860, "kind": "trailhead", "hasTeahouse": true, "signal": "good" },
+    { "id": "ebc-phakding", "name": "Phakding", "lat": 27.7400, "lng": 86.7130, "altM": 2610, "kind": "village", "hasTeahouse": true, "signal": "good" },
+    { "id": "ebc-namche", "name": "Namche Bazaar", "lat": 27.8057, "lng": 86.7141, "altM": 3440, "kind": "village", "hasTeahouse": true, "signal": "good" },
+    { "id": "ebc-tengboche", "name": "Tengboche", "lat": 27.8362, "lng": 86.7640, "altM": 3860, "kind": "village", "hasTeahouse": true, "signal": "weak" },
+    { "id": "ebc-dingboche", "name": "Dingboche", "lat": 27.8920, "lng": 86.8310, "altM": 4410, "kind": "village", "hasTeahouse": true, "signal": "weak" },
+    { "id": "ebc-lobuche", "name": "Lobuche", "lat": 27.9480, "lng": 86.8108, "altM": 4940, "kind": "village", "hasTeahouse": true, "signal": "weak" },
+    { "id": "ebc-gorakshep", "name": "Gorak Shep", "lat": 27.9807, "lng": 86.8290, "altM": 5164, "kind": "village", "hasTeahouse": true, "signal": "none" },
+    { "id": "ebc-basecamp", "name": "Everest Base Camp", "lat": 28.0026, "lng": 86.8528, "altM": 5364, "kind": "basecamp", "hasTeahouse": false, "signal": "none" },
+    { "id": "ebc-kalapatthar", "name": "Kala Patthar", "lat": 27.9957, "lng": 86.8285, "altM": 5645, "kind": "viewpoint", "hasTeahouse": false, "signal": "weak" },
+    { "id": "ebc-pheriche", "name": "Pheriche", "lat": 27.8950, "lng": 86.8190, "altM": 4371, "kind": "village", "hasTeahouse": true, "signal": "weak" }
+  ],
+  "stages": [
+    { "day": 1, "fromId": "ebc-lukla", "toId": "ebc-phakding", "distanceKm": 7.5, "ascentM": 150, "descentM": 400, "hours": 3.5, "sleepAltM": 2610, "isAcclimatization": false },
+    { "day": 2, "fromId": "ebc-phakding", "toId": "ebc-namche", "distanceKm": 11.0, "ascentM": 1000, "descentM": 170, "hours": 6.0, "sleepAltM": 3440, "isAcclimatization": false },
+    { "day": 3, "fromId": "ebc-namche", "toId": "ebc-namche", "distanceKm": 4.0, "ascentM": 350, "descentM": 350, "hours": 3.0, "sleepAltM": 3440, "isAcclimatization": true },
+    { "day": 4, "fromId": "ebc-namche", "toId": "ebc-tengboche", "distanceKm": 9.5, "ascentM": 750, "descentM": 330, "hours": 5.0, "sleepAltM": 3860, "isAcclimatization": false },
+    { "day": 5, "fromId": "ebc-tengboche", "toId": "ebc-dingboche", "distanceKm": 10.5, "ascentM": 650, "descentM": 100, "hours": 5.5, "sleepAltM": 4410, "isAcclimatization": false },
+    { "day": 6, "fromId": "ebc-dingboche", "toId": "ebc-dingboche", "distanceKm": 5.0, "ascentM": 400, "descentM": 400, "hours": 3.5, "sleepAltM": 4410, "isAcclimatization": true },
+    { "day": 7, "fromId": "ebc-dingboche", "toId": "ebc-lobuche", "distanceKm": 7.7, "ascentM": 550, "descentM": 20, "hours": 4.5, "sleepAltM": 4940, "isAcclimatization": false },
+    { "day": 8, "fromId": "ebc-lobuche", "toId": "ebc-gorakshep", "distanceKm": 7.5, "ascentM": 450, "descentM": 220, "hours": 6.0, "sleepAltM": 5164, "isAcclimatization": false },
+    { "day": 9, "fromId": "ebc-gorakshep", "toId": "ebc-pheriche", "distanceKm": 13.0, "ascentM": 500, "descentM": 1300, "hours": 7.0, "sleepAltM": 4371, "isAcclimatization": false }
+  ],
+  "line": {
+    "type": "LineString",
+    "coordinates": [
+      [86.7314, 27.6870],
+      [86.7130, 27.7400],
+      [86.7141, 27.8057],
+      [86.7640, 27.8362],
+      [86.8310, 27.8920],
+      [86.8108, 27.9480],
+      [86.8290, 27.9807],
+      [86.8528, 28.0026],
+      [86.8285, 27.9957],
+      [86.8190, 27.8950]
+    ]
+  }
+}
