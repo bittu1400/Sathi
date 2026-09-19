@@ -42,11 +42,11 @@ export default function StyleguidePage() {
     { name: "--surface-2", class: "bg-surface-2 text-text" },
     { name: "--surface-3", class: "bg-surface-3 text-text" },
     { name: "--accent", class: "bg-accent text-accent-ink" },
-    { name: "--ok", class: "bg-ok text-black" },
-    { name: "--info", class: "bg-info text-black" },
-    { name: "--caution", class: "bg-caution text-black" },
-    { name: "--warning", class: "bg-warning text-black" },
-    { name: "--danger", class: "bg-danger text-white" },
+    { name: "--ok", class: "bg-ok text-bg" },
+    { name: "--info", class: "bg-info text-bg" },
+    { name: "--caution", class: "bg-caution text-bg" },
+    { name: "--warning", class: "bg-warning text-bg" },
+    { name: "--danger", class: "bg-danger text-bg" },
     { name: "--sos", class: "bg-sos text-sos-ink" },
   ];
 

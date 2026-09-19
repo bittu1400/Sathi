@@ -73,7 +73,7 @@ export default async function RouteDetailPage({
                 <Badge variant="unverified">Summary Only</Badge>
               )}
             </div>
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-text tracking-tight">
               {route.name}
             </h1>
             <p className="text-text-muted text-base max-w-2xl">

@@ -172,17 +172,17 @@ export default function SettingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-        <p className="text-sm text-muted-foreground">Loading settings...</p>
+      <div className="min-h-screen flex items-center justify-center p-4 bg-bg">
+        <p className="text-sm text-text-muted">Loading settings...</p>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground py-8 px-4 max-w-2xl mx-auto space-y-8">
+    <div className="min-h-screen bg-bg text-text py-8 px-4 max-w-2xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-text-muted">
           Manage your profile, emergency contacts, and trekking preferences.
         </p>
       </div>
@@ -192,7 +192,7 @@ export default function SettingsPage() {
           role="alert"
           className={`p-3 text-sm rounded-lg border ${
             message.type === "success"
-              ? "bg-emerald-500/10 border-emerald-500 text-emerald-500"
+              ? "bg-ok/10 border-ok text-ok"
               : "bg-danger/10 border-danger text-danger"
           }`}
         >
@@ -202,7 +202,7 @@ export default function SettingsPage() {
 
       <form onSubmit={handleSave} className="space-y-6">
         {/* Profile Info */}
-        <section className="p-4 rounded-xl border border-border bg-card space-y-4">
+        <section className="p-4 rounded-xl border border-border bg-surface space-y-4">
           <h2 className="text-lg font-semibold">Trekker Profile</h2>
           <div className="space-y-1">
             <label htmlFor="displayName" className="block text-sm font-medium">
@@ -214,16 +214,16 @@ export default function SettingsPage() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g. Maya"
-              className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-3 py-2 border border-border rounded-md bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
         </section>
 
         {/* Emergency Contact */}
-        <section className="p-4 rounded-xl border border-border bg-card space-y-4">
+        <section className="p-4 rounded-xl border border-border bg-surface space-y-4">
           <div>
             <h2 className="text-lg font-semibold">Emergency Contact</h2>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-text-muted">
               Used for offline SOS SMS dispatch and rescue coordinator hand-off.
             </p>
           </div>
@@ -239,7 +239,7 @@ export default function SettingsPage() {
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 placeholder="e.g. Pasang Sherpa (Brother)"
-                className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-3 py-2 border border-border rounded-md bg-bg text-sm focus:outline-none focus:ring-2 focus:ring-accent"
               />
             </div>
 
@@ -253,9 +253,9 @@ export default function SettingsPage() {
                 value={contactPhone}
                 onChange={(e) => setContactPhone(e.target.value)}
                 placeholder="+9779801234567"
-                className="w-full px-3 py-2 border border-input rounded-md bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full px-3 py-2 border border-border rounded-md bg-bg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-accent"
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-text-muted">
                 Must include country code (e.g. +977 for Nepal).
               </p>
             </div>
@@ -263,7 +263,7 @@ export default function SettingsPage() {
         </section>
 
         {/* Preferences */}
-        <section className="p-4 rounded-xl border border-border bg-card space-y-4">
+        <section className="p-4 rounded-xl border border-border bg-surface space-y-4">
           <h2 className="text-lg font-semibold">Trekking Profile</h2>
 
           <div className="space-y-2">
@@ -276,8 +276,8 @@ export default function SettingsPage() {
                   onClick={() => setFitness(level)}
                   className={`px-3 py-2 text-sm rounded-md border text-center capitalize transition-colors ${
                     fitness === level
-                      ? "border-primary bg-primary/10 text-primary font-medium"
-                      : "border-input hover:bg-muted"
+                      ? "border-accent bg-accent/10 text-accent font-medium"
+                      : "border-border hover:bg-surface-2"
                   }`}
                 >
                   {level}
@@ -298,8 +298,8 @@ export default function SettingsPage() {
                     onClick={() => toggleTerrain(opt.id)}
                     className={`px-3 py-1.5 text-xs rounded-full border transition-colors ${
                       active
-                        ? "border-primary bg-primary text-primary-foreground font-medium"
-                        : "border-input hover:bg-muted text-muted-foreground"
+                        ? "border-accent bg-accent text-accent-ink font-medium"
+                        : "border-border hover:bg-surface-2 text-text-muted"
                     }`}
                   >
                     {opt.label}
@@ -311,12 +311,12 @@ export default function SettingsPage() {
         </section>
 
         {/* Downloaded Packs (A-06 slot) */}
-        <section className="p-4 rounded-xl border border-border bg-card space-y-2">
+        <section className="p-4 rounded-xl border border-border bg-surface space-y-2">
           <h2 className="text-lg font-semibold">Offline Map Packs</h2>
-          <p className="text-xs text-muted-foreground">
+          <p className="text-xs text-text-muted">
             Offline route packs downloaded to this device will appear here.
           </p>
-          <div className="p-4 rounded-lg bg-muted/50 border border-dashed border-border text-center text-xs text-muted-foreground">
+          <div className="p-4 rounded-lg bg-surface-2/50 border border-dashed border-border text-center text-xs text-text-muted">
             No offline packs downloaded yet. Packs can be downloaded from any route detail page.
           </div>
         </section>
@@ -335,7 +335,7 @@ export default function SettingsPage() {
       {/* Danger Zone */}
       <section className="pt-6 border-t border-border space-y-3">
         <h3 className="text-sm font-semibold text-danger">Danger Zone</h3>
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-text-muted">
           Permanently delete your profile and active trek data from this device and the server.
         </p>
         <Button
@@ -353,11 +353,11 @@ export default function SettingsPage() {
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70 p-4"
         >
-          <div className="bg-card border border-border rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
+          <div className="bg-surface border border-border rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
             <h4 className="text-lg font-bold">Delete your data?</h4>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-text-muted">
               This action cannot be undone. All your profile information, recorded tracks, and trek history will be permanently deleted.
             </p>
             <div className="flex justify-end gap-2 pt-2">

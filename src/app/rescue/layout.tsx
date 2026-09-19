@@ -12,7 +12,7 @@ export default async function RescueLayout({
   await requireRole("coordinator");
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-screen w-screen flex flex-col bg-bg text-text overflow-hidden">
       {children}
     </div>
   );

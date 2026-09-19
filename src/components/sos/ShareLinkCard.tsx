@@ -46,7 +46,7 @@ export function ShareLinkCard({ shareToken, className = "" }: ShareLinkCardProps
 
   return (
     <div
-      className={`rounded-2xl border border-border bg-card p-4 sm:p-5 space-y-3.5 ${className}`}
+      className={`rounded-2xl border border-border bg-surface p-4 sm:p-5 space-y-3.5 ${className}`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -54,21 +54,21 @@ export function ShareLinkCard({ shareToken, className = "" }: ShareLinkCardProps
             <Share2 className="h-4 w-4" />
           </div>
           <div>
-            <h4 className="text-sm font-semibold text-foreground">
+            <h4 className="text-sm font-semibold text-text">
               Family Share Link
             </h4>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-text-muted">
               Live updates for loved ones back home
             </p>
           </div>
         </div>
 
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-medium">
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-ok/10 text-ok border border-ok/20 font-medium">
           Privacy Protected
         </span>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      <p className="text-xs text-text-muted">
         Family can view your current route, altitude, and check-in status. GPS coordinates are rounded to 100 meters to protect your privacy. No medical details or symptoms are exposed.
       </p>
 
@@ -84,12 +84,12 @@ export function ShareLinkCard({ shareToken, className = "" }: ShareLinkCardProps
 
         <button
           onClick={handleCopy}
-          className="h-10 px-3.5 rounded-xl border border-border bg-muted/30 hover:bg-muted text-foreground text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
+          className="h-10 px-3.5 rounded-xl border border-border bg-surface-2/30 hover:bg-surface-2 text-text text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer"
           title="Copy Link"
         >
           {copied ? (
             <>
-              <Check className="h-3.5 w-3.5 text-emerald-400" />
+              <Check className="h-3.5 w-3.5 text-ok" />
               <span className="text-[11px]">Copied</span>
             </>
           ) : (
