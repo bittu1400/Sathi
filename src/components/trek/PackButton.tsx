@@ -48,7 +48,7 @@ export function PackButton({
   if (status === "ready") {
     return (
       <div className="flex items-center gap-2">
-        <Button variant="secondary" size="sm" className="bg-ok/10 text-ok border-ok/30">
+        <Button variant="secondary" className="bg-ok/10 text-ok border-ok/30">
           <CheckCircle className="w-4 h-4 mr-1.5" />
           Offline Ready
         </Button>
@@ -62,7 +62,7 @@ export function PackButton({
   if (status === "downloading") {
     return (
       <div className="space-y-1">
-        <Button variant="secondary" size="sm" disabled>
+        <Button variant="secondary" disabled>
           <Loader2 className="w-4 h-4 mr-2 animate-spin text-accent" />
           Downloading ({progress}%)
         </Button>
@@ -79,9 +79,9 @@ export function PackButton({
   const megabytes = Math.round(tilesBytes / (1024 * 1024));
 
   return (
-    <Button variant="secondary" size="sm" onClick={handleDownload}>
+    <Button variant="secondary" onClick={handleDownload}>
       <Download className="w-4 h-4 mr-2" />
-      Download Pack · {megabytes > 0 ? `${megabytes} MB` : "34 MB"}
+      Download offline pack{megabytes > 0 ? ` · ${megabytes} MB` : ""}
     </Button>
   );
 }

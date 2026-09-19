@@ -6,13 +6,14 @@ import { getRoute, getResources } from "@/lib/data";
 import { RouteDetail } from "@/lib/types";
 import { Stat } from "@/components/ui/stat";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
+import { PackButton } from "@/components/trek/PackButton";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
 import { Map } from "@/components/map/Map";
 import { ElevationProfile } from "@/components/trek/ElevationProfile";
 import { StagesTable } from "@/components/trek/StagesTable";
 import { ResourceList } from "@/components/trek/ResourceList";
-import { Mountain, AlertTriangle, ShieldCheck, Download, ArrowRight } from "lucide-react";
+import { Mountain, AlertTriangle, ShieldCheck, ArrowRight } from "lucide-react";
 
 export function generateStaticParams() {
   return [
@@ -41,12 +42,23 @@ export default async function RouteDetailPage({
   const fullRoute = isFullDetail ? (route as RouteDetail) : null;
   const resources = getResources().filter((r) => r.region.toLowerCase().includes(route.region.toLowerCase()));
 
-  const elevationWaypoints = fullRoute?.waypoints.map((wp, idx) => ({
-    id: wp.id,
-    name: wp.name,
-    altitudeM: wp.altM,
-    distanceKm: idx * 6,
-  }));
+  // Profile follows the stages in walking order; distance is the stages' own trail distance.
+  // Acclimatization days (from = to) are side hikes and don't move you along the trail.
+  const elevationWaypoints = fullRoute
+    ? fullRoute.stages
+        .filter((s) => s.fromId !== s.toId)
+        .reduce<{ id: string; name: string; altitudeM: number; distanceKm: number }[]>((ticks, stage) => {
+          const byId = (id: string) => fullRoute.waypoints.find((w) => w.id === id);
+          if (ticks.length === 0) {
+            const from = byId(stage.fromId);
+            if (from) ticks.push({ id: from.id, name: from.name, altitudeM: from.altM, distanceKm: 0 });
+          }
+          const to = byId(stage.toId);
+          const last = ticks.at(-1)?.distanceKm ?? 0;
+          if (to) ticks.push({ id: to.id, name: to.name, altitudeM: to.altM, distanceKm: last + stage.distanceKm });
+          return ticks;
+        }, [])
+    : undefined;
 
   return (
     <div className="space-y-8 pb-20">
@@ -68,12 +80,12 @@ export default async function RouteDetailPage({
                 {route.difficulty.toUpperCase()}
               </Badge>
               {route.hasFullData ? (
-                <Badge variant="ok">Offline Pack Available</Badge>
+                <Badge variant="ok">Full route data</Badge>
               ) : (
                 <Badge variant="unverified">Summary Only</Badge>
               )}
             </div>
-            <h1 className="text-3xl sm:text-5xl font-extrabold text-white tracking-tight">
+            <h1 className="text-3xl sm:text-5xl font-extrabold text-text tracking-tight">
               {route.name}
             </h1>
             <p className="text-text-muted text-base max-w-2xl">
@@ -176,22 +188,21 @@ export default async function RouteDetailPage({
       </div>
 
       {/* Sticky Bottom CTA Bar */}
-      <div className="fixed bottom-16 md:bottom-4 left-4 right-4 max-w-4xl mx-auto z-30 bg-surface/95 backdrop-blur-md p-4 rounded-[var(--radius)] border border-border shadow-2xl flex items-center justify-between gap-4">
+      <div className="fixed bottom-16 md:bottom-4 left-4 right-[100px] md:right-4 max-w-4xl mx-auto z-30 bg-surface/95 backdrop-blur-md p-4 rounded-[var(--radius)] border border-border shadow-2xl flex items-center justify-between gap-4">
         <div className="hidden sm:block">
           <p className="font-semibold text-sm">{route.name}</p>
           <p className="text-xs text-text-muted">{route.days[0]}–{route.days[1]} Days · {route.maxAltitudeM.toLocaleString()} m</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
-          <Button variant="secondary" className="flex-1 sm:flex-initial" disabled>
-            <Download className="w-4 h-4 mr-2" />
-            Offline Pack (34 MB)
-          </Button>
-          <Link href={`/trek?route=${route.id}`} className="flex-1 sm:flex-initial">
-            <Button variant="primary" className="w-full">
-              Start Trek
+          {fullRoute && (
+            <PackButton routeId={fullRoute.id} tilesUrl={fullRoute.tilesUrl} tilesBytes={fullRoute.tilesBytes} />
+          )}
+          {fullRoute && (
+            <Link href={`/trek?route=${route.id}`} className={buttonVariants({ className: "flex-1 sm:flex-initial" })}>
+              Start trek
               <ArrowRight className="w-4 h-4 ml-2" />
-            </Button>
-          </Link>
+            </Link>
+          )}
         </div>
       </div>
     </div>

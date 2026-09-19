@@ -1,40 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { Sun, Moon } from "lucide-react";
 
+export type Theme = "dark" | "sunlight";
+const EVENT = "sathi:theme";
+
+function read(): Theme {
+  return document.documentElement.getAttribute("data-theme") === "sunlight" ? "sunlight" : "dark";
+}
+
+function subscribe(onChange: () => void) {
+  window.addEventListener(EVENT, onChange);
+  return () => window.removeEventListener(EVENT, onChange);
+}
+
+/** Current theme, hydration-safe (server renders the dark default). */
+export function useTheme(): Theme {
+  return useSyncExternalStore(subscribe, read, () => "dark");
+}
+
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const [theme, setTheme] = useState<"dark" | "sunlight">(() => {
-    if (typeof window !== "undefined") {
-      const current = document.documentElement.getAttribute("data-theme");
-      if (current === "sunlight" || current === "dark") return current;
-    }
-    return "dark";
-  });
+  const theme = useTheme();
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "sunlight" : "dark";
-    setTheme(next);
     document.documentElement.setAttribute("data-theme", next);
     try {
       localStorage.setItem("sathi-theme", next);
     } catch {
-      // Ignore storage errors
+      // private mode: theme still applies for this visit
     }
+    window.dispatchEvent(new Event(EVENT));
   };
 
   return (
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label="Toggle theme"
-      className={`p-2 rounded-xl border border-border bg-surface hover:bg-surface-2 text-text transition-colors flex items-center justify-center cursor-pointer min-h-[44px] min-w-[44px] ${className}`}
+      aria-label={theme === "dark" ? "Switch to sunlight theme" : "Switch to dark theme"}
+      className={`flex h-12 w-12 cursor-pointer items-center justify-center rounded-xl border border-border bg-surface text-text transition-colors hover:bg-surface-2 ${className}`}
     >
-      {theme === "dark" ? (
-        <Sun className="w-5 h-5 text-warning" />
-      ) : (
-        <Moon className="w-5 h-5 text-accent" />
-      )}
+      {theme === "dark" ? <Sun className="h-5 w-5 text-warning" /> : <Moon className="h-5 w-5 text-accent" />}
     </button>
   );
 }

@@ -9,12 +9,15 @@ import { Mountain, ArrowRight, ShieldCheck } from "lucide-react";
 
 export interface StartTrekProps {
   routes: RouteSummary[];
+  initialRouteId?: string;
+  disabled?: boolean;
   onStart: (routeId: string) => void;
 }
 
-export function StartTrek({ routes, onStart }: StartTrekProps) {
+export function StartTrek({ routes, initialRouteId, disabled, onStart }: StartTrekProps) {
+  const startable = routes.filter((r) => r.hasFullData);
   const [selectedRouteId, setSelectedRouteId] = React.useState<string>(
-    routes[0]?.id || "ebc"
+    startable.find((r) => r.id === initialRouteId)?.id ?? startable[0]?.id ?? ""
   );
 
   return (
@@ -34,9 +37,7 @@ export function StartTrek({ routes, onStart }: StartTrekProps) {
           <h3 className="font-semibold text-sm">1. Select Trekking Route</h3>
         </CardHeader>
         <CardBody className="space-y-3">
-          {routes
-            .filter((r) => r.hasFullData)
-            .map((route) => (
+          {startable.map((route) => (
               <button
                 key={route.id}
                 type="button"
@@ -77,6 +78,7 @@ export function StartTrek({ routes, onStart }: StartTrekProps) {
         variant="primary"
         size="lg"
         className="w-full"
+        disabled={disabled || !selectedRouteId}
         onClick={() => onStart(selectedRouteId)}
       >
         Start Active Trek

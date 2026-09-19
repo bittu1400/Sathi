@@ -1,9 +1,11 @@
 import * as React from "react";
 import { cn } from "cn";
 import { Mountain } from "lucide-react";
+import { formatGain } from "@/lib/format";
 
 export interface AltitudeHeroProps {
-  altitudeM: number;
+  /** null = no GPS fix yet. */
+  altitudeM: number | null;
   gainSinceLastNightM?: number;
   severity?: "ok" | "info" | "caution" | "warning" | "danger";
   className?: string;
@@ -20,7 +22,7 @@ export function AltitudeHero({
     info: "text-info bg-info/10 border-info/30",
     caution: "text-caution bg-caution/15 border-caution/40",
     warning: "text-warning bg-warning/15 border-warning/40",
-    danger: "text-danger bg-danger/15 border-danger/40 animate-pulse",
+    danger: "text-danger bg-danger/15 border-danger/40 animate-pulse motion-reduce:animate-none",
   };
 
   return (
@@ -32,15 +34,19 @@ export function AltitudeHero({
     >
       <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-semibold text-text-muted">
         <Mountain className="w-4 h-4 text-accent" />
-        Current Trekking Altitude
+        Current altitude
       </div>
 
-      <div className="flex items-baseline justify-center gap-2 font-mono tabular-nums">
-        <span className="text-5xl sm:text-6xl font-extrabold text-text tracking-tight">
-          {altitudeM.toLocaleString()}
-        </span>
-        <span className="text-xl text-text-muted font-sans font-medium">m</span>
-      </div>
+      {altitudeM === null ? (
+        <p className="py-3 text-lg font-semibold text-text-muted">Waiting for GPS…</p>
+      ) : (
+        <div className="flex items-baseline justify-center gap-2 font-mono tabular-nums">
+          <span className="text-5xl sm:text-6xl font-extrabold text-text tracking-tight">
+            {altitudeM.toLocaleString("en-US")}
+          </span>
+          <span className="text-xl text-text-muted font-sans font-medium">m</span>
+        </div>
+      )}
 
       {gainSinceLastNightM !== undefined && (
         <div
@@ -49,9 +55,7 @@ export function AltitudeHero({
             severityColors[severity]
           )}
         >
-          {gainSinceLastNightM >= 0
-            ? `+${gainSinceLastNightM} m since last night`
-            : `${gainSinceLastNightM} m since last night`}
+          {formatGain(gainSinceLastNightM)} sleeping altitude since last night
         </div>
       )}
     </div>

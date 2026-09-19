@@ -23,6 +23,9 @@ export function getMapStyle(
           },
         }
       : {},
-    layers: sourceUrl ? styleLayers : [],
+    // Without tiles the route still draws on a themed background.
+    layers: sourceUrl
+      ? styleLayers
+      : [{ id: "background", type: "background", paint: { "background-color": getComputedStyle(document.documentElement).getPropertyValue("--surface-2").trim() } }],
   };
 }

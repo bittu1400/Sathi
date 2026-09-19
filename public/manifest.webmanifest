@@ -8,23 +8,38 @@
   "theme_color": "#0A0E13",
   "icons": [
     {
-      "src": "/favicon.ico",
-      "sizes": "64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
   "shortcuts": [
     {
       "name": "Trek Mode",
       "short_name": "Trek",
-      "description": "Open active trek tracking and altitude hero",
+      "description": "Open trek mode",
       "url": "/trek"
     },
     {
       "name": "SOS Emergency",
       "short_name": "SOS",
-      "description": "Trigger emergency rescue alert",
-      "url": "/trek"
+      "description": "Open the emergency SOS page",
+      "url": "/sos"
     }
-  ]
+  ],
+  "id": "/",
+  "scope": "/"
 }

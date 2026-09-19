@@ -23,7 +23,7 @@ export function LandingHero() {
             Offline-First Trekking Safety PWA
           </Badge>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-white leading-tight">
+          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-text leading-tight">
             Trek higher. <br />
             <span className="text-accent">Come home safely.</span>
           </h1>
