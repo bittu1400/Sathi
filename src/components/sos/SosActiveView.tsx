@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import type { SosEvent } from "@/lib/types"
+import { Banner } from "@/components/ui/banner"
 import { SosStatus } from "./SosStatus"
 import { OfflineSosPanel } from "./OfflineSosPanel"
 import { resolveOwnSos } from "@/lib/sos-actions"
@@ -25,11 +26,7 @@ export function SosActiveView({ sos, onDone }: { sos: SosEvent; onDone?: () => v
   return (
     <div>
       {sos.receivedAt ? <SosStatus sos={sos} onResolve={resolve} /> : <OfflineSosPanel sos={sos} onResolve={resolve} />}
-      {error && (
-        <p role="alert" className="mx-6 mb-6 rounded-[var(--radius-sm)] border border-danger/40 bg-danger/10 p-3 text-sm text-danger">
-          {error}
-        </p>
-      )}
+      {error && <Banner severity="danger" headline="SOS not closed" reasons={[error]} className="mx-6 mb-6" />}
     </div>
   )
 }

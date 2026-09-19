@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAgo, formatAltitude, formatGain, formatKm, formatNepalTime } from "./format";
+import { formatAgo, formatCoords, formatAltitude, formatGain, formatKm, formatNepalTime } from "./format";
 
 describe("format", () => {
   it("formats altitude with a thousands separator", () => {
@@ -30,5 +30,12 @@ describe("formatAgo", () => {
   });
   it("never goes negative when the clock is behind", () => {
     expect(formatAgo("2026-10-01T12:05:00Z", now)).toBe("just now");
+  });
+});
+
+describe("formatCoords", () => {
+  it("adds hemisphere letters and four decimals", () => {
+    expect(formatCoords(27.98813, 86.925)).toBe("27.9881° N, 86.9250° E");
+    expect(formatCoords(-12.5, -70.25)).toBe("12.5000° S, 70.2500° W");
   });
 });
