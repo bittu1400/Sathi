@@ -2,7 +2,7 @@ import React from "react";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { formatAltitude, formatNepalTime } from "@/lib/format";
-import { TopoBackground } from "@/components/rescue/TopoBackground";
+import { TopoBackground } from "@/components/ui/topo-background";
 import {
   Shield,
   MapPin,

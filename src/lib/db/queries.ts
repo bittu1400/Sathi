@@ -29,6 +29,11 @@ function must<T>({ data, error }: { data: T | null; error: { message: string } |
   return data as T;
 }
 
+// RLS turns a forbidden update into "0 rows, no error"; treat that as a failure.
+function updatedOne(result: { data: unknown[] | null; error: { message: string } | null }) {
+  if (must(result)?.length !== 1) throw new Error("Not allowed, or the SOS no longer exists.");
+}
+
 export async function getProfile(sb: SupabaseClient, userId: string): Promise<Profile | null> {
   const row = must(await sb.from("profiles").select("*").eq("id", userId).maybeSingle<ProfileRow>());
   return row ? toProfile(row) : null;
@@ -177,20 +182,79 @@ export async function listActiveTreksWithLatestPosition(sb: SupabaseClient): Pro
 }
 
 export async function ackSos(sb: SupabaseClient, sosId: string, coordinatorId: string): Promise<void> {
-  must(
+  updatedOne(
     await sb
       .from("sos_events")
       .update({ status: "acknowledged", acknowledged_at: new Date().toISOString(), acknowledged_by: coordinatorId })
-      .eq("id", sosId),
+      .eq("id", sosId)
+      .select("id"),
   );
 }
 
 /** Coordinator resolution, or a trekker marking their own SOS safe. */
 export async function resolveSos(sb: SupabaseClient, sosId: string, note: string | null): Promise<void> {
-  must(
+  updatedOne(
     await sb
       .from("sos_events")
       .update({ status: "resolved", resolved_at: new Date().toISOString(), resolution_note: note })
-      .eq("id", sosId),
+      .eq("id", sosId)
+      .select("id"),
   );
+}
+
+/** Alerts created in the last `hours` across every trek the caller can see. */
+export async function countRecentAlerts(sb: SupabaseClient, hours = 24): Promise<number> {
+  const since = new Date(Date.now() - hours * 3_600_000).toISOString();
+  const { count, error } = await sb
+    .from("alerts")
+    .select("id", { count: "exact", head: true })
+    .gte("created_at", since);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+export interface FleetTrekker extends ActiveTrekLocation {
+  lastCheckin: Checkin | null;
+  openAlerts: number;
+  emergencyContact: { name: string; phone: string } | null;
+}
+
+/**
+ * Active treks the caller may see (RLS: an agency admin sees their agency's trekkers)
+ * with last check-in, unacknowledged alert count and emergency contact. 4 queries, no N+1.
+ */
+export async function listFleet(sb: SupabaseClient): Promise<FleetTrekker[]> {
+  const treks = await listActiveTreksWithLatestPosition(sb);
+  if (treks.length === 0) return [];
+  const trekIds = treks.map((t) => t.trekId);
+  const [checkins, alerts, profiles] = await Promise.all([
+    sb.from("checkins").select("*").in("trek_id", trekIds).order("recorded_at", { ascending: false }).limit(500).returns<CheckinRow[]>(),
+    sb.from("alerts").select("trek_id").in("trek_id", trekIds).is("acknowledged_at", null).returns<{ trek_id: string }[]>(),
+    sb
+      .from("profiles")
+      .select("id, emergency_contact_name, emergency_contact_phone")
+      .in("id", treks.map((t) => t.userId))
+      .returns<Pick<ProfileRow, "id" | "emergency_contact_name" | "emergency_contact_phone">[]>(),
+  ]);
+  const lastCheckin = new Map<string, Checkin>();
+  for (const row of must(checkins)) if (!lastCheckin.has(row.trek_id)) lastCheckin.set(row.trek_id, toCheckin(row));
+  const alertCount = new Map<string, number>();
+  for (const a of must(alerts)) alertCount.set(a.trek_id, (alertCount.get(a.trek_id) ?? 0) + 1);
+  const contact = new Map(must(profiles).map((p) => [p.id, p]));
+  return treks.map((t) => {
+    const p = contact.get(t.userId);
+    return {
+      ...t,
+      lastCheckin: lastCheckin.get(t.trekId) ?? null,
+      openAlerts: alertCount.get(t.trekId) ?? 0,
+      emergencyContact: p?.emergency_contact_phone
+        ? { name: p.emergency_contact_name ?? "", phone: p.emergency_contact_phone }
+        : null,
+    };
+  });
+}
+
+export async function getAgencyName(sb: SupabaseClient, agencyId: string): Promise<string | null> {
+  const row = must(await sb.from("agencies").select("name").eq("id", agencyId).maybeSingle<{ name: string }>());
+  return row?.name ?? null;
 }

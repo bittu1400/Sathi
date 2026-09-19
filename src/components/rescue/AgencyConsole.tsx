@@ -1,341 +1,250 @@
 "use client"
 
-import React, { useState, useEffect } from "react"
+import React, { useCallback, useEffect, useState } from "react"
+import { Compass, AlertTriangle, LifeBuoy, Phone, X, Users } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
+import { listFleet, listSos, type FleetTrekker, type SosWithContext } from "@/lib/db/queries"
+import { formatAltitude, formatNepalTime } from "@/lib/format"
+import { RED_FLAG_LABELS } from "@/lib/ams-copy"
+import { EmptyState } from "@/components/ui/empty-state"
 import { RescueMap } from "./RescueMap"
-import type { ExtendedSosEvent } from "./SosQueue"
-import { formatAltitude } from "@/lib/format"
-import {
-  Users,
-  Compass,
-  AlertTriangle,
-  LifeBuoy,
-  Shield,
-  Activity,
-  Phone,
-  X,
-} from "lucide-react"
+import { CATEGORY_LABELS, routeName } from "./SosQueue"
+import { cn } from "cn"
 
-export interface AgencyTrekker {
-  id: string
-  name: string
-  route: string
-  routeId: string
-  dayNumber: number
-  altitudeM: number
-  dailyGainM: number
-  lastLls: number | null
-  activeAlertsCount: number
-  sosActive: boolean
-  sosCategory?: string
-  lat: number
-  lng: number
-  emergencyContact?: { name: string; phone: string }
-}
+const POLL_MS = 10_000
+const DAY_MS = 86_400_000
+const nepalDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" })
+const dayOf = (startedAt: string | null, today: string) =>
+  startedAt ? Math.round((Date.parse(today) - Date.parse(nepalDay.format(new Date(startedAt)))) / DAY_MS) + 1 : null
 
 interface AgencyConsoleProps {
-  initialTrekkers: AgencyTrekker[]
-  initialSosEvents: ExtendedSosEvent[]
-  agencyName?: string
+  initialFleet: FleetTrekker[]
+  initialSos: SosWithContext[]
+  initialError: string | null
+  agencyName: string
 }
 
-export function AgencyConsole({
-  initialTrekkers,
-  initialSosEvents,
-  agencyName = "Summit Treks (demo)",
-}: AgencyConsoleProps) {
-  const [trekkers, setTrekkers] = useState<AgencyTrekker[]>(initialTrekkers)
-  const [sosEvents] = useState<ExtendedSosEvent[]>(initialSosEvents)
-  const [selectedTrekker, setSelectedTrekker] = useState<AgencyTrekker | null>(null)
+/** Read-only fleet view for an agency admin (C-10). Everything comes from the database. */
+export function AgencyConsole({ initialFleet, initialSos, initialError, agencyName }: AgencyConsoleProps) {
+  const [fleet, setFleet] = useState(initialFleet)
+  const [sos, setSos] = useState(initialSos)
+  const [error, setError] = useState(initialError)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // Realtime subscription for dynamic updates during demo
-  useEffect(() => {
-    const supabase = createClient()
-
-    // 1. Subscribe to SOS events
-    const sosChannel = supabase
-      .channel("agency-sos-realtime")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "sos_events" },
-        (payload) => {
-          const sosPayload = payload.new as { status?: string; category?: string } | null
-          if (sosPayload) {
-            setTrekkers((prev) =>
-              prev.map((t) =>
-                t.name.toLowerCase().includes("maya")
-                  ? { ...t, sosActive: sosPayload.status !== "resolved", sosCategory: sosPayload.category }
-                  : t
-              )
-            )
-          }
-        }
-      )
-      .subscribe()
-
-    // 2. Subscribe to Alerts
-    const alertChannel = supabase
-      .channel("agency-alerts-realtime")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "alerts" },
-        () => {
-          setTrekkers((prev) =>
-            prev.map((t) =>
-              t.name.toLowerCase().includes("maya")
-                ? { ...t, activeAlertsCount: t.activeAlertsCount + 1 }
-                : t
-            )
-          )
-        }
-      )
-      .subscribe()
-
-    // 3. Listen to local demo driver changes
-    const handleStorage = () => {
-      // Re-read local status if demo running on same browser
-      const forcedOffline = localStorage.getItem("sathiForcedOffline") === "1"
-      if (!forcedOffline) {
-        // Can refresh trekker state
-      }
-    }
-    window.addEventListener("storage", handleStorage)
-
-    return () => {
-      supabase.removeChannel(sosChannel)
-      supabase.removeChannel(alertChannel)
-      window.removeEventListener("storage", handleStorage)
+  const refresh = useCallback(async () => {
+    const sb = createClient()
+    try {
+      const [nextFleet, nextSos] = await Promise.all([listFleet(sb), listSos(sb, { unresolvedOnly: true })])
+      setFleet(nextFleet)
+      setSos(nextSos)
+      setError(null)
+    } catch {
+      setError("Live data unavailable. Retrying…")
     }
   }, [])
 
-  // Map representation of active agency trekkers
-  const mapLocations = trekkers.map((t) => ({
-    trekId: t.id,
-    trekkerName: t.name,
-    routeId: t.routeId,
-    position: {
-      id: t.id,
-      trekId: t.id,
-      lat: t.lat,
-      lng: t.lng,
-      altM: t.altitudeM,
-      accuracyM: 10,
-      recordedAt: new Date().toISOString(),
-      source: "demo" as const,
-    },
-  }))
+  useEffect(() => {
+    const sb = createClient()
+    const channel = sb
+      .channel("agency-console")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sos_events" }, refresh)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "alerts" }, refresh)
+      .subscribe()
+    const poll = setInterval(refresh, POLL_MS)
+    return () => {
+      clearInterval(poll)
+      sb.removeChannel(channel)
+    }
+  }, [refresh])
 
-  const getLlsDot = (score: number | null) => {
-    if (score === null) return <span className="text-muted-foreground">-</span>
-    if (score <= 2) return <span className="inline-block w-2.5 h-2.5 rounded-full bg-emerald-500" title={`LLS ${score} (Normal)`} />
-    if (score <= 5) return <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-500" title={`LLS ${score} (Mild AMS)`} />
-    return <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" title={`LLS ${score} (Moderate/Severe AMS)`} />
-  }
+  const sosByTrek = new Map(sos.filter((s) => s.trekId).map((s) => [s.trekId!, s]))
+  const selected = fleet.find((t) => t.trekId === selectedId) ?? null
+  const today = nepalDay.format(new Date())
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-background text-foreground overflow-hidden">
-      {/* Top Header */}
-      <header className="h-14 border-b border-border bg-card/60 backdrop-blur px-6 flex items-center justify-between shrink-0">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-bg text-text">
+      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface/60 px-6 backdrop-blur">
         <div className="flex items-center gap-3">
-          <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
-            <Compass className="h-4 w-4 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight">
-              {agencyName} <span className="text-muted-foreground font-normal">· {trekkers.length} trekkers on trail</span>
-            </h1>
-          </div>
+          <Compass className="h-5 w-5 text-accent" />
+          <h1 className="text-sm font-bold tracking-tight">
+            {agencyName} <span className="font-normal text-text-muted">· {fleet.length} on trail</span>
+          </h1>
         </div>
-
-        <div className="flex items-center gap-3 text-xs font-mono">
-          <span className="px-2.5 py-1 rounded-md bg-muted border border-border text-muted-foreground flex items-center gap-1.5">
-            <Shield className="w-3.5 h-3.5 text-primary" />
-            TAAN LICENSED AGENCY
-          </span>
-          <span className="px-2.5 py-1 rounded-md bg-muted border border-border text-emerald-500 flex items-center gap-1.5">
-            <Activity className="w-3.5 h-3.5" />
-            TELEMETRY LIVE
-          </span>
-        </div>
+        <span className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-2.5 py-1 text-xs text-text-muted">
+          Read-only view
+        </span>
       </header>
 
-      {/* Main Split Grid */}
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
-        {/* Left: Trekkers Table */}
-        <div className="lg:col-span-7 border-r border-border flex flex-col h-full overflow-hidden bg-background">
-          <div className="p-3 border-b border-border bg-muted/30 text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center justify-between">
-            <span>Agency Fleet Status</span>
-            <span>Click row for details</span>
-          </div>
+      {error && (
+        <p role="alert" className="border-b border-danger/40 bg-danger/10 px-6 py-2 text-sm text-danger">
+          {error}
+        </p>
+      )}
 
-          <div className="flex-1 overflow-y-auto">
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="sticky top-0 bg-card border-b border-border text-muted-foreground font-medium">
-                <tr>
-                  <th className="py-2.5 px-4">Trekker</th>
-                  <th className="py-2.5 px-3">Route</th>
-                  <th className="py-2.5 px-3">Day</th>
-                  <th className="py-2.5 px-3">Altitude</th>
-                  <th className="py-2.5 px-3">Gain</th>
-                  <th className="py-2.5 px-3 text-center">LLS</th>
-                  <th className="py-2.5 px-3 text-center">Alerts</th>
-                  <th className="py-2.5 px-3 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border">
-                {trekkers.map((t) => (
-                  <tr
-                    key={t.id}
-                    onClick={() => setSelectedTrekker(t)}
-                    className={`cursor-pointer transition-colors hover:bg-muted/40 ${
-                      selectedTrekker?.id === t.id ? "bg-muted/60" : ""
-                    } ${t.sosActive ? "bg-red-500/10 hover:bg-red-500/20" : ""}`}
-                  >
-                    <td className="py-3 px-4 font-semibold text-foreground flex items-center gap-2">
-                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{t.name}</span>
-                    </td>
-                    <td className="py-3 px-3 text-muted-foreground">{t.route}</td>
-                    <td className="py-3 px-3 font-mono font-medium">Day {t.dayNumber}</td>
-                    <td className="py-3 px-3 font-mono font-semibold text-foreground">
-                      {formatAltitude(t.altitudeM)}
-                    </td>
-                    <td className="py-3 px-3 font-mono text-muted-foreground">
-                      {t.dailyGainM > 0 ? `+${t.dailyGainM} m` : `${t.dailyGainM} m`}
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1.5">
-                        {getLlsDot(t.lastLls)}
-                        <span className="font-mono">{t.lastLls ?? "-"}</span>
-                      </div>
-                    </td>
-                    <td className="py-3 px-3 text-center">
-                      {t.activeAlertsCount > 0 ? (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-500 font-bold font-mono">
-                          <AlertTriangle className="w-3 h-3" />
-                          {t.activeAlertsCount}
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground font-mono">0</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-3 text-right">
-                      {t.sosActive ? (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white font-bold text-[10px] animate-pulse">
-                          <LifeBuoy className="w-3 h-3" />
-                          SOS ACTIVE
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-500 text-[10px] font-semibold">
-                          ON TRAIL
-                        </span>
-                      )}
-                    </td>
+      <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-12">
+        <div className="flex h-full flex-col overflow-hidden border-r border-border lg:col-span-7">
+          {fleet.length === 0 ? (
+            <EmptyState
+              className="m-6"
+              icon={<Users className="h-6 w-6 text-text-muted" />}
+              title="No active treks"
+              description="Trekkers linked to your agency appear here once they start a trek."
+            />
+          ) : (
+            <div className="flex-1 overflow-y-auto">
+              <table className="w-full border-collapse text-left text-xs">
+                <thead className="sticky top-0 border-b border-border bg-surface font-medium text-text-muted">
+                  <tr>
+                    <th className="px-4 py-2.5">Trekker</th>
+                    <th className="px-3 py-2.5">Route</th>
+                    <th className="px-3 py-2.5">Day</th>
+                    <th className="px-3 py-2.5">Altitude</th>
+                    <th className="px-3 py-2.5 text-center">Last LLS</th>
+                    <th className="px-3 py-2.5 text-center">Open alerts</th>
+                    <th className="px-3 py-2.5 text-right">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {fleet.map((t) => {
+                    const openSos = sosByTrek.get(t.trekId)
+                    return (
+                      <tr
+                        key={t.trekId}
+                        tabIndex={0}
+                        onClick={() => setSelectedId(t.trekId)}
+                        onKeyDown={(e) => e.key === "Enter" && setSelectedId(t.trekId)}
+                        className={cn(
+                          "cursor-pointer transition-colors hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-accent",
+                          selectedId === t.trekId && "bg-surface-2",
+                          openSos && "bg-sos/10",
+                        )}
+                      >
+                        <td className="px-4 py-3 font-semibold">{t.trekkerName}</td>
+                        <td className="px-3 py-3 text-text-muted">{routeName(t.routeId)}</td>
+                        <td className="px-3 py-3 font-mono tabular-nums">{dayOf(t.startedAt, today) ?? "—"}</td>
+                        <td className="px-3 py-3 font-mono font-semibold tabular-nums">
+                          {t.position?.altM != null ? formatAltitude(t.position.altM) : "—"}
+                        </td>
+                        <td className="px-3 py-3 text-center font-mono tabular-nums">{t.lastCheckin?.lls ?? "—"}</td>
+                        <td className="px-3 py-3 text-center">
+                          {t.openAlerts > 0 ? (
+                            <span className="inline-flex items-center gap-1 rounded bg-caution/20 px-1.5 py-0.5 font-mono font-bold text-caution">
+                              <AlertTriangle className="h-3 w-3" />
+                              {t.openAlerts}
+                            </span>
+                          ) : (
+                            <span className="font-mono text-text-muted">0</span>
+                          )}
+                        </td>
+                        <td className="px-3 py-3 text-right">
+                          {openSos ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-sos px-2 py-0.5 text-[10px] font-bold text-sos-ink">
+                              <LifeBuoy className="h-3 w-3" />
+                              SOS {openSos.status === "acknowledged" ? "ACK" : "OPEN"}
+                            </span>
+                          ) : (
+                            <span className="rounded-full bg-ok/20 px-2 py-0.5 text-[10px] font-semibold text-ok">ON TRAIL</span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
 
-        {/* Right: Tactical Fleet Map */}
-        <div className="lg:col-span-5 flex flex-col h-full border-l border-border relative bg-muted/10">
+        <div className="relative flex h-full flex-col lg:col-span-5">
           <RescueMap
-            events={sosEvents}
-            selectedId={selectedTrekker?.id || null}
-            onSelect={(id) => {
-              const matched = trekkers.find((t) => t.id === id)
-              if (matched) setSelectedTrekker(matched)
-            }}
-            activeTreks={mapLocations}
+            events={sos}
+            treks={fleet}
+            selectedId={selected ? (sosByTrek.get(selected.trekId)?.id ?? null) : null}
+            onSelect={(sosId) => setSelectedId(sos.find((s) => s.id === sosId)?.trekId ?? null)}
           />
         </div>
       </div>
 
-      {/* Trekker Detail Drawer Modal */}
-      {selectedTrekker && (
-        <div className="fixed inset-y-0 right-0 w-full sm:w-96 bg-card border-l border-border shadow-2xl z-50 flex flex-col p-5 overflow-y-auto space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
+      {selected && (
+        <aside
+          aria-label={`${selected.trekkerName} details`}
+          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col space-y-4 overflow-y-auto border-l border-border bg-surface p-5 shadow-2xl sm:w-96"
+        >
+          <div className="flex items-center justify-between border-b border-border pb-3">
             <div>
-              <h2 className="text-base font-bold">{selectedTrekker.name}</h2>
-              <p className="text-xs text-muted-foreground">{selectedTrekker.route} · Day {selectedTrekker.dayNumber}</p>
+              <h2 className="text-base font-bold">{selected.trekkerName}</h2>
+              <p className="text-xs text-text-muted">
+                {routeName(selected.routeId)} · Day {dayOf(selected.startedAt, today) ?? "—"}
+              </p>
             </div>
             <button
-              onClick={() => setSelectedTrekker(null)}
-              className="p-1 rounded-md text-muted-foreground hover:bg-muted"
+              type="button"
+              aria-label="Close"
+              onClick={() => setSelectedId(null)}
+              className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2"
             >
-              <X className="w-4 h-4" />
+              <X className="h-4 w-4" />
             </button>
           </div>
 
-          {/* Status Alert if SOS */}
-          {selectedTrekker.sosActive && (
-            <div className="p-3 rounded-lg bg-red-600 text-white space-y-1">
-              <div className="flex items-center gap-2 font-bold text-xs">
-                <LifeBuoy className="w-4 h-4" />
-                <span>DISTRESS SIGNAL IN PROGRESS</span>
-              </div>
-              <p className="text-[11px] text-red-100">
-                Rescue coordination has been notified. Category: {selectedTrekker.sosCategory || "Altitude Illness"}.
+          {sosByTrek.get(selected.trekId) && (
+            <div className="space-y-1 rounded-[var(--radius-sm)] bg-sos p-3 text-sos-ink">
+              <p className="flex items-center gap-2 text-xs font-bold">
+                <LifeBuoy className="h-4 w-4" /> SOS {sosByTrek.get(selected.trekId)!.status}
+              </p>
+              <p className="text-[11px]">
+                {CATEGORY_LABELS[sosByTrek.get(selected.trekId)!.category]} · sent{" "}
+                {formatNepalTime(sosByTrek.get(selected.trekId)!.createdAt)} NPT. Coordination handles the response.
               </p>
             </div>
           )}
 
-          {/* Key Metrics */}
           <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="p-3 rounded-lg bg-muted/40 border border-border">
-              <span className="text-muted-foreground block text-[10px] uppercase font-semibold">Current Altitude</span>
-              <span className="text-base font-bold font-mono text-foreground">
-                {formatAltitude(selectedTrekker.altitudeM)}
+            <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3">
+              <span className="block text-[10px] font-semibold uppercase text-text-muted">Altitude</span>
+              <span className="font-mono text-base font-bold tabular-nums">
+                {selected.position?.altM != null ? formatAltitude(selected.position.altM) : "—"}
               </span>
             </div>
-
-            <div className="p-3 rounded-lg bg-muted/40 border border-border">
-              <span className="text-muted-foreground block text-[10px] uppercase font-semibold">24h Ascent Gain</span>
-              <span className="text-base font-bold font-mono text-foreground">
-                +{selectedTrekker.dailyGainM} m
+            <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3">
+              <span className="block text-[10px] font-semibold uppercase text-text-muted">Last position</span>
+              <span className="font-mono text-base font-bold tabular-nums">
+                {selected.position ? `${formatNepalTime(selected.position.recordedAt)} NPT` : "—"}
               </span>
             </div>
           </div>
 
-          {/* Lake Louise Status */}
-          <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-muted-foreground uppercase text-[10px]">Lake Louise Score</span>
-              <span className="font-mono font-bold">{selectedTrekker.lastLls ?? "None"} / 12</span>
-            </div>
-            <p className="text-[11px] text-muted-foreground">
-              {selectedTrekker.lastLls && selectedTrekker.lastLls >= 6
-                ? "Moderate symptoms reported. Advised to cease ascent and rest at current elevation."
-                : "Symptoms within normal baseline thresholds."}
-            </p>
+          <div className="space-y-1 rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3 text-xs">
+            <span className="block text-[10px] font-semibold uppercase text-text-muted">Last check-in</span>
+            {selected.lastCheckin ? (
+              <>
+                <p className="font-mono font-bold">
+                  LLS {selected.lastCheckin.lls}/12 · {formatNepalTime(selected.lastCheckin.recordedAt)} NPT
+                </p>
+                {selected.lastCheckin.redFlags.length > 0 && (
+                  <p className="font-semibold text-danger">
+                    {selected.lastCheckin.redFlags.map((f) => RED_FLAG_LABELS[f]).join(" · ")}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-text-muted">No check-ins yet.</p>
+            )}
           </div>
 
-          {/* Emergency Contact */}
-          {selectedTrekker.emergencyContact && (
-            <div className="p-3 rounded-lg bg-muted/40 border border-border space-y-2 text-xs">
-              <span className="font-semibold text-muted-foreground uppercase text-[10px] block">
-                Emergency Contact
-              </span>
+          {selected.emergencyContact && (
+            <div className="space-y-2 rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3 text-xs">
+              <span className="block text-[10px] font-semibold uppercase text-text-muted">Emergency contact</span>
               <div className="flex items-center justify-between">
-                <span className="font-medium text-foreground">{selectedTrekker.emergencyContact.name}</span>
-                <a
-                  href={`tel:${selectedTrekker.emergencyContact.phone}`}
-                  className="flex items-center gap-1 text-primary hover:underline font-mono"
-                >
-                  <Phone className="w-3.5 h-3.5" />
-                  {selectedTrekker.emergencyContact.phone}
+                <span className="font-medium">{selected.emergencyContact.name || "Emergency contact"}</span>
+                <a href={`tel:${selected.emergencyContact.phone}`} className="flex items-center gap-1 font-mono text-accent hover:underline">
+                  <Phone className="h-3.5 w-3.5" />
+                  {selected.emergencyContact.phone}
                 </a>
               </div>
             </div>
           )}
-
-          <div className="pt-2">
-            <p className="text-[10px] text-muted-foreground italic">
-              Agency view is read-only. For coordination intervention, use the official Coordinator workspace.
-            </p>
-          </div>
-        </div>
+        </aside>
       )}
     </div>
   )
