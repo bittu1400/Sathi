@@ -1,39 +1,47 @@
-"use client";
+"use client"
 
-import { useEffect, useState } from "react";
+import * as React from "react"
+
+export function isOnline(): boolean {
+  if (typeof window === "undefined") return true
+  const forcedOffline = localStorage.getItem("sathiForcedOffline") === "1"
+  return navigator.onLine && !forcedOffline
+}
 
 export function useConnectivity() {
-  const [online, setOnline] = useState<boolean>(true);
-  const [forcedOffline, setForcedOffline] = useState<boolean>(false);
+  const [online, setOnline] = React.useState<boolean>(true)
+  const [forcedOffline, setForcedOffline] = React.useState<boolean>(false)
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
+  React.useEffect(() => {
+    const update = () => {
+      const forced = localStorage.getItem("sathiForcedOffline") === "1"
+      setForcedOffline(forced)
+      setOnline(navigator.onLine && !forced)
+    }
 
-    const checkForced = () => {
-      try {
-        const stored = localStorage.getItem("sathiForcedOffline");
-        setForcedOffline(stored === "1");
-      } catch {
-        setForcedOffline(false);
-      }
-    };
-
-    checkForced();
-
-    const handleOnline = () => setOnline(navigator.onLine);
-    const handleOffline = () => setOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    update()
+    window.addEventListener("online", update)
+    window.addEventListener("offline", update)
+    window.addEventListener("storage", update)
 
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
-  }, []);
+      window.removeEventListener("online", update)
+      window.removeEventListener("offline", update)
+      window.removeEventListener("storage", update)
+    }
+  }, [])
 
-  return {
-    online: online && !forcedOffline,
-    forcedOffline,
-  };
+  const toggleForcedOffline = () => {
+    const next = !forcedOffline
+    if (next) {
+      localStorage.setItem("sathiForcedOffline", "1")
+    } else {
+      localStorage.removeItem("sathiForcedOffline")
+    }
+    setForcedOffline(next)
+    setOnline(navigator.onLine && !next)
+    window.dispatchEvent(new Event("storage"))
+  }
+
+  return { online, forcedOffline, toggleForcedOffline }
 }
