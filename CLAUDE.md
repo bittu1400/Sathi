@@ -25,7 +25,7 @@ The full protocol and the current fix order are in `docs/MERGE-PLAN.md`. Read Pa
 - **One task = one branch = one PR**, about 400 changed lines at most. The PR base is always `main`, never another feature branch. Never commit on someone else's branch.
 - **Branch prefix = lane of the files you change** (`a/`, `b/`, `c/`), not a person's name.
 - **Contract files** change only in a small dedicated PR that merges first: `src/lib/types.ts`, `src/lib/database.types.ts`, `supabase/migrations/*`, `package.json`, `pnpm-lock.yaml`, `src/app/globals.css`, `src/app/layout.tsx`, `CLAUDE.md`, `.github/*`.
-- **Migrations are append-only.** Never edit a merged one. Name new ones with a UTC timestamp: `supabase/migrations/20260919T1530_<slug>.sql`.
+- **Migrations are append-only.** Never edit a merged one. Name new ones with an all-digit UTC timestamp (Supabase skips anything else): `supabase/migrations/20260919153000_<slug>.sql`.
 - **Before the first push:** `git fetch origin && git rebase origin/main`, then `pnpm check`. After the PR exists, update it with `git merge origin/main` or GitHub's "Update branch" button (never force-push).
 - **Conflict in a file your lane doesn't own:** abort the rebase/merge and ask the owner. Never resolve it by taking your version.
 - **Every Supabase call checks `error`** and shows it. Never show success on a failed write.
