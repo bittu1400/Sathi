@@ -23,7 +23,10 @@ import { useConnectivity } from "@/lib/offline/status"
 import { subscribeOutboxStatus } from "@/lib/outbox"
 import { sessionStore } from "@/lib/session"
 import { Button } from "@/components/ui/button"
-import { cn } from "cn"
+import { Panel } from "@/components/ui/panel"
+import { Status } from "@/components/ui/status"
+import { toast } from "@/components/ui/toast"
+import { cn } from "@/lib/utils"
 
 type StepId = "start" | "fastForward" | "lobuche" | "checkin" | "storm" | "sos" | "flush"
 
@@ -67,151 +70,139 @@ export default function DemoPage() {
 
   const shareToken = session?.trek?.shareToken ?? null
   const steps: Step[] = [
-    { id: "start", title: "Start EBC trek", detail: "Active trek that began 6 days ago, so today is day 7. Creates the family share link.", icon: <Play className="mr-1 h-3.5 w-3.5" />, run: demoDriver.startEbcTrek },
-    { id: "fastForward", title: "Days 1–6 to Dingboche", detail: "Lukla → Phakding → Namche (rest) → Tengboche → Dingboche (rest). All check-ins green.", icon: <FastForward className="mr-1 h-3.5 w-3.5" />, run: demoDriver.fastForwardDingboche },
-    { id: "lobuche", title: "Day 7 to Lobuche", detail: "Sleeps at 4,940 m (+530 m). The AMS engine raises the gain caution.", icon: <Mountain className="mr-1 h-3.5 w-3.5" />, run: demoDriver.advanceToLobuche },
-    { id: "checkin", title: "Symptom check-in", detail: "LLS 7 (headache 2, GI 2, fatigue 2, dizziness 1). Engine verdict: warning, or danger with ataxia.", icon: <AlertTriangle className="mr-1 h-3.5 w-3.5" />, run: () => demoDriver.submitBadCheckin(ataxia) },
-    { id: "storm", title: "Weather turns", detail: "Storm fixture for Gorak Shep; the weather engine returns no-go.", icon: <CloudLightning className="mr-1 h-3.5 w-3.5" />, run: demoDriver.injectStormWeather },
-    { id: "sos", title: "SOS at Lobuche", detail: "Altitude illness. Delivered live, or queued with the SMS panel when offline.", icon: <LifeBuoy className="mr-1 h-3.5 w-3.5" />, run: demoDriver.triggerSos },
-    { id: "flush", title: "Back online", detail: "Clears simulated offline and flushes the outbox to coordination.", icon: <Wifi className="mr-1 h-3.5 w-3.5" />, run: () => demoDriver.backOnlineAndFlush() },
+    { id: "start", title: "Start EBC trek", detail: "Active trek that began 6 days ago, so today is day 7. Creates the family share link.", icon: <Play className="size-4" />, run: demoDriver.startEbcTrek },
+    { id: "fastForward", title: "Days 1–6 to Dingboche", detail: "Lukla → Phakding → Namche (rest) → Tengboche → Dingboche (rest). All check-ins green.", icon: <FastForward className="size-4" />, run: demoDriver.fastForwardDingboche },
+    { id: "lobuche", title: "Day 7 to Lobuche", detail: "Sleeps at 4,940 m (+530 m). The AMS engine raises the gain caution.", icon: <Mountain className="size-4" />, run: demoDriver.advanceToLobuche },
+    { id: "checkin", title: "Symptom check-in", detail: "LLS 7 (headache 2, GI 2, fatigue 2, dizziness 1). Engine verdict: warning, or danger with ataxia.", icon: <AlertTriangle className="size-4" />, run: () => demoDriver.submitBadCheckin(ataxia) },
+    { id: "storm", title: "Weather turns", detail: "Storm fixture for Gorak Shep; the weather engine returns no-go.", icon: <CloudLightning className="size-4" />, run: demoDriver.injectStormWeather },
+    { id: "sos", title: "SOS at Lobuche", detail: "Altitude illness. Delivered live, or queued with the SMS panel when offline.", icon: <LifeBuoy className="size-4" />, run: demoDriver.triggerSos },
+    { id: "flush", title: "Back online", detail: "Clears simulated offline and flushes the outbox to coordination.", icon: <Wifi className="size-4" />, run: () => demoDriver.backOnlineAndFlush() },
   ]
 
   if (!isDemoEnv) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-bg p-4 text-center text-text">
-        <h1 className="mb-2 text-xl font-bold">Demo mode is off</h1>
-        <p className="max-w-sm text-sm text-text-muted">The scenario controller only runs when NEXT_PUBLIC_DEMO=1.</p>
+      <div className="flex min-h-dvh flex-col items-center justify-center gap-2 p-4 text-center">
+        <h1 className="text-h1">Demo mode is off</h1>
+        <p className="max-w-sm text-text-muted">The scenario controller only runs when NEXT_PUBLIC_DEMO=1.</p>
       </div>
     )
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-5xl space-y-6 bg-bg p-4 text-text md:p-8">
-      <header className="flex flex-col justify-between gap-4 border-b border-border pb-6 md:flex-row md:items-center">
+    <div className="mx-auto min-h-dvh max-w-5xl space-y-6 p-4 md:p-8">
+      <header className="flex flex-col justify-between gap-4 border-b border-line pb-6 md:flex-row md:items-center">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Demo controller</h1>
-          <p className="mt-1 text-sm text-text-muted">
-            {session ? `Signed in as ${session.displayName}` : "Sign in as the demo trekker to run the scenario."}
-          </p>
+          <h1 className="text-h1">Demo controller</h1>
+          <p className="mt-1 text-text-muted">{session ? `Signed in as ${session.displayName}` : "Sign in as the demo trekker to run the scenario."}</p>
         </div>
-        <div className="flex items-center gap-3 font-mono text-xs">
-          <span className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-1.5">
-            {online ? <Wifi className="h-4 w-4 text-ok" /> : <WifiOff className="h-4 w-4 text-caution" />}
-            {online ? "ONLINE" : "OFFLINE"}
-          </span>
-          <span className="flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-border bg-surface-2 px-3 py-1.5">
-            <Clock className="h-4 w-4 text-accent" /> OUTBOX {pending}
-          </span>
+        <div className="flex items-center gap-2">
+          <Status tone={online ? "ok" : "warning"} icon={online ? <Wifi aria-hidden /> : <WifiOff aria-hidden />}>
+            {online ? "Online" : "Offline"}
+          </Status>
+          <Status icon={<Clock aria-hidden />}>Outbox {pending}</Status>
         </div>
       </header>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {[
-          { href: "/trek", label: "Trek mode", icon: <Mountain className="h-4 w-4 text-accent" /> },
-          { href: "/rescue", label: "Rescue dashboard", icon: <LifeBuoy className="h-4 w-4 text-sos" /> },
+          { href: "/trek", label: "Trek mode", icon: <Mountain className="size-4 text-accent" /> },
+          { href: "/rescue", label: "Rescue dashboard", icon: <LifeBuoy className="size-4 text-sos" /> },
         ].map((l) => (
-          <Link
-            key={l.href}
-            href={l.href}
-            target="_blank"
-            className="flex items-center justify-between rounded-[var(--radius-sm)] border border-border bg-surface p-3 text-sm font-medium transition-colors hover:border-accent/50"
-          >
-            <span className="flex items-center gap-2">
-              {l.icon}
-              {l.label}
-            </span>
-            <ExternalLink className="h-4 w-4 text-text-muted" />
-          </Link>
+          <Button key={l.href} asChild variant="secondary" className="justify-between">
+            <Link href={l.href} target="_blank">
+              <span className="flex items-center gap-2">
+                {l.icon}
+                {l.label}
+              </span>
+              <ExternalLink className="size-4 text-text-muted" />
+            </Link>
+          </Button>
         ))}
-        <button
-          type="button"
+        <Button
+          variant="secondary"
+          className="justify-start"
           disabled={!shareToken}
           onClick={async () => {
             const url = `${window.location.origin}/share/${shareToken}`
-            await navigator.clipboard.writeText(url).catch(() => {})
-            setCopied(true)
-            setTimeout(() => setCopied(false), 2000)
-            addLog(`Share link copied: ${url}`)
+            try {
+              await navigator.clipboard.writeText(url)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+              addLog(`Share link copied: ${url}`)
+            } catch {
+              toast.error("Couldn't copy the link.")
+            }
           }}
-          className="flex items-center justify-between rounded-[var(--radius-sm)] border border-border bg-surface p-3 text-sm font-medium transition-colors hover:border-accent/50 disabled:opacity-50"
         >
-          <span className="flex items-center gap-2">
-            <Share2 className="h-4 w-4 text-info" />
-            {copied ? "Link copied" : "Copy family link"}
-          </span>
-        </button>
+          <Share2 className="size-4 text-accent" />
+          {copied ? "Link copied" : "Copy family link"}
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           <div className="flex items-center justify-between pb-2">
-            <h2 className="text-base font-semibold">Scenario</h2>
+            <h2 className="text-h2">Scenario</h2>
             <Button variant="danger" size="sm" disabled={running !== null} onClick={() => exec("reset", demoDriver.reset)}>
-              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+              <RotateCcw className="size-4" />
               {running === "reset" ? "Resetting…" : "Reset"}
             </Button>
           </div>
 
           {steps.map((step, i) => (
-            <div key={step.id} className="space-y-3 rounded-[var(--radius-sm)] border border-border bg-surface p-4">
+            <Panel key={step.id} className="space-y-3">
               <div className="flex items-start justify-between gap-4">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/20 font-mono text-xs font-bold text-accent">
-                      {i + 1}
-                    </span>
-                    <h3 className="text-sm font-semibold">{step.title}</h3>
-                    {done.has(step.id) && <CheckCircle2 className="h-4 w-4 text-ok" />}
+                    <span className="flex size-6 items-center justify-center rounded-full bg-accent-bg font-mono text-small text-accent">{i + 1}</span>
+                    <h3 className="text-body font-medium">{step.title}</h3>
+                    {done.has(step.id) && <CheckCircle2 className="size-4 text-ok" aria-label="Done" />}
                   </div>
-                  <p className="pl-8 text-xs text-text-muted">{step.detail}</p>
+                  <p className="pl-8 text-small text-text-muted">{step.detail}</p>
                 </div>
                 <Button
                   size="sm"
                   variant={step.id === "sos" ? "sos" : "secondary"}
                   disabled={running !== null || !session}
                   onClick={() => exec(step.id, step.run)}
-                  className="min-w-[120px] shrink-0 normal-case"
+                  className="min-w-[120px] shrink-0"
                 >
-                  {running === step.id ? <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin motion-reduce:animate-none" /> : step.icon}
+                  {running === step.id ? <Loader2 className="size-4 animate-spin motion-reduce:animate-none" /> : step.icon}
                   Run
                 </Button>
               </div>
               {step.id === "checkin" && (
-                <label className="ml-8 flex cursor-pointer items-center gap-2 border-t border-border pt-2 text-xs">
-                  <input type="checkbox" checked={ataxia} onChange={(e) => setAtaxia(e.target.checked)} className="h-4 w-4 accent-danger" />
+                <label className="ml-8 flex cursor-pointer items-center gap-2 border-t border-line pt-2 text-small">
+                  <input type="checkbox" checked={ataxia} onChange={(e) => setAtaxia(e.target.checked)} className="size-5 accent-danger" />
                   Add red flag: can&apos;t walk heel-to-toe (ataxia)
                 </label>
               )}
               {step.id === "storm" && (
-                <div className="ml-8 flex items-center justify-between border-t border-border pt-2 text-xs">
+                <div className="ml-8 flex items-center justify-between gap-3 border-t border-line pt-2 text-small">
                   <span className="text-text-muted">Simulate airplane mode on this browser before the SOS step.</span>
-                  <Button size="sm" variant={forcedOffline ? "primary" : "outline"} onClick={() => demoDriver.setOffline(!forcedOffline)}>
-                    {forcedOffline ? <Wifi className="mr-1 h-3.5 w-3.5" /> : <WifiOff className="mr-1 h-3.5 w-3.5" />}
+                  <Button size="sm" variant={forcedOffline ? "primary" : "secondary"} onClick={() => demoDriver.setOffline(!forcedOffline)}>
+                    {forcedOffline ? <Wifi className="size-4" /> : <WifiOff className="size-4" />}
                     {forcedOffline ? "Go online" : "Go offline"}
                   </Button>
                 </div>
               )}
-            </div>
+            </Panel>
           ))}
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-base font-semibold">Log</h2>
-          <ol
-            aria-live="polite"
-            className="flex h-[460px] flex-col space-y-1.5 overflow-y-auto rounded-[var(--radius-sm)] border border-border bg-surface-2 p-3 font-mono text-xs"
-          >
+          <h2 className="text-h2">Log</h2>
+          <ol aria-live="polite" className="flex h-[460px] flex-col space-y-1.5 overflow-y-auto rounded-[var(--radius-lg)] border border-line bg-surface p-3 font-mono text-small">
             {log.length === 0 && <li className="text-text-muted">Ready.</li>}
             {log.map((line, i) => (
-              <li key={i} className={cn("border-b border-border/40 pb-1", line.includes("✖") ? "text-danger" : "text-ok")}>
+              <li key={i} className={cn("border-b border-line pb-1", line.includes("✖") ? "text-danger" : "text-ok")}>
                 {line}
               </li>
             ))}
           </ol>
-          <div className="space-y-1 rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3 text-xs">
-            <p className="font-semibold">Active trek</p>
-            <p className="font-mono text-text-muted">{session?.trek ? session.trek.id : "None"}</p>
-          </div>
+          <Panel title="Active trek">
+            <p className="font-mono text-small text-text-muted">{session?.trek ? session.trek.id : "None"}</p>
+          </Panel>
         </div>
       </div>
     </div>

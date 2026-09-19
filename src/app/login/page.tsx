@@ -3,7 +3,13 @@
 import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
+import Link from "next/link"
+import { Eye, EyeOff } from "lucide-react"
+import { Banner } from "@/components/ui/banner"
 import { Button } from "@/components/ui/button"
+import { Field, Input } from "@/components/ui/field"
+import { Logo } from "@/components/ui/logo"
+import { Panel } from "@/components/ui/panel"
 import { safeNext } from "@/lib/safe-next"
 
 const DEMO_GMAIL = process.env.NEXT_PUBLIC_DEMO_GMAIL ?? ""
@@ -23,12 +29,14 @@ function LoginForm() {
   const [password, setPassword] = React.useState("")
   const [displayName, setDisplayName] = React.useState("")
   const [loading, setLoading] = React.useState(false)
+  const [showPassword, setShowPassword] = React.useState(false)
   const [notice, setNotice] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(
     authError === "unauthorized" ? "You do not have permission to access that page." : null
   )
 
-  const isDemo = process.env.NEXT_PUBLIC_DEMO === "1" && DEMO_GMAIL.includes("@")
+  // Quick logins only for the presenter: env on, plus ?demo=1 in the URL.
+  const isDemo = process.env.NEXT_PUBLIC_DEMO === "1" && DEMO_GMAIL.includes("@") && searchParams.get("demo") === "1"
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,11 +74,13 @@ function LoginForm() {
 
         // Role-based default destination if next is default
         if (!searchParams.get("next")) {
-          const { data: profile } = await supabase
+          const { data: profile, error: roleError } = await supabase
             .from("profiles")
             .select("role")
             .eq("id", signInData.user.id)
             .single()
+          // Don't guess a destination: a coordinator sent to /trek by a failed lookup is stuck.
+          if (roleError) throw new Error("Signed in, but we couldn't load your role. Press Sign in again to retry.")
 
           if (profile?.role === "coordinator") {
             router.push("/rescue")
@@ -98,149 +108,92 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md p-6 bg-surface border border-border rounded-xl shadow-lg space-y-6">
-      <div className="text-center space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight">
-          {isSignUp ? "Create your Sathi account" : "Welcome back to Sathi"}
-        </h1>
-        <p className="text-sm text-text-muted">
-          {isSignUp
-            ? "Sign up for offline trekking intelligence & safety monitoring."
-            : "Sign in to access your treks, check-ins, and safety coordination."}
-        </p>
+    <div className="w-full max-w-[400px] space-y-4">
+      <div className="flex justify-center">
+        <Logo />
       </div>
-
-      {error && (
-        <div
-          role="alert"
-          className="p-3 text-sm rounded-lg bg-danger/10 border border-danger text-danger"
-        >
-          {error}
-        </div>
-      )}
-
-      {notice && (
-        <div role="status" className="p-3 text-sm rounded-lg bg-surface-2 border border-border text-text">
-          {notice}
-        </div>
-      )}
-
-      <form onSubmit={handleAuth} className="space-y-4">
-        {isSignUp && (
-          <div className="space-y-1">
-            <label
-              htmlFor="displayName"
-              className="block text-sm font-medium text-text"
-            >
-              Display Name
-            </label>
-            <input
-              id="displayName"
-              type="text"
-              required
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="e.g. Maya Shrestha"
-              className="w-full px-3 py-2 border border-border rounded-md bg-bg text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-            />
-          </div>
-        )}
-
+      <Panel className="space-y-5">
         <div className="space-y-1">
-          <label
-            htmlFor="email"
-            className="block text-sm font-medium text-text"
-          >
-            Email Address
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="you@example.com"
-            className="w-full px-3 py-2 border border-border rounded-md bg-bg text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-          />
+          <h1 className="text-h1">{isSignUp ? "Create your account" : "Sign in"}</h1>
+          <p className="text-text-muted">
+            {isSignUp ? "One account for your treks, check-ins and SOS." : "Your treks, check-ins and SOS are linked to your account."}
+          </p>
         </div>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="password"
-            className="block text-sm font-medium text-text"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full px-3 py-2 border border-border rounded-md bg-bg text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
-          />
-        </div>
+        {error && <Banner severity="danger" headline={error} />}
+        {notice && <Banner severity="info" headline={notice} />}
 
-        <Button type="submit" disabled={loading} className="w-full">
-          {loading
-            ? "Please wait..."
-            : isSignUp
-            ? "Create Account"
-            : "Sign In"}
-        </Button>
-      </form>
+        <form onSubmit={handleAuth} className="space-y-4">
+          {isSignUp && (
+            <Field label="Display name" required>
+              {(p) => <Input {...p} value={displayName} onChange={(e) => setDisplayName(e.target.value)} placeholder="e.g. Maya Shrestha" autoComplete="name" />}
+            </Field>
+          )}
+          <Field label="Email" required>
+            {(p) => <Input {...p} type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />}
+          </Field>
+          <Field label="Password" required>
+            {(p) => (
+              <div className="relative">
+                <Input
+                  {...p}
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete={isSignUp ? "new-password" : "current-password"}
+                  className="pr-12"
+                />
+                <button
+                  type="button"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-0 top-0 flex size-12 cursor-pointer items-center justify-center text-text-muted hover:text-text"
+                >
+                  {showPassword ? <EyeOff className="size-5" aria-hidden /> : <Eye className="size-5" aria-hidden />}
+                </button>
+              </div>
+            )}
+          </Field>
+          {isSignUp && <p className="text-small text-text-muted">By creating an account you agree to keep your emergency contact accurate. Sathi doesn&apos;t guarantee rescue.</p>}
+          <Button type="submit" className="w-full" state={loading ? "busy" : "idle"}>
+            {isSignUp ? "Create account" : "Sign in"}
+          </Button>
+        </form>
 
-      <div className="text-center text-sm">
         <button
           type="button"
           onClick={() => {
             setIsSignUp(!isSignUp)
             setError(null)
           }}
-          className="text-accent hover:underline font-medium"
+          className="min-h-12 w-full cursor-pointer text-body font-medium text-accent hover:underline"
         >
-          {isSignUp
-            ? "Already have an account? Sign in"
-            : "Don't have an account? Sign up"}
+          {isSignUp ? "Already have an account? Sign in" : "No account yet? Create one"}
         </button>
-      </div>
+      </Panel>
+
+      <p className="text-center">
+        <Link href="/routes" className="inline-flex min-h-12 items-center text-body text-text-muted hover:text-text">
+          Continue without an account
+        </Link>
+      </p>
 
       {isDemo && !isSignUp && (
-        <div className="pt-4 border-t border-border space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-muted text-center">
-            Quick Demo Logins
-          </p>
-          <p className="text-xs text-text-muted text-center">
-            Pre-fills demo emails (password required).
-          </p>
-          <div className="grid grid-cols-3 gap-2 pt-1">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEmail(demoEmail("trekker"))}
-              className="text-xs"
-            >
+        <Panel title="Demo logins" meta="Presenter only" className="space-y-3">
+          <p className="text-small text-text-muted">Fills the demo email. The password is still required.</p>
+          <div className="grid grid-cols-3 gap-2">
+            <Button type="button" variant="secondary" onClick={() => setEmail(demoEmail("trekker"))}>
               Trekker
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEmail(demoEmail("rescue"))}
-              className="text-xs"
-            >
+            <Button type="button" variant="secondary" onClick={() => setEmail(demoEmail("rescue"))}>
               Rescue
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setEmail(demoEmail("agency"))}
-              className="text-xs"
-            >
+            <Button type="button" variant="secondary" onClick={() => setEmail(demoEmail("agency"))}>
               Agency
             </Button>
           </div>
-        </div>
+        </Panel>
       )}
     </div>
   )
@@ -248,10 +201,10 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-bg text-text">
-      <React.Suspense fallback={<div className="text-sm text-text-muted">Loading login...</div>}>
+    <div className="flex min-h-dvh flex-col items-center justify-center p-4">
+      <React.Suspense fallback={<p className="text-body text-text-muted">Loading…</p>}>
         <LoginForm />
       </React.Suspense>
-    </main>
+    </div>
   )
 }
