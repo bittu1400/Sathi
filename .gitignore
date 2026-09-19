@@ -44,3 +44,6 @@ next-env.d.ts
 # Private team docs = a separate clone of the PRIVATE repo bittu1400/sathi-docs.
 # This repo is PUBLIC. docs/ must NEVER be committed here (guarded by .githooks/pre-commit and CI).
 /docs/
+
+# basemap tiles: regenerate with scripts/extract-tiles.sh (too big for git)
+/public/tiles/

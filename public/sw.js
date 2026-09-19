@@ -48,6 +48,7 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/basemaps-assets/") ||
+    url.pathname.startsWith("/maplibre/") ||
     url.pathname.startsWith("/images/") ||
     url.pathname.startsWith("/icons/")
   ) {

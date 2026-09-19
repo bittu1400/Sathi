@@ -1,5 +1,5 @@
 import * as React from "react";
-import { getRoutes } from "@/lib/data";
+import { getRouteLines, getRoutes } from "@/lib/data";
 import { RouteFinder } from "@/components/plan/RouteFinder";
 
 export default function PlanPage() {
@@ -10,11 +10,11 @@ export default function PlanPage() {
       <div>
         <h1 className="text-3xl font-extrabold tracking-tight">Plan Your Trek</h1>
         <p className="text-text-muted text-base mt-1">
-          Answer 4 quick preferences to receive personalized route recommendations matching your timeframe and fitness.
+          Answer 4 quick preferences to get your top 3 routes. Pick one to see its way on the map.
         </p>
       </div>
 
-      <RouteFinder routes={routes} />
+      <RouteFinder routes={routes} lines={getRouteLines()} />
     </div>
   );
 }

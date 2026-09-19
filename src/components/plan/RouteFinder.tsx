@@ -3,65 +3,44 @@
 import * as React from "react";
 import Link from "next/link";
 import { Terrain, Season, RouteSummary } from "@/lib/types";
+import type { RouteLine } from "@/lib/data";
+import { recommend, type Fitness } from "@/lib/recommend";
+import { RouteChoiceMap } from "../map/Map";
 import { Chip, ChipGroup } from "../ui/chip";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Badge } from "../ui/badge";
-import { Compass, Sparkles, ArrowRight, Check } from "lucide-react";
+import { Compass, Sparkles, ArrowRight, Check, MapPin } from "lucide-react";
 
 export interface RouteFinderProps {
   routes: RouteSummary[];
+  lines: Record<string, RouteLine>;
 }
 
-export function RouteFinder({ routes }: RouteFinderProps) {
+export function RouteFinder({ routes, lines }: RouteFinderProps) {
   const [selectedTerrain, setSelectedTerrain] = React.useState<Terrain[]>([
     "forest",
     "ridge",
   ]);
   const [days, setDays] = React.useState<number>(5);
-  const [fitness, setFitness] = React.useState<"low" | "medium" | "high">("low");
+  const [fitness, setFitness] = React.useState<Fitness>("low");
   const [season, setSeason] = React.useState<Season>("spring");
 
-  const rankedRoutes = React.useMemo(() => {
-    return routes
-      .map((r) => {
-        let score = 0;
-        const why: string[] = [];
-
-        // Terrain match
-        const terrainMatch = r.terrain.filter((t) => selectedTerrain.includes(t));
-        if (terrainMatch.length > 0) {
-          score += terrainMatch.length * 20;
-          why.push(`Matches terrain: ${terrainMatch.map((t) => t.replace("_", " ")).join(", ")}`);
-        }
-
-        // Days fit
-        if (days >= r.days[0] && days <= r.days[1]) {
-          score += 30;
-          why.push(`Fits your ${days}-day timeframe`);
-        } else if (Math.abs(r.days[0] - days) <= 2) {
-          score += 15;
-        }
-
-        // Fitness & altitude comfort
-        if (fitness === "low" && r.maxAltitudeM <= 3500) {
-          score += 25;
-          why.push("Comfortable max altitude for lower fitness");
-        } else if (fitness === "high" && r.maxAltitudeM > 5000) {
-          score += 25;
-          why.push("High altitude challenge suitable for high fitness");
-        }
-
-        // Season
-        if (r.bestSeasons.includes(season)) {
-          score += 20;
-          why.push(`Great condition in ${season}`);
-        }
-
-        return { route: r, score, why };
-      })
-      .sort((a, b) => b.score - a.score);
-  }, [routes, selectedTerrain, days, fitness, season]);
+  const topRoutes = React.useMemo(
+    () => recommend(routes, { terrain: selectedTerrain, days, fitness, season }).slice(0, 3),
+    [routes, selectedTerrain, days, fitness, season],
+  );
+  const [chosenId, setChosenId] = React.useState<string | null>(null);
+  // Changing preferences can push the chosen route out of the top 3: fall back to #1.
+  const selectedId = topRoutes.some((r) => r.route.id === chosenId) ? chosenId! : (topRoutes[0]?.route.id ?? "");
+  const choices = React.useMemo(
+    () =>
+      topRoutes.flatMap(({ route }, idx) => {
+        const line = lines[route.id];
+        return line ? [{ id: route.id, name: route.name, rank: idx + 1, line }] : [];
+      }),
+    [topRoutes, lines],
+  );
 
   const toggleTerrain = (t: Terrain) => {
     if (selectedTerrain.includes(t)) {
@@ -158,64 +137,96 @@ export function RouteFinder({ routes }: RouteFinderProps) {
         </div>
       </div>
 
-      {/* Ranked Results */}
+      {/* Top 3 recommendations */}
       <div className="space-y-4">
         <h2 className="text-xl font-bold flex items-center gap-2">
           <Compass className="w-5 h-5 text-accent" />
-          Recommended Routes ({rankedRoutes.length})
+          Your top {topRoutes.length} routes
         </h2>
 
-        <div className="space-y-4">
-          {rankedRoutes.map(({ route, score, why }, idx) => (
-            <Card
-              key={route.id}
-              className={`p-5 space-y-4 transition-all ${
-                idx === 0 ? "border-accent ring-1 ring-accent/30 bg-surface" : ""
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    {idx === 0 && <Badge variant="ok">#1 Match</Badge>}
-                    <h3 className="text-xl font-bold text-text">{route.name}</h3>
-                    <Badge variant="neutral">{route.region}</Badge>
+        {choices.length > 0 && (
+          <div className="space-y-2">
+            <RouteChoiceMap choices={choices} selectedId={selectedId} onSelect={setChosenId} />
+            <p className="text-xs text-text-muted">
+              Solid line: the route you picked, with its main stops. Dashed: the other recommendations; tap one to
+              switch. Trail lines are routed along OpenStreetMap paths and are approximate.
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-4" role="radiogroup" aria-label="Recommended routes">
+          {topRoutes.map(({ route, score, why }, idx) => {
+            const selected = route.id === selectedId;
+            return (
+              <Card
+                key={route.id}
+                role="radio"
+                aria-checked={selected}
+                tabIndex={0}
+                onClick={() => setChosenId(route.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setChosenId(route.id);
+                  }
+                }}
+                className={`p-5 space-y-4 cursor-pointer transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent ${
+                  selected ? "border-accent ring-1 ring-accent/30 bg-surface" : "hover:border-text-muted"
+                }`}
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant={idx === 0 ? "ok" : "neutral"}>#{idx + 1} Match</Badge>
+                      <h3 className="text-xl font-bold text-text">{route.name}</h3>
+                      <Badge variant="neutral">{route.region}</Badge>
+                      {selected && (
+                        <Badge variant="ok">
+                          <MapPin className="w-3 h-3 mr-1" />
+                          On map
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-text-muted">
+                      <span className="font-mono tabular-nums">
+                        {route.days[0]}–{route.days[1]}
+                      </span>{" "}
+                      days · Max <span className="font-mono tabular-nums">{route.maxAltitudeM.toLocaleString("en-US")} m</span> ·{" "}
+                      {route.difficulty}
+                      {!lines[route.id] && " · trail line not available yet"}
+                    </p>
                   </div>
-                  <p className="text-xs text-text-muted">
-                    {route.days[0]}–{route.days[1]} Days · Max {route.maxAltitudeM.toLocaleString()} m · {route.difficulty}
-                  </p>
+
+                  <div className="flex items-center gap-3">
+                    <div className="text-right">
+                      <span className="text-xs text-text-muted font-mono uppercase block">Match Score</span>
+                      <span className="text-2xl font-mono font-extrabold text-accent">{score}%</span>
+                    </div>
+                    <Link href={`/routes/${route.id}`} onClick={(e) => e.stopPropagation()}>
+                      <Button variant={selected ? "primary" : "secondary"}>
+                        View Route
+                        <ArrowRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-xs text-text-muted font-mono uppercase block">Match Score</span>
-                    <span className="text-2xl font-mono font-extrabold text-accent">{score}%</span>
-                  </div>
-                  <Link href={`/routes/${route.id}`}>
-                    <Button variant="primary">
-                      View Route
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              {why.length > 0 && (
                 <div className="space-y-1">
                   <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block">
                     Why it fits:
                   </span>
                   <ul className="text-xs text-text space-y-1">
-                    {why.map((reason, rIdx) => (
-                      <li key={rIdx} className="flex items-center gap-1.5">
+                    {why.map((reason) => (
+                      <li key={reason} className="flex items-center gap-1.5">
                         <Check className="w-3.5 h-3.5 text-ok shrink-0" />
                         <span>{reason}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-              )}
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       </div>
     </div>

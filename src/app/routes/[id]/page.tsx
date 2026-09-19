@@ -2,14 +2,14 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRoute, getResources } from "@/lib/data";
+import { getRoute, getResources, getRouteLines } from "@/lib/data";
 import { RouteDetail } from "@/lib/types";
 import { Stat } from "@/components/ui/stat";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { PackButton } from "@/components/trek/PackButton";
 import { Card, CardHeader, CardBody } from "@/components/ui/card";
-import { Map } from "@/components/map/Map";
+import { Map, RouteChoiceMap } from "@/components/map/Map";
 import { ElevationProfile } from "@/components/trek/ElevationProfile";
 import { StagesTable } from "@/components/trek/StagesTable";
 import { ResourceList } from "@/components/trek/ResourceList";
@@ -38,6 +38,7 @@ export default async function RouteDetailPage({
     notFound();
   }
 
+  const line = getRouteLines()[route.id];
   const isFullDetail = route.hasFullData && "waypoints" in route;
   const fullRoute = isFullDetail ? (route as RouteDetail) : null;
   const resources = getResources().filter((r) => r.region.toLowerCase().includes(route.region.toLowerCase()));
@@ -116,15 +117,29 @@ export default async function RouteDetailPage({
             <ElevationProfile waypoints={elevationWaypoints} />
           </section>
         ) : (
-          <Card className="bg-surface-2/40 border-dashed">
-            <div className="p-6 text-center space-y-2">
-              <Mountain className="w-10 h-10 text-accent mx-auto" />
-              <h3 className="font-semibold text-lg">Detailed Offline Data Coming Soon</h3>
-              <p className="text-sm text-text-muted max-w-md mx-auto">
-                Full waypoints, offline PMTiles basemaps, and daily stage elevations for {route.name} are currently in preparation.
-              </p>
-            </div>
-          </Card>
+          <section className="space-y-4">
+            {line && (
+              <>
+                <h2 className="text-xl font-bold flex items-center gap-2">
+                  <Mountain className="w-5 h-5 text-accent" />
+                  Route Map
+                </h2>
+                <RouteChoiceMap choices={[{ id: route.id, name: route.name, rank: 1, line }]} selectedId={route.id} />
+                <p className="text-xs text-text-muted">
+                  Trail line routed along OpenStreetMap paths between the main stops. Approximate and not yet verified.
+                </p>
+              </>
+            )}
+            <Card className="bg-surface-2/40 border-dashed">
+              <div className="p-6 text-center space-y-2">
+                <Mountain className="w-10 h-10 text-accent mx-auto" />
+                <h3 className="font-semibold text-lg">Detailed Offline Data Coming Soon</h3>
+                <p className="text-sm text-text-muted max-w-md mx-auto">
+                  Full waypoints, offline maps, and daily stage elevations for {route.name} are currently in preparation.
+                </p>
+              </div>
+            </Card>
+          </section>
         )}
 
         {/* Itinerary Stages Table */}

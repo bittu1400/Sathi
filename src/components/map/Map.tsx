@@ -4,6 +4,7 @@ import dynamic from "next/dynamic";
 import { MapPinOff } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 import type { MapProps } from "./MapInner";
+import type { RouteChoiceMapProps } from "./RouteChoiceMapInner";
 
 // Offline and the map code was never cached: show this instead of crashing the page.
 function MapUnavailable() {
@@ -23,4 +24,13 @@ const MapInner = dynamic(() => import("./MapInner").catch(() => MapUnavailable),
 
 export function Map(props: MapProps) {
   return <MapInner {...props} />;
+}
+
+const RouteChoiceMapInner = dynamic(() => import("./RouteChoiceMapInner").catch(() => MapUnavailable), {
+  ssr: false,
+  loading: () => <Skeleton className="h-[420px] w-full rounded-[var(--radius)]" />,
+});
+
+export function RouteChoiceMap(props: RouteChoiceMapProps) {
+  return <RouteChoiceMapInner {...props} />;
 }

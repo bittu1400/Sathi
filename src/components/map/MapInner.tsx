@@ -2,20 +2,11 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
-import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { RouteDetail, Resource } from "@/lib/types";
-import { getMapStyle } from "./style";
+import { ensurePMTilesProtocol, getMapStyle } from "./style";
 import { addRouteLayers, addResourceLayers, setPositionLayer } from "./layers";
 import { useTheme } from "../theme-toggle";
-
-let protocolAdded = false;
-function ensurePMTilesProtocol() {
-  if (!protocolAdded) {
-    maplibregl.addProtocol("pmtiles", new Protocol().tile);
-    protocolAdded = true;
-  }
-}
 
 export interface MapProps {
   route?: RouteDetail;
@@ -52,7 +43,7 @@ export default function MapInner({
     const start = firstCenter.current;
     const map = new maplibregl.Map({
       container: container.current,
-      style: getMapStyle(theme, route?.tilesUrl),
+      style: getMapStyle(theme, route?.tilesUrl, true),
       center: start ? [start.lng, start.lat] : ((route?.line.coordinates[0] as [number, number]) ?? [86.7314, 27.687]),
       zoom: start ? 13 : 10,
       interactive,
