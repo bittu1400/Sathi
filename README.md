@@ -7,15 +7,15 @@
 
 ## What is Sathi?
 
-Every trekking season in Nepal, hundreds of trekkers suffer from Acute Mountain Sickness (AMS), High Altitude Pulmonary Edema (HAPE), or High Altitude Cerebral Edema (HACE). Above Namche Bazaar or Manang, mobile connectivity is frequently patchy or non-existent. Existing trekking apps assume reliable internet connection, and during emergencies, vital coordinates, altitude readings, symptom trends, and nearby medical posts are scattered or inaccessible.
+Trekkers in Nepal's high mountains are exposed to Acute Mountain Sickness (AMS), High Altitude Pulmonary Edema (HAPE) and High Altitude Cerebral Edema (HACE). Above Namche Bazaar or Manang, mobile connectivity is frequently patchy or non-existent. Existing trekking apps assume reliable internet connection, and during emergencies, vital coordinates, altitude readings, symptom trends, and nearby medical posts are scattered or inaccessible.
 
-**Sathi (Nepali for *companion*)** is an offline-first progressive web application engineered specifically for the rugged terrain of Nepal. It tracks altitude gain, evaluates altitude illness symptoms against published Wilderness Medical Society guidelines, works 100% without data signal, and coordinates live incident response with emergency services and family.
+**Sathi (Nepali for *companion*)** is an offline-first progressive web application engineered specifically for the rugged terrain of Nepal. It tracks altitude gain, evaluates altitude illness symptoms against published Wilderness Medical Society guidelines, keeps trek mode and SOS working without a data signal, and coordinates live incident response with emergency services and family.
 
 ---
 
 ## Core Features
 
-- **Route & Topo Intelligence:** Curated Himalayan routes (Everest Base Camp, Annapurna Circuit, Poon Hill) with interactive vector maps, elevation profiles, acclimatization stages, and verified emergency facilities.
+- **Route & Topo Intelligence:** Curated Himalayan routes (full data for Everest Base Camp today; more routes as their data is verified) with maps, elevation profiles, acclimatization stages, and an emergency directory that marks unverified entries.
 - **Deterministic Altitude Watch:** Pure TypeScript rules engine implementing the 2018 Lake Louise Score (LLS) and Wilderness Medical Society ascent guidelines. **Zero AI in the critical safety loop**—all advice is deterministic and unit-tested.
 - **Offline Packs (PMTiles):** Single-file vector map packs and emergency directories downloaded in Kathmandu, accessible anywhere on the trail without cell reception.
 - **One-Tap Emergency SOS:**
