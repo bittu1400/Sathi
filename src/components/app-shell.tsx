@@ -4,6 +4,7 @@ import * as React from "react";
 import { usePathname } from "next/navigation";
 import { SosButton } from "./sos/SosButton";
 import { AppHeader } from "./ui/shell/app-header";
+import { MarketingFooter, MarketingHeader } from "./ui/shell/marketing";
 import { SkipLink } from "./ui/shell/skip-link";
 import { TabBar } from "./ui/shell/tab-bar";
 
@@ -25,6 +26,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </>
+    );
+  }
+
+  // The public landing page has its own header and footer, and no tab bar.
+  if (pathname === "/") {
+    return (
+      <div className="flex min-h-dvh flex-col bg-bg text-text">
+        <SkipLink />
+        <MarketingHeader />
+        <main id="main" className="mx-auto w-full max-w-6xl flex-1 px-4 md:px-6">
+          {children}
+        </main>
+        <MarketingFooter />
+      </div>
     );
   }
 

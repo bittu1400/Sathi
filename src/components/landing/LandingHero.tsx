@@ -1,64 +1,61 @@
-import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { Button } from "../ui/button";
-import { Badge } from "../ui/badge";
-import { Compass, ShieldAlert, Check } from "lucide-react";
+import { Panel } from "../ui/panel";
+import { Readout } from "../ui/readout";
+import { Banner } from "../ui/banner";
+import { ElevationProfile } from "../trek/ElevationProfile";
+import { getRoute } from "@/lib/data";
+import type { RouteDetail } from "@/lib/types";
+import { GAIN_CAUTION_ACTIONS, GAIN_CAUTION_HEADLINE } from "@/lib/ams-copy";
+import { formatAltitude, formatGain } from "@/lib/format";
+
+/** Cumulative distance along the stages, from real EBC data. */
+function ebcTicks() {
+  const route = getRoute("ebc") as RouteDetail;
+  const byId = (id: string) => route.waypoints.find((w) => w.id === id);
+  return route.stages
+    .filter((s) => s.fromId !== s.toId)
+    .reduce<{ id: string; name: string; altitudeM: number; distanceKm: number }[]>((ticks, stage) => {
+      const from = byId(stage.fromId);
+      if (ticks.length === 0 && from) ticks.push({ id: from.id, name: from.name, altitudeM: from.altM, distanceKm: 0 });
+      const to = byId(stage.toId);
+      if (to) ticks.push({ id: to.id, name: to.name, altitudeM: to.altM, distanceKm: (ticks.at(-1)?.distanceKm ?? 0) + stage.distanceKm });
+      return ticks;
+    }, []);
+}
 
 export function LandingHero() {
+  const ticks = ebcTicks();
   return (
-    <div className="relative rounded-[var(--radius-lg)] overflow-hidden border border-border bg-surface mb-12 shadow-2xl">
-      <div className="relative h-[480px] sm:h-[560px] w-full">
-        <Image
-          src="/images/routes/landing-hero.webp"
-          alt="Nepal Trekking Peak"
-          fill
-          className="object-cover brightness-50"
-          priority
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-bg via-bg/40 to-transparent" />
-
-        <div className="absolute inset-0 flex flex-col justify-end p-6 sm:p-12 max-w-3xl space-y-4">
-          <Badge variant="ok" className="self-start text-xs py-1 px-3">
-            Offline-First Trekking Safety PWA
-          </Badge>
-
-          <h1 className="text-4xl sm:text-6xl font-extrabold tracking-tight text-text leading-tight">
-            Trek higher. <br />
-            <span className="text-accent">Come home safely.</span>
-          </h1>
-
-          <p className="text-text-muted text-base sm:text-lg font-normal max-w-xl">
-            The offline-first safety companion for Nepal&apos;s trails. Altitude-sickness monitoring, satellite-free SOS, altitude weather, and live rescue tracking.
-          </p>
-
-          <div className="flex flex-wrap items-center gap-4 pt-2">
-            <Link href="/routes">
-              <Button variant="primary" size="lg">
-                <Compass className="w-5 h-5 mr-2" />
-                Explore Routes
-              </Button>
-            </Link>
-            <Link href="/trek">
-              <Button variant="secondary" size="lg">
-                <ShieldAlert className="w-5 h-5 mr-2 text-sos" />
-                See How SOS Works
-              </Button>
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-6 pt-2 text-xs font-mono text-text-muted">
-            <span className="flex items-center gap-1.5">
-              <Check className="w-4 h-4 text-ok" />
-              SOS is Free. Always.
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Check className="w-4 h-4 text-ok" />
-              Zero Bars Required
-            </span>
-          </div>
+    <section className="grid items-center gap-8 py-8 lg:grid-cols-2 lg:gap-12 lg:py-16">
+      <div className="space-y-6">
+        <h1 className="text-display">Know your altitude. Get help when the signal is gone.</h1>
+        <p className="max-w-xl text-h2 font-normal text-text-muted">
+          Sathi watches altitude gain and daily check-ins on Nepal&apos;s trails, and sends an SOS that still works without mobile data.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Button asChild size="lg">
+            <Link href="/routes">Browse routes</Link>
+          </Button>
+          <Button asChild size="lg" variant="secondary">
+            <a href="#sos">How SOS works</a>
+          </Button>
         </div>
+        <p className="text-small text-text-muted">SOS, check-ins and altitude-sickness guidance are free, always.</p>
       </div>
-    </div>
+
+      {/* Built from the real components: EBC day 5 (Tengboche 3,860 m to Dingboche 4,410 m) and the real guidance text. */}
+      <Panel title="Example day" meta="Everest Base Camp" aria-label="Example of the trek screen" className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Readout size="md" label="Sleeping altitude" value="4,410" unit="m" delta={{ text: `${formatGain(550)} since last night`, severity: "caution" }} />
+          <Readout size="md" label="Trek day" value="5" delta={{ text: "Tengboche to Dingboche" }} />
+        </div>
+        <Banner severity="caution" headline={GAIN_CAUTION_HEADLINE} reasons={GAIN_CAUTION_ACTIONS.slice(0, 2)} />
+        <div>
+          <p className="mb-2 text-label text-text-muted">Route profile · max {formatAltitude(Math.max(...ticks.map((t) => t.altitudeM)))}</p>
+          <ElevationProfile waypoints={ticks} />
+        </div>
+      </Panel>
+    </section>
   );
 }
