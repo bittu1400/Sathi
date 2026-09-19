@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
 import { AppShell } from "@/components/app-shell";
+import { SwRegister } from "@/components/sw-register";
 
 const geistSans = Geist({
   variable: "--font-sans",
@@ -28,6 +29,8 @@ export default function RootLayout({
     <html
       lang="en"
       data-theme="dark"
+      // The inline script below swaps data-theme before React hydrates.
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <head>
@@ -40,6 +43,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-bg text-text">
         <Providers>
           <AppShell>{children}</AppShell>
+          <SwRegister />
         </Providers>
       </body>
     </html>
