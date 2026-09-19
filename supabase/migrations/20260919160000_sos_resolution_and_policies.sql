@@ -54,3 +54,12 @@ with check (
 create policy profiles_delete on profiles
 for delete to authenticated
 using (id = auth.uid());
+
+-- Latest position per trek in one query (rescue map, agency view).
+-- security_invoker keeps the caller's RLS on positions.
+create view latest_positions with (security_invoker = true) as
+select distinct on (trek_id) *
+from positions
+order by trek_id, recorded_at desc;
+
+grant select on latest_positions to authenticated;
