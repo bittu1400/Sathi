@@ -169,6 +169,7 @@ function TrekContent() {
         gainSinceLastNightM={ladder.at(-1)?.gainM}
         severity={ams?.level ?? "ok"}
       />
+      <p className="text-xs text-text-muted">Keep Sathi open to record your track.</p>
       {gps === "denied" && (
         <p role="status" className="text-sm text-caution">
           Location is blocked. Allow location for Sathi so SOS and the map can use your position.

@@ -40,11 +40,16 @@ async function activeTrek() {
   return { ...s, trek: s.trek }
 }
 
-/** 18:00 NPT (12:15 UTC) on demo day N of a trek that started at startedAt. */
-function eveningOf(startedAt: string, day: number, hourUtc = 12.25) {
+/**
+ * Scripted time on demo day N (default 18:00 NPT = 12:15 UTC). "Today" is day 7, so
+ * day-7 times that would be in the future are pulled to `minutesAgo` before now:
+ * the scripted Lobuche check-in stays earlier than the live one made on stage.
+ */
+function timeOn(startedAt: string, day: number, hourUtc = 12.25, minutesAgo = 1) {
   const start = new Date(startedAt)
   start.setUTCHours(0, 0, 0, 0)
-  return new Date(start.getTime() + (day - 1) * DAY_MS + hourUtc * 3_600_000).toISOString()
+  const scripted = start.getTime() + (day - 1) * DAY_MS + hourUtc * 3_600_000
+  return new Date(Math.min(scripted, Date.now() - minutesAgo * 60_000)).toISOString()
 }
 
 async function playDay(trekId: string, startedAt: string, day: DemoDay) {
@@ -55,7 +60,7 @@ async function playDay(trekId: string, startedAt: string, day: DemoDay) {
       trekId,
       ...p,
       accuracyM: 10,
-      recordedAt: eveningOf(startedAt, day.day, 3 + i * 2), // 08:45, 10:45, 12:45 NPT
+      recordedAt: timeOn(startedAt, day.day, 3 + i * 2, 5 - i), // 08:45, 10:45, 12:45 NPT
       source: "demo",
     })
   }
@@ -63,7 +68,7 @@ async function playDay(trekId: string, startedAt: string, day: DemoDay) {
   await recordCheckin(EBC_ROUTE, {
     id: newId(),
     trekId,
-    recordedAt: eveningOf(startedAt, day.day),
+    recordedAt: timeOn(startedAt, day.day),
     ...day.checkin,
     redFlags: [],
     sleepWaypointId: sleep.id,
@@ -97,21 +102,18 @@ export const demoDriver = {
     return `Reset: ${open?.length ?? 0} SOS resolved${s.trek ? ", active trek ended" : ""}, device data cleared.`
   },
 
-  /**
-   * Active EBC trek that started 7 days ago: scripted days 1–7 are all in the
-   * past, so the live "bad check-in" (today, day 8) is always the latest one.
-   */
+  /** Active EBC trek that started 6 days ago, so today is day 7 (Lobuche) as in DEMO.md. */
   async startEbcTrek(): Promise<string> {
     const s = await session()
     if (s.trek) throw new Error("A trek is already active. Reset first.")
-    const startedAt = new Date(Date.now() - 7 * DAY_MS).toISOString()
+    const startedAt = new Date(Date.now() - 6 * DAY_MS).toISOString()
     const { error } = await createClient()
       .from("treks")
       .insert({ user_id: s.userId, route_id: "ebc", status: "active", started_at: startedAt })
     if (error) throw new Error(error.message)
     demoModeStore.set(1)
     await refreshSession()
-    return "EBC trek started 7 days ago. Share link ready."
+    return "EBC trek started 6 days ago (today is day 7). Share link ready."
   },
 
   /** Days 1–6: Lukla → Dingboche, all check-ins green. */
@@ -130,7 +132,7 @@ export const demoDriver = {
     return "Day 7 played: Lobuche (4,940 m), +530 m sleeping gain."
   },
 
-  /** Today at Lobuche: LLS 7 (warning), or with ataxia (danger). */
+  /** Now, at Lobuche on day 7: LLS 7 (warning), or with ataxia (danger). */
   async submitBadCheckin(includeAtaxia: boolean): Promise<string> {
     const { trek } = await activeTrek()
     const redFlags: RedFlag[] = includeAtaxia ? ["ataxia"] : []

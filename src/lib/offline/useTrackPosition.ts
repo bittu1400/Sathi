@@ -49,7 +49,8 @@ export function useTrackPosition(route: RouteDetail | null, trekId: string | nul
         recordPosition(fix).catch(() => {});
       },
       (err) => setState(err.code === err.PERMISSION_DENIED ? "denied" : "unavailable"),
-      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 30_000 },
+      // SPEC §14: low-power GPS; SOS asks for a single high-accuracy fix instead.
+      { enableHighAccuracy: false, maximumAge: 60_000, timeout: 30_000 },
     );
 
     return () => navigator.geolocation.clearWatch(watchId);

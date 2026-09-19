@@ -67,7 +67,7 @@ export default function DemoPage() {
 
   const shareToken = session?.trek?.shareToken ?? null
   const steps: Step[] = [
-    { id: "start", title: "Start EBC trek", detail: "Active trek that began 7 days ago. Creates the family share link.", icon: <Play className="mr-1 h-3.5 w-3.5" />, run: demoDriver.startEbcTrek },
+    { id: "start", title: "Start EBC trek", detail: "Active trek that began 6 days ago, so today is day 7. Creates the family share link.", icon: <Play className="mr-1 h-3.5 w-3.5" />, run: demoDriver.startEbcTrek },
     { id: "fastForward", title: "Days 1–6 to Dingboche", detail: "Lukla → Phakding → Namche (rest) → Tengboche → Dingboche (rest). All check-ins green.", icon: <FastForward className="mr-1 h-3.5 w-3.5" />, run: demoDriver.fastForwardDingboche },
     { id: "lobuche", title: "Day 7 to Lobuche", detail: "Sleeps at 4,940 m (+530 m). The AMS engine raises the gain caution.", icon: <Mountain className="mr-1 h-3.5 w-3.5" />, run: demoDriver.advanceToLobuche },
     { id: "checkin", title: "Symptom check-in", detail: "LLS 7 (headache 2, GI 2, fatigue 2, dizziness 1). Engine verdict: warning, or danger with ataxia.", icon: <AlertTriangle className="mr-1 h-3.5 w-3.5" />, run: () => demoDriver.submitBadCheckin(ataxia) },

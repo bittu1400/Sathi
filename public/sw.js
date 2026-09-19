@@ -14,7 +14,8 @@ async function precache() {
   for (const page of PAGES) {
     try {
       const response = await fetch(page, { credentials: "same-origin" });
-      if (!response.ok) continue;
+      // A redirect (e.g. to /login) must never be cached as the page.
+      if (!response.ok || response.redirected) continue;
       const html = await response.clone().text();
       await cache.put(page, response);
       for (const match of html.matchAll(/\/_next\/static\/[^"'\s)]+/g)) assets.add(match[0]);
@@ -70,7 +71,7 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.ok) {
+          if (response.ok && !response.redirected) {
             const copy = response.clone();
             caches.open(CACHE_NAME).then((cache) => cache.put(url.pathname, copy));
           }
