@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { createLocalStore } from "@/lib/local-store"
-import { enqueue } from "@/lib/outbox"
+import { enqueue, patchQueued } from "@/lib/outbox"
 import { isOnline } from "@/lib/offline/status"
 import { alertToRow, checkinToRow, positionToRow } from "@/lib/db/map"
 import { listAlerts, listCheckins, listPositions } from "@/lib/db/queries"
@@ -114,13 +114,15 @@ export async function acknowledgeAlert(alert: Alert) {
   const acknowledgedAt = new Date().toISOString()
   const log = current(alert.trekId)
   save({ ...log, alerts: log.alerts.map((a) => (a.id === alert.id ? { ...a, acknowledgedAt } : a)) })
+  // Not sent yet: the row leaves the device already acknowledged.
+  await patchQueued(alert.id, { acknowledged_at: acknowledgedAt })
   if (isOnline()) {
     // dedupe_key, not id: the server may hold an earlier row for the same alert.
-    // A failure only means the alert stays unacknowledged for the coordinator.
-    await createClient()
+    const { error } = await createClient()
       .from("alerts")
       .update({ acknowledged_at: acknowledgedAt })
       .eq("trek_id", alert.trekId)
       .eq("dedupe_key", alert.dedupeKey)
+    if (error) throw new Error(error.message)
   }
 }

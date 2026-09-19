@@ -23,6 +23,7 @@ const phoneSchema = z
 export default function SettingsPage() {
   const router = useRouter()
   const [loading, setLoading] = React.useState(true)
+  const [loadError, setLoadError] = React.useState<string | null>(null)
   const [saving, setSaving] = React.useState(false)
   const [message, setMessage] = React.useState<{ type: "success" | "error"; text: string } | null>(null)
 
@@ -47,12 +48,17 @@ export default function SettingsPage() {
         return
       }
 
-      const { data: profile } = await supabase
+      const { data: profile, error: loadErr } = await supabase
         .from("profiles")
         .select("*")
         .eq("id", user.id)
         .single()
 
+      // Keep the form hidden: saving an empty form would blank the stored profile.
+      if (loadErr) {
+        setLoadError(`Couldn't load your settings: ${loadErr.message}`)
+        return
+      }
       if (profile) {
         setDisplayName(profile.display_name || "")
         setContactName(profile.emergency_contact_name || "")
@@ -173,7 +179,9 @@ export default function SettingsPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4 bg-bg">
-        <p className="text-sm text-text-muted">Loading settings...</p>
+        <p role={loadError ? "alert" : undefined} className={loadError ? "text-sm text-danger" : "text-sm text-text-muted"}>
+          {loadError ?? "Loading settings..."}
+        </p>
       </div>
     )
   }

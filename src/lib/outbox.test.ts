@@ -111,6 +111,24 @@ describe("Outbox concurrency", () => {
     expect(remaining.map((i) => i.id)).toEqual(["sos-late"])
   })
 
+  it("a flush called during another flush waits, then sends what was queued meanwhile", async () => {
+    await enqueue("positions", { id: "pos-1" }, { autoFlush: false })
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const mockSupabase = createMockSupabase(async () => {
+      await gate
+      return { error: null }
+    })
+
+    const first = flush(mockSupabase)
+    await enqueue("sos_events", { id: "sos-late" }, { autoFlush: false })
+    const second = flush(mockSupabase)
+    release()
+    expect(await first).toEqual({ sent: 1, failed: 0 })
+    expect(await second).toEqual({ sent: 1, failed: 0 })
+    expect(await getOutboxItems()).toEqual([])
+  })
+
   it("keeps both rows when two enqueues race", async () => {
     await Promise.all([
       enqueue("checkins", { id: "c-1" }, { autoFlush: false }),
