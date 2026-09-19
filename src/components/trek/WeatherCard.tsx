@@ -7,11 +7,8 @@ import { evaluateWeather, fetchForecast } from "@/lib/weather";
 import { deriveAlerts } from "@/lib/alerts";
 import { recordAlerts } from "@/lib/trek-log";
 import { WEATHER_DISCLAIMER, weatherHeadline } from "@/lib/ams-copy";
-import { createLocalStore } from "@/lib/local-store";
+import { weatherFixtureStore } from "@/lib/session";
 import type { Forecast, WeatherVerdict, Waypoint } from "@/lib/types";
-
-/** /demo can inject a storm forecast (C-07); real devices use Open-Meteo. */
-export const weatherFixtureStore = createLocalStore<Forecast>("sathiWeatherFixture");
 
 const NO_AMS = { level: "ok" as const, headline: "", actions: [], reasons: [], alerts: [] };
 

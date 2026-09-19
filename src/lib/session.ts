@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/client"
 import { createLocalStore } from "@/lib/local-store"
 import { getActiveTrek, getProfile, listCheckins } from "@/lib/db/queries"
-import type { SosEvent, Trek } from "@/lib/types"
+import type { Forecast, SosEvent, Trek } from "@/lib/types"
 
 /**
  * What the trekker's device must know to act with no network:
@@ -22,6 +22,10 @@ export interface TrekSession {
 
 export const sessionStore = createLocalStore<TrekSession>("sathiSession")
 export const latestSosStore = createLocalStore<SosEvent>("sathiLatestSos")
+/** /demo can inject a storm forecast (C-07); real devices use Open-Meteo. */
+export const weatherFixtureStore = createLocalStore<Forecast>("sathiWeatherFixture")
+/** Set by /demo: positions come from the scenario, so live GPS is paused. */
+export const demoModeStore = createLocalStore<number>("sathiDemo")
 
 export function updateSession(patch: Partial<TrekSession>) {
   const current = sessionStore.get()

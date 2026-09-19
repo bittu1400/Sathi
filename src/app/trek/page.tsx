@@ -8,14 +8,13 @@ import { getRoute, getRoutes, getResources } from "@/lib/data";
 import type { RouteDetail } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { endTrek, startTrek } from "@/lib/db/queries";
-import { refreshSession, sessionStore } from "@/lib/session";
+import { demoModeStore, refreshSession, sessionStore } from "@/lib/session";
 import { acknowledgeAlert, refreshTrekLog, trekLogStore } from "@/lib/trek-log";
 import { amsInputFromCheckins, evaluateAms, sleepNights } from "@/lib/ams";
 import { haversineKm, nearestWaypoint, nextWaypoint } from "@/lib/geo";
 import { isEligible } from "@/lib/weather";
 import { useConnectivity } from "@/lib/offline/status";
 import { useTrackPosition } from "@/lib/offline/useTrackPosition";
-import { createLocalStore } from "@/lib/local-store";
 import { StartTrek } from "@/components/trek/StartTrek";
 import { TrekHeader } from "@/components/trek/TrekHeader";
 import { AltitudeHero } from "@/components/trek/AltitudeHero";
@@ -32,8 +31,6 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const REFRESH_MS = 20_000;
-/** Set by /demo: positions come from the scenario, so live GPS is paused. */
-const demoModeStore = createLocalStore<number>("sathiDemo");
 const DAY_MS = 86_400_000;
 const nepalDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" });
 const dayIndex = (from: string, to: string) => Math.round((Date.parse(to) - Date.parse(from)) / DAY_MS);

@@ -30,9 +30,16 @@ async function isQueued(id: string) {
 }
 
 /** SPEC §9.1 steps 3–4. Resolves once the SOS is either delivered or queued. */
-export async function sendSos(category: SosCategory, note: string): Promise<SosEvent> {
+export async function sendSos(
+  category: SosCategory,
+  note: string,
+  /** /demo only: a scripted position instead of the device GPS. */
+  demoPosition?: { lat: number; lng: number; altM: number },
+): Promise<SosEvent> {
   const session = sessionStore.get()
-  const fix = await currentPosition()
+  const fix = demoPosition
+    ? ({ coords: { latitude: demoPosition.lat, longitude: demoPosition.lng, altitude: demoPosition.altM, altitudeAccuracy: 5, accuracy: 10 } } as GeolocationPosition)
+    : await currentPosition()
   const last = session?.lastPosition ?? null
   const lat = fix?.coords.latitude ?? last?.lat ?? null
   const lng = fix?.coords.longitude ?? last?.lng ?? null

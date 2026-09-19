@@ -11,7 +11,7 @@ import { getNearestResources } from "@/lib/emergency-resources"
 import { formatKm } from "@/lib/format"
 import { sessionStore } from "@/lib/session"
 import type { RouteDetail } from "@/lib/types"
-import { markSmsSent } from "./actions"
+import { markSmsSent } from "@/lib/sos-actions"
 import { ResolveSosForm } from "./ResolveSosForm"
 
 const KIND_LABEL: Record<string, string> = {

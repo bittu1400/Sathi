@@ -4,7 +4,7 @@ import * as React from "react"
 import { X, Loader2 } from "lucide-react"
 import type { SosCategory } from "@/lib/types"
 import { latestSosStore } from "@/lib/session"
-import { sendSos } from "./actions"
+import { sendSos } from "@/lib/sos-actions"
 import { SosCountdown } from "./SosCountdown"
 import { SosActiveView } from "./SosActiveView"
 

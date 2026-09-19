@@ -4,7 +4,7 @@ import * as React from "react"
 import type { SosEvent } from "@/lib/types"
 import { SosStatus } from "./SosStatus"
 import { OfflineSosPanel } from "./OfflineSosPanel"
-import { resolveOwnSos } from "./actions"
+import { resolveOwnSos } from "@/lib/sos-actions"
 
 /** Delivered → status view; not delivered yet → offline SMS panel (SPEC §9.1 step 4). */
 export function SosActiveView({ sos, onDone }: { sos: SosEvent; onDone?: () => void }) {

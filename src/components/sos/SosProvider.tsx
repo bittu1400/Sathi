@@ -5,7 +5,7 @@ import type { SosCategory } from "@/lib/types"
 import { subscribeOutboxStatus } from "@/lib/outbox"
 import { isOnline } from "@/lib/offline/status"
 import { refreshSession } from "@/lib/session"
-import { syncSosDelivery } from "./actions"
+import { syncSosDelivery } from "@/lib/sos-actions"
 import { SosSheet } from "./SosSheet"
 
 interface SosContextType {
