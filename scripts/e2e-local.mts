@@ -1,6 +1,7 @@
 /**
- * End-to-end check of lib/db + RLS against a local Supabase (never production):
- *   npx supabase start   (applies supabase/migrations)
+ * End-to-end check of lib/db + RLS against a local Supabase (never production).
+ * Setup (outside the repo; see docs WORKFLOW §7): `npx supabase init`, copy supabase/migrations,
+ * `npx supabase start`, put its URL/anon/service keys + NEXT_PUBLIC_DEMO_GMAIL + SEED_PASSWORD in .env.local, then:
  *   pnpm tsx --env-file=.env.local scripts/seed-users.ts
  *   pnpm tsx --env-file=.env.local scripts/e2e-local.mts
  * Uses the seeded demo accounts; creates and resolves test SOS events.
