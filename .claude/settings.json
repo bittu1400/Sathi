@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(git add -f:*)",
+      "Bash(git add --force:*)",
+      "Bash(git add docs:*)",
+      "Bash(git add ./docs:*)",
+      "Bash(git add docs/:*)",
+      "Bash(git commit --no-verify:*)",
+      "Bash(git commit -n:*)",
+      "Bash(git config core.hooksPath:*)"
+    ]
+  }
+}

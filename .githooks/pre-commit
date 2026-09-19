@@ -1,0 +1,17 @@
+#!/bin/sh
+# Blocks commits that would leak private files into this PUBLIC repo.
+# Installed automatically by `pnpm install` (package.json "prepare" sets core.hooksPath).
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+
+if printf '%s\n' "$staged" | grep -qE '^docs(/|$)'; then
+  echo "✖ Commit blocked: docs/ is the PRIVATE sathi-docs repo and must never be committed to this public repo."
+  echo "  Unstage it:  git restore --staged docs"
+  echo "  To change the docs, commit inside docs/ instead:  git -C docs add -A && git -C docs commit"
+  exit 1
+fi
+
+if printf '%s\n' "$staged" | grep -E '(^|/)\.env' | grep -qv '\.env\.example$'; then
+  echo "✖ Commit blocked: .env files hold secrets. Only .env.example may be committed."
+  exit 1
+fi

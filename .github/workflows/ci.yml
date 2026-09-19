@@ -27,6 +27,11 @@ jobs:
       ANTHROPIC_API_KEY: dummy
     steps:
       - uses: actions/checkout@v4
+      - name: Guard - private docs must never be in this public repo
+        run: |
+          if [ -n "$(git ls-files docs)" ]; then
+            echo "::error::docs/ is the private sathi-docs repo and must never be committed here"; exit 1
+          fi
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

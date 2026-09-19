@@ -1,7 +1,16 @@
 # Contributing
 
+## Setup (once)
+```bash
+git clone https://github.com/bittu1400/Sathi.git && cd Sathi
+git clone https://github.com/bittu1400/sathi-docs.git docs   # private team docs (team members only), gitignored
+pnpm install                                                  # also installs the git hooks
+cp .env.example .env.local
+```
+`docs/` is its own git repo. Commit doc changes there (`git -C docs …`), never in this repo.
+
 ## Flow
-1. `git switch main && git pull`
+1. `git switch main && git pull && git -C docs pull`
 2. `git switch -c {a|b|c}/{TASK-ID}-{slug}`, e.g. `b/B-05-ams-engine`
 3. Build the task. Stay inside your owned folders (see [CLAUDE.md](CLAUDE.md#layout--ownership)).
 4. `pnpm check` must pass.

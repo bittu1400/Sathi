@@ -2,6 +2,8 @@
 
 All agent instructions for this repo live in [CLAUDE.md](CLAUDE.md). Read it fully before making changes.
 
+**Rule zero:** `docs/` is a gitignored clone of a PRIVATE repo. Read it for specs, but never commit it or copy its content into this public repo. Details are in CLAUDE.md.
+
 <!-- BEGIN:nextjs-agent-rules -->
 # This is NOT the Next.js you know
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.

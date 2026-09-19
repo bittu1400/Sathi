@@ -10,7 +10,8 @@
     "typecheck": "next typegen && tsc --noEmit",
     "test": "vitest run",
     "format": "prettier --write .",
-    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "prepare": "git config core.hooksPath .githooks || true"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

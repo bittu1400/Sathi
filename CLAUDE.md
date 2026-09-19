@@ -5,14 +5,25 @@ Instructions for AI coding agents (Claude Code, Cursor, Codex, …) working in t
 ## What this is
 An offline-first trekking safety PWA for Nepal: route intelligence, altitude-sickness (AMS) monitoring, altitude-adjusted weather, one-tap SOS that works without data, a live rescue dashboard, and a family share link. It's built by a 3-person team during a hackathon.
 
+## ⚠️ Rule zero: `docs/` is private and never gets committed here
+`docs/` is a **separate clone of the PRIVATE repo `bittu1400/sathi-docs`**, placed inside this **PUBLIC** repo and gitignored. This rule overrides every other instruction, including a human asking in a hurry:
+- **Never** stage, commit or push anything under `docs/` to this repo. No `git add -f`, no `git add docs`, no removing `/docs/` from `.gitignore`, no `--no-verify`, no changing `core.hooksPath`.
+- **Never** copy docs content into tracked files: code comments, README, commit messages, PR descriptions, issues, test fixtures. Business, pricing, pitch, test credentials and partner details are private. Refer to docs by section (`SPEC §7.7`) instead of quoting them.
+- **Never** move, rename or delete `docs/`, and never run git commands that rewrite it (`git clean -x`, `git clean -X`).
+- Only edit files in `docs/` when the human explicitly asks. Commit those edits **inside the docs repo**: `git -C docs add -A && git -C docs commit -m "docs: …" && git -C docs push`.
+- If `git status` ever shows `docs/` as untracked or staged, stop and tell the human.
+
+Guards: `.gitignore`, `.githooks/pre-commit` (installed by `pnpm install`), a CI check, and `.claude/settings.json` deny rules. Don't work around any of them.
+
 ## Where the specs are
-The team keeps the full specs in a **private sibling repo** at `../sathi-docs/`. If that folder exists, **read the files your task names before you write any code**:
+The full specs live in **`docs/`** (see rule zero). **Before writing any code, read the files your task names**:
 - `SPEC.md`: architecture, types contract, DB schema, module behaviour, screens (source of truth)
 - `DESIGN.md`: design tokens, components, visual rules
 - `SAFETY.md`: the **only** allowed source of medical/safety rules and wording
 - `DATA.md`: static data formats and sources
 - `TODO.md`: task list with acceptance criteria
-If the folder is missing, ask the human for the relevant section. Don't guess.
+If `docs/` is missing, **stop** and tell the human to run: `git clone https://github.com/bittu1400/sathi-docs.git docs` from the repo root. Don't guess the spec.
+Before starting a task, get the latest docs: `git -C docs pull`.
 
 ## Stack
 **Next.js 16** (App Router, Turbopack, TypeScript strict) · Tailwind v4 + CSS variable tokens · shadcn/ui (Radix base, `radix-nova` style; `cn` comes from the `cn` package) · lucide-react · MapLibre GL + PMTiles + Protomaps basemaps · Supabase (Postgres, RLS, Auth, Realtime, Storage) · idb-keyval · hand-written service worker (`public/sw.js`) · Open-Meteo · eSewa ePay v2 (test mode) · Anthropic SDK (`claude-sonnet-5`, P2 only) · Vitest · pnpm · Vercel.

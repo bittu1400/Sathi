@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Private team docs (separate repo, gitignored)
+    "docs/**",
   ]),
 ]);
 

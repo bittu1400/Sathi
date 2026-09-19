@@ -40,3 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 !.env.example
+
+# Private team docs = a separate clone of the PRIVATE repo bittu1400/sathi-docs.
+# This repo is PUBLIC. docs/ must NEVER be committed here (guarded by .githooks/pre-commit and CI).
+/docs/
