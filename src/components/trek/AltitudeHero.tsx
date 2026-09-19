@@ -1,63 +1,51 @@
+"use client";
+
 import * as React from "react";
-import { cn } from "cn";
-import { Mountain } from "lucide-react";
-import { formatGain } from "@/lib/format";
+import { formatAgo, formatGain } from "@/lib/format";
+import { isFastGain } from "@/lib/ams";
+import { useNow } from "@/lib/use-now";
+import { Panel } from "../ui/panel";
+import { Readout } from "../ui/readout";
 
 export interface AltitudeHeroProps {
   /** null = no GPS fix yet. */
   altitudeM: number | null;
   gainSinceLastNightM?: number;
-  severity?: "ok" | "info" | "caution" | "warning" | "danger";
+  updatedAt?: string;
+  accuracyM?: number | null;
   className?: string;
 }
 
-export function AltitudeHero({
-  altitudeM,
-  gainSinceLastNightM,
-  severity = "ok",
-  className,
-}: AltitudeHeroProps) {
-  const severityColors = {
-    ok: "text-ok bg-ok/10 border-ok/30",
-    info: "text-info bg-info/10 border-info/30",
-    caution: "text-caution bg-caution/15 border-caution/40",
-    warning: "text-warning bg-warning/15 border-warning/40",
-    danger: "text-danger bg-danger/15 border-danger/40 animate-pulse motion-reduce:animate-none",
-  };
+const STALE_MS = 15 * 60_000;
+
+export function AltitudeHero({ altitudeM, gainSinceLastNightM, updatedAt, accuracyM, className }: AltitudeHeroProps) {
+  const now = useNow();
+  const stale = now !== null && updatedAt !== undefined && now - Date.parse(updatedAt) > STALE_MS;
+  const freshness =
+    updatedAt && now !== null
+      ? `updated ${formatAgo(updatedAt, now)}${accuracyM != null ? ` · ±${Math.round(accuracyM)} m` : ""}`
+      : undefined;
+  const fast = altitudeM !== null && gainSinceLastNightM !== undefined && isFastGain(altitudeM, gainSinceLastNightM);
 
   return (
-    <div
-      className={cn(
-        "bg-surface border border-border rounded-[var(--radius-lg)] p-6 shadow-md flex flex-col items-center justify-center text-center space-y-2 relative overflow-hidden",
-        className
-      )}
-    >
-      <div className="flex items-center gap-1.5 text-xs uppercase tracking-widest font-semibold text-text-muted">
-        <Mountain className="w-4 h-4 text-accent" />
-        Current altitude
-      </div>
-
+    <Panel className={className}>
       {altitudeM === null ? (
-        <p className="py-3 text-lg font-semibold text-text-muted">Waiting for GPS…</p>
+        <Readout size="xl" label="Altitude" value="—" freshness="Waiting for GPS…" />
       ) : (
-        <div className="flex items-baseline justify-center gap-2 font-mono tabular-nums">
-          <span className="text-5xl sm:text-6xl font-extrabold text-text tracking-tight">
-            {altitudeM.toLocaleString("en-US")}
-          </span>
-          <span className="text-xl text-text-muted font-sans font-medium">m</span>
-        </div>
+        <Readout
+          size="xl"
+          label="Altitude"
+          value={altitudeM.toLocaleString("en-US")}
+          unit="m"
+          delta={
+            gainSinceLastNightM !== undefined
+              ? { text: `${formatGain(gainSinceLastNightM)} sleeping altitude since last night${fast ? " · faster than guidelines" : ""}`, severity: fast ? "caution" : undefined }
+              : undefined
+          }
+          freshness={freshness}
+          stale={stale}
+        />
       )}
-
-      {gainSinceLastNightM !== undefined && (
-        <div
-          className={cn(
-            "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold border mt-2",
-            severityColors[severity]
-          )}
-        >
-          {formatGain(gainSinceLastNightM)} sleeping altitude since last night
-        </div>
-      )}
-    </div>
+    </Panel>
   );
 }

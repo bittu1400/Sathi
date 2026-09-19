@@ -2,7 +2,10 @@
 
 import * as React from "react";
 import { CloudSnow } from "lucide-react";
-import { SeverityBanner } from "../ui/severity-banner";
+import { Banner } from "../ui/banner";
+import { Panel } from "../ui/panel";
+import { Skeleton } from "../ui/skeleton";
+import { formatAltitude } from "@/lib/format";
 import { evaluateWeather, fetchForecast } from "@/lib/weather";
 import { deriveAlerts } from "@/lib/alerts";
 import { recordAlerts } from "@/lib/trek-log";
@@ -38,23 +41,29 @@ export function WeatherCard({ waypoint, trekId }: { waypoint: Waypoint; trekId: 
     };
   }, [fixture, waypoint, trekId]);
 
-  if (state === "loading") return null;
+  if (state === "loading") return <Skeleton shape="panel" className="h-32" />;
   if (state === "error") {
     return (
-      <p className="flex items-center gap-2 rounded-[var(--radius)] border border-border bg-surface p-4 text-sm text-text-muted">
-        <CloudSnow className="h-4 w-4" /> No forecast for {waypoint.name} yet. It loads when you have signal.
-      </p>
+      <Panel>
+        <p className="flex items-center gap-2 text-text-muted">
+          <CloudSnow className="size-4" aria-hidden /> No forecast for {waypoint.name} yet. It loads when you have signal.
+        </p>
+      </Panel>
     );
   }
 
   const { verdict, stale } = state;
-  const severity = verdict.verdict === "no_go" ? "warning" : verdict.verdict === "caution" ? "caution" : "info";
+  const severity = verdict.verdict === "no_go" ? "warning" : verdict.verdict === "caution" ? "caution" : "ok";
   return (
-    <SeverityBanner
+    <Banner
       severity={severity}
       headline={weatherHeadline(verdict.verdict, waypoint.name)}
       reasons={stale ? [...verdict.reasons, "Forecast is from the last time you had signal."] : verdict.reasons}
       disclaimer={WEATHER_DISCLAIMER}
-    />
+    >
+      <p className="text-small text-text-muted">
+        Forecast for {waypoint.name} at {formatAltitude(waypoint.altM)}
+      </p>
+    </Banner>
   );
 }

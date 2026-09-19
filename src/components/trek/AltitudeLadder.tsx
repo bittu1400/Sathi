@@ -1,6 +1,9 @@
 import * as React from "react";
-import { cn } from "cn";
-import { Moon } from "lucide-react";
+import { Moon, TriangleAlert } from "lucide-react";
+import { isFastGain } from "@/lib/ams";
+import { formatAltitude, formatGain } from "@/lib/format";
+import { Panel } from "../ui/panel";
+import { Status } from "../ui/status";
 
 export interface NightRecord {
   dayNumber: number;
@@ -9,70 +12,39 @@ export interface NightRecord {
   gainM?: number;
 }
 
-export interface AltitudeLadderProps {
-  nights: NightRecord[];
-  className?: string;
-}
-
-export function AltitudeLadder({ nights, className }: AltitudeLadderProps) {
-  if (!nights || nights.length === 0) {
+export function AltitudeLadder({ nights, className }: { nights: NightRecord[]; className?: string }) {
+  if (nights.length === 0)
     return (
-      <div className="p-4 text-center text-text-muted text-sm border border-border rounded-[var(--radius)] bg-surface">
-        No sleeping altitude history yet
-      </div>
+      <Panel title="Sleeping altitude" className={className}>
+        <p className="text-text-muted">No sleeping altitude history yet. It fills in as you check in.</p>
+      </Panel>
     );
-  }
 
   return (
-    <div className={cn("bg-surface border border-border rounded-[var(--radius)] p-4 space-y-3", className)}>
-      <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wider text-text-muted pb-2 border-b border-border/60">
-        <span className="flex items-center gap-1.5">
-          <Moon className="w-3.5 h-3.5 text-accent" />
-          Sleeping Altitude History
-        </span>
-        <span>Night Gain</span>
-      </div>
-
-      <div className="space-y-2">
-        {nights.map((night, idx) => {
-          const isHighAltitude = night.altitudeM >= 3000;
-          const isAggressiveGain =
-            isHighAltitude && night.gainM !== undefined && night.gainM > 500;
-
+    <Panel title="Sleeping altitude" meta="Night gain" className={className}>
+      <ul className="divide-y divide-line">
+        {nights.map((n) => {
+          const fast = n.gainM !== undefined && isFastGain(n.altitudeM, n.gainM);
           return (
-            <div
-              key={idx}
-              className="flex items-center justify-between p-2.5 rounded-[var(--radius-sm)] bg-surface-2/60 hover:bg-surface-2 transition-colors"
-            >
-              <div className="flex flex-col">
-                <span className="text-xs text-text-muted font-medium">
-                  Day {night.dayNumber} · {night.placeName}
-                </span>
-                <span className="text-base font-mono font-semibold text-text">
-                  {night.altitudeM.toLocaleString()} m
-                </span>
+            <li key={`${n.dayNumber}-${n.placeName}`} className="flex items-center justify-between gap-3 py-2.5">
+              <div>
+                <p className="flex items-center gap-1.5 text-small text-text-muted">
+                  <Moon className="size-3.5" aria-hidden /> Day {n.dayNumber} · {n.placeName}
+                </p>
+                <p className="font-mono text-body tabular-nums">{formatAltitude(n.altitudeM)}</p>
               </div>
-
-              {night.gainM !== undefined ? (
-                <div className="text-right">
-                  <span
-                    className={cn(
-                      "text-sm font-mono font-medium px-2 py-0.5 rounded-full border",
-                      isAggressiveGain
-                        ? "bg-caution/15 text-caution border-caution/40"
-                        : "bg-surface-3 text-text-muted border-border"
-                    )}
-                  >
-                    {night.gainM >= 0 ? `+${night.gainM}` : night.gainM} m
-                  </span>
-                </div>
-              ) : (
-                <span className="text-xs text-text-faint font-mono">—</span>
-              )}
-            </div>
+              {n.gainM !== undefined &&
+                (fast ? (
+                  <Status tone="caution" icon={<TriangleAlert aria-hidden />}>
+                    {formatGain(n.gainM)} · over guideline
+                  </Status>
+                ) : (
+                  <span className="font-mono text-body tabular-nums text-text-muted">{formatGain(n.gainM)}</span>
+                ))}
+            </li>
           );
         })}
-      </div>
-    </div>
+      </ul>
+    </Panel>
   );
 }

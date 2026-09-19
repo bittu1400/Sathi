@@ -3,9 +3,9 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ClipboardCheck, Flag, LogIn, WifiOff } from "lucide-react";
+import { LogIn, WifiOff } from "lucide-react";
 import { getRoute, getRoutes, getResources } from "@/lib/data";
-import type { RouteDetail } from "@/lib/types";
+import type { Alert, RouteDetail } from "@/lib/types";
 import { createClient } from "@/lib/supabase/client";
 import { endTrek, startTrek } from "@/lib/db/queries";
 import { demoModeStore, refreshSession, sessionStore } from "@/lib/session";
@@ -25,10 +25,14 @@ import { CheckinSheet } from "@/components/trek/CheckinSheet";
 import { WeatherCard } from "@/components/trek/WeatherCard";
 import { ShareLinkCard } from "@/components/sos/ShareLinkCard";
 import { Map } from "@/components/map/Map";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "@/components/ui/toast";
+import { runWithUndo } from "@/components/ui/use-undo";
+import { TodayPanel } from "@/components/trek/TodayPanel";
+import { isCheckinDue } from "@/components/trek/checkin-due";
 
 // Short enough that /demo steps show up on the phone within a stage beat.
 const REFRESH_MS = 10_000;
@@ -50,6 +54,8 @@ function TrekContent() {
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [checkinOpen, setCheckinOpen] = React.useState(false);
+  const [endOpen, setEndOpen] = React.useState(false);
+  const [hidden, setHidden] = React.useState<Set<string>>(new Set());
 
   React.useEffect(() => {
     refreshSession()
@@ -107,24 +113,32 @@ function TrekContent() {
   if (!session) {
     return online ? (
       <EmptyState
-        icon={<LogIn className="h-6 w-6" />}
+        icon={<LogIn className="size-6 text-text-muted" />}
         title="Sign in to start a trek"
         description="Your trek, check-ins and SOS are linked to your account so coordination can find you."
         action={
-          <Link href="/login?next=/trek" className={buttonVariants()}>
-            Sign in
-          </Link>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Button asChild>
+              <Link href="/login?next=/trek">Sign in</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/routes">Browse routes</Link>
+            </Button>
+            <Button asChild variant="secondary">
+              <Link href="/sos">SOS</Link>
+            </Button>
+          </div>
         }
       />
     ) : (
       <EmptyState
-        icon={<WifiOff className="h-6 w-6" />}
+        icon={<WifiOff className="size-6 text-text-muted" />}
         title="Offline and not signed in"
         description="Sign in once with signal to use trek mode offline. The SOS page still works by SMS."
         action={
-          <Link href="/sos" className={buttonVariants({ variant: "sos" })}>
-            Open SOS
-          </Link>
+          <Button asChild variant="sos">
+            <Link href="/sos">Open SOS</Link>
+          </Button>
         }
       />
     );
@@ -137,15 +151,22 @@ function TrekContent() {
           routes={getRoutes()}
           initialRouteId={params.get("route") ?? undefined}
           disabled={!online || busy}
+          disabledReason={!online ? "Starting a trek needs signal once. Everything after works offline." : undefined}
+          contactName={session.emergencyContactName}
+          contactPhone={session.emergencyContactPhone}
           onStart={(routeId) => run(() => startTrek(createClient(), session.userId, routeId))}
         />
-        {!online && <p className="text-center text-sm text-caution">Starting a trek needs signal once. Everything after works offline.</p>}
-        {error && <p role="alert" className="text-center text-sm text-danger">{error}</p>}
+        {error && (
+          <p role="alert" className="text-center text-body text-danger">
+            {error}
+          </p>
+        )}
       </div>
     );
   }
 
-  const today = nepalDay.format(new Date());
+  const nowDate = new Date();
+  const today = nepalDay.format(nowDate);
   const startDay = trek.startedAt ? nepalDay.format(new Date(trek.startedAt)) : today;
   const dayNumber = dayIndex(startDay, today) + 1;
   const nights = sleepNights(checkins);
@@ -159,81 +180,99 @@ function TrekContent() {
   const here = latest ? nearestWaypoint(route, latest) : null;
   const upcoming = route.waypoints.slice(here ? here.index + 1 : 0);
   const weatherWaypoint = upcoming.find(isEligible) ?? null;
-  const alerts = (trekLog?.alerts ?? []).filter((a) => !a.acknowledgedAt);
+  const alerts = (trekLog?.alerts ?? []).filter((a) => !a.acknowledgedAt && !hidden.has(a.id));
+  const lastCheckinAt = checkins.at(-1)?.recordedAt ?? null;
+  const due = isCheckinDue(checkins.map((c) => c.recordedAt), nowDate);
+
+  // Dismiss hides the alert at once and syncs the acknowledgement after 8 s unless undone.
+  const dismiss = (alert: Alert) =>
+    runWithUndo({
+      apply: () => setHidden((h) => new Set(h).add(alert.id)),
+      revert: () =>
+        setHidden((h) => {
+          const next = new Set(h);
+          next.delete(alert.id);
+          return next;
+        }),
+      commit: () => acknowledgeAlert(alert).catch(() => toast.error("Couldn't sync. It will retry when you're online.")),
+      message: "Alert dismissed",
+    });
 
   return (
-    <div className="space-y-6 pb-24">
-      <TrekHeader routeName={route.name} dayNumber={dayNumber} />
+    <div className="space-y-6 pb-16">
+      <TrekHeader
+        routeName={route.name}
+        dayNumber={dayNumber}
+        onEnd={() => setEndOpen(true)}
+        endDisabled={!online || busy}
+        endHint={!online ? "Ending a trek needs signal." : undefined}
+      />
       {demoMode && (
-        <p className="rounded-[var(--radius-sm)] border border-info/40 bg-info/10 px-3 py-2 text-xs text-info">
+        <p className="rounded-[var(--radius)] border border-accent/40 bg-accent-bg px-3 py-2 text-small text-accent">
           Demo mode: positions come from the /demo scenario, live GPS is paused.
         </p>
       )}
 
-      <AltitudeHero
-        altitudeM={latest?.altM ?? null}
-        gainSinceLastNightM={ladder.at(-1)?.gainM}
-        severity={ams?.level ?? "ok"}
-      />
-      <p className="text-xs text-text-muted">Keep Sathi open to record your track.</p>
-      {gps === "denied" && (
-        <p role="status" className="text-sm text-caution">
-          Location is blocked. Allow location for Sathi so SOS and the map can use your position.
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
+          <TodayPanel ams={ams} lastCheckinAt={lastCheckinAt} due={due} onCheckin={() => setCheckinOpen(true)} />
+          <AltitudeHero
+            altitudeM={latest?.altM ?? null}
+            gainSinceLastNightM={ladder.at(-1)?.gainM}
+            updatedAt={latest?.recordedAt}
+            accuracyM={latest?.accuracyM}
+          />
+          {gps === "denied" && (
+            <p role="status" className="text-body text-caution">
+              Location is blocked. Allow location for Sathi so SOS and the map can use your position.
+            </p>
+          )}
+          <p className="text-small text-text-muted">Keep Sathi open to record your track.</p>
+          {next && (
+            <NextWaypoint
+              waypoint={next}
+              distanceKm={latest ? haversineKm(latest, next) : null}
+              altitudeDeltaM={latest?.altM != null ? next.altM - latest.altM : null}
+            />
+          )}
+          <AlertFeed alerts={alerts} onDismiss={dismiss} />
+          {weatherWaypoint && <WeatherCard waypoint={weatherWaypoint} trekId={trek.id} />}
+        </div>
+
+        <div className="space-y-6">
+          <section className="space-y-2">
+            <h2 className="text-label text-text-muted">Map</h2>
+            <Map route={route} resources={getResources()} position={latest ?? undefined} />
+          </section>
+          <AltitudeLadder nights={ladder} />
+          <ShareLinkCard shareToken={trek.shareToken} />
+        </div>
+      </div>
+
+      {error && (
+        <p role="alert" className="text-body text-danger">
+          {error}
         </p>
       )}
 
-      <AlertFeed alerts={alerts} onAcknowledge={(id) => {
-        const alert = alerts.find((a) => a.id === id);
-        if (alert) acknowledgeAlert(alert).catch(() => {});
-      }} />
-
-      {weatherWaypoint && <WeatherCard waypoint={weatherWaypoint} trekId={trek.id} />}
-
-      <section className="space-y-2">
-        <h2 className="font-mono text-xs uppercase tracking-wider text-text-muted">Map</h2>
-        <Map route={route} resources={getResources()} position={latest ?? undefined} />
-      </section>
-
-      {next && (
-        <NextWaypoint
-          waypoint={next}
-          distanceKm={latest ? haversineKm(latest, next) : null}
-          altitudeDeltaM={latest?.altM != null ? next.altM - latest.altM : null}
-        />
+      {/* Evening check-in due: sticky above the tab bar, right 88 px left free for the SOS button. */}
+      {due && !checkinOpen && (
+        <div className="fixed bottom-[calc(var(--tabbar-h)+env(safe-area-inset-bottom)+0.75rem)] left-4 right-[88px] z-[var(--z-sticky)] lg:hidden">
+          <Button size="lg" className="w-full" onClick={() => setCheckinOpen(true)}>
+            Evening check-in due
+          </Button>
+        </div>
       )}
 
-      <AltitudeLadder nights={ladder} />
-
-      <Card className="space-y-3 border-accent/40 bg-surface-2/70 p-4">
-        <div className="flex items-center gap-2">
-          <ClipboardCheck className="h-5 w-5 text-accent" />
-          <h2 className="text-base font-semibold">Evening check-in</h2>
-        </div>
-        <p className="text-sm text-text-muted">Four symptom questions and where you sleep tonight. Works offline.</p>
-        <Button variant="primary" className="w-full" onClick={() => setCheckinOpen(true)}>
-          Start check-in
-        </Button>
-      </Card>
-
-      <ShareLinkCard shareToken={trek.shareToken} />
-
-      <div className="flex items-center justify-between border-t border-border/60 pt-4">
-        <Button
-          variant="ghost"
-          className="text-text-muted hover:text-danger"
-          disabled={!online || busy}
-          onClick={() => {
-            if (window.confirm("End this trek? Tracking stops and your family link shows it as completed.")) {
-              run(() => endTrek(createClient(), trek.id, "completed"));
-            }
-          }}
-        >
-          <Flag className="mr-1.5 h-4 w-4" />
-          End trek
-        </Button>
-        {!online && <span className="text-xs text-text-muted">Ending a trek needs signal</span>}
-      </div>
-      {error && <p role="alert" className="text-sm text-danger">{error}</p>}
+      <ConfirmDialog
+        open={endOpen}
+        onOpenChange={setEndOpen}
+        title="End this trek?"
+        body="Tracking stops and your family link shows the trek as completed."
+        confirmLabel="End trek"
+        tone="danger"
+        onConfirm={() => run(() => endTrek(createClient(), trek.id, "completed"))}
+      />
 
       {checkinOpen && (
         <CheckinSheet
