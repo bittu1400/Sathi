@@ -39,6 +39,9 @@ export function buildSos(params: BuildSosParams): SosEvent {
     channel: params.channel || "online",
     status: params.status || "open",
     acknowledgedBy: null,
+    acknowledgedAt: null,
+    resolvedAt: null,
+    resolutionNotes: null,
   }
 }
 

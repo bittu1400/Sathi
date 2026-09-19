@@ -311,7 +311,7 @@ export default function DemoPage() {
           <div className="flex items-center justify-between pb-2">
             <h2 className="text-base font-semibold">Pitch Timeline Sequence</h2>
             <Button
-              variant="destructive"
+              variant="danger"
               size="sm"
               onClick={handleReset}
               disabled={steps.reset.running}
@@ -519,7 +519,7 @@ export default function DemoPage() {
               </p>
             </div>
             <Button
-              variant="destructive"
+              variant="danger"
               size="sm"
               onClick={handleTriggerSos}
               disabled={steps.sos.running}
@@ -545,7 +545,7 @@ export default function DemoPage() {
               </p>
             </div>
             <Button
-              variant="default"
+              variant="primary"
               size="sm"
               onClick={handleBackOnlineAndFlush}
               disabled={steps.sync.running}

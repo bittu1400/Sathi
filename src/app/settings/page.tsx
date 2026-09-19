@@ -187,7 +187,7 @@ export default function SettingsPage() {
           className={`p-3 text-sm rounded-lg border ${
             message.type === "success"
               ? "bg-emerald-500/10 border-emerald-500 text-emerald-500"
-              : "bg-destructive/10 border-destructive text-destructive"
+              : "bg-danger/10 border-danger text-danger"
           }`}
         >
           {message.text}
@@ -328,13 +328,13 @@ export default function SettingsPage() {
 
       {/* Danger Zone */}
       <section className="pt-6 border-t border-border space-y-3">
-        <h3 className="text-sm font-semibold text-destructive">Danger Zone</h3>
+        <h3 className="text-sm font-semibold text-danger">Danger Zone</h3>
         <p className="text-xs text-muted-foreground">
           Permanently delete your profile and active trek data from this device and the server.
         </p>
         <Button
           type="button"
-          variant="destructive"
+          variant="danger"
           size="sm"
           onClick={() => setShowDeleteDialog(true)}
         >
@@ -366,7 +366,7 @@ export default function SettingsPage() {
               </Button>
               <Button
                 type="button"
-                variant="destructive"
+                variant="danger"
                 size="sm"
                 disabled={deleting}
                 onClick={handleDeleteData}

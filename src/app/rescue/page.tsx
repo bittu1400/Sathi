@@ -84,6 +84,9 @@ export default async function RescuePage() {
     channel: s.channel,
     status: s.status,
     acknowledgedBy: s.acknowledged_by,
+    acknowledgedAt: s.acknowledged_at ?? null,
+    resolvedAt: s.resolved_at ?? null,
+    resolutionNotes: s.resolution_notes ?? null,
     trekkerName: s.profile?.display_name || "Trekker",
     routeName: s.trek?.route_id || "Khumbu Route",
   }));
