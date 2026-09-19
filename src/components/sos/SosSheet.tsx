@@ -73,7 +73,11 @@ export function SosSheet({ initialCategory = "altitude_illness", onClose }: SosS
           </div>
         )}
 
-        {phase === "view" && latest && <SosActiveView sos={latest} onDone={onClose} />}
+        {phase === "view" && latest && (
+          <div className="pt-12">
+            <SosActiveView sos={latest} onDone={onClose} />
+          </div>
+        )}
       </div>
     </div>
   )

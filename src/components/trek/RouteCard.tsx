@@ -23,7 +23,7 @@ export function RouteCard({ route }: { route: RouteSummary }) {
             <Badge variant={route.difficulty === "easy" ? "ok" : "warning"}>
               {route.difficulty.toUpperCase()}
             </Badge>
-            {route.hasFullData && <Badge variant="ok">Offline Pack</Badge>}
+            {route.hasFullData && <Badge variant="ok">Full route data</Badge>}
           </div>
           <div className="absolute bottom-3 left-3 right-3">
             <span className="text-xs uppercase tracking-wider text-accent font-semibold">
