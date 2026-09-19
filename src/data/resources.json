@@ -3,48 +3,48 @@
     "id": "hra-pheriche",
     "name": "HRA Aid Post Pheriche",
     "kind": "hra_post",
-    "lat": 27.8950,
-    "lng": 86.8190,
+    "lat": 27.895,
+    "lng": 86.819,
     "altM": 4371,
-    "phone": "+97714440277",
     "region": "Khumbu",
     "seasonal": "Spring (Mar–May) & Autumn (Sep–Nov)",
     "notes": "Himalayan Rescue Association volunteer doctor post, specialized in AMS, HAPE, HACE and high-altitude emergency consultations.",
-    "verified": { "source": "https://www.himalayanrescue.org", "date": "2026-09-19" }
+    "verified": null
   },
   {
     "id": "khunde-hospital",
     "name": "Khunde Hospital",
     "kind": "hospital",
     "lat": 27.8105,
-    "lng": 86.7160,
+    "lng": 86.716,
     "altM": 3840,
-    "phone": "+97738540050",
     "region": "Khumbu",
     "notes": "Founded by Sir Edmund Hillary. Full primary care, basic X-ray, hyperbaric bag (Gamow bag), and high-altitude medicine.",
-    "verified": { "source": "https://www.himalayanrescue.org", "date": "2026-09-19" }
+    "verified": null
   },
   {
     "id": "lukla-hospital",
     "name": "Pasang Lhamu Nicole Niquille Hospital (Lukla)",
     "kind": "hospital",
-    "lat": 27.6890,
-    "lng": 86.7320,
+    "lat": 27.689,
+    "lng": 86.732,
     "altM": 2860,
     "phone": "+97738550122",
     "region": "Khumbu",
-    "verified": { "source": "Official hospital record", "date": "2026-09-19" }
+    "verified": {
+      "source": "Official hospital record",
+      "date": "2026-09-19"
+    }
   },
   {
     "id": "simrik-air-heli",
     "name": "Simrik Air Helicopter Operations",
     "kind": "heli_operator",
     "lat": 27.6966,
-    "lng": 85.3590,
-    "phone": "+97714115990",
+    "lng": 85.359,
     "region": "Kathmandu / Nepal-wide",
     "notes": "High-altitude rescue helicopters with long-line capability.",
-    "verified": { "source": "https://www.simrikair.com.np", "date": "2026-09-19" }
+    "verified": null
   },
   {
     "id": "helipad-pheriche",
@@ -54,27 +54,126 @@
     "lng": 86.8195,
     "altM": 4370,
     "region": "Khumbu",
-    "verified": { "source": "OpenStreetMap aeroway=helipad", "date": "2026-09-19" }
+    "verified": {
+      "source": "OpenStreetMap aeroway=helipad",
+      "date": "2026-09-19"
+    }
   },
   {
     "id": "helipad-namche",
     "name": "Namche Bazaar Army Helipad",
     "kind": "helipad",
-    "lat": 27.8080,
+    "lat": 27.808,
     "lng": 86.7165,
     "altM": 3500,
     "region": "Khumbu",
-    "verified": { "source": "OpenStreetMap aeroway=helipad", "date": "2026-09-19" }
+    "verified": {
+      "source": "OpenStreetMap aeroway=helipad",
+      "date": "2026-09-19"
+    }
   },
   {
     "id": "tourist-police-kathmandu",
     "name": "Nepal Tourist Police HQ",
     "kind": "police",
-    "lat": 27.7150,
-    "lng": 85.3120,
+    "lat": 27.715,
+    "lng": 85.312,
     "phone": "+97714247041",
     "region": "Kathmandu",
     "notes": "24/7 Tourist Assistance Hotline (1144 within Nepal)",
-    "verified": { "source": "Nepal Police", "date": "2026-09-19" }
+    "verified": {
+      "source": "Nepal Police",
+      "date": "2026-09-19"
+    }
+  },
+  {
+    "id": "hra-manang",
+    "name": "HRA Aid Post Manang",
+    "kind": "hra_post",
+    "lat": 28.665,
+    "lng": 84.021,
+    "altM": 3519,
+    "region": "Annapurna",
+    "seasonal": "Spring & Autumn trekking seasons",
+    "notes": "Daily altitude lectures, medical clinic, oxygen and Gamow bag available.",
+    "verified": null
+  },
+  {
+    "id": "hra-machhermo",
+    "name": "HRA Aid Post Machhermo",
+    "kind": "hra_post",
+    "lat": 27.915,
+    "lng": 86.721,
+    "altM": 4470,
+    "region": "Gokyo",
+    "seasonal": "Autumn & Spring",
+    "notes": "Aid clinic on Gokyo route, emergency oxygen and altitude stabilization.",
+    "verified": null
+  },
+  {
+    "id": "ciwec-kathmandu",
+    "name": "CIWEC Hospital & Travel Medicine Center Kathmandu",
+    "kind": "hospital",
+    "lat": 27.718,
+    "lng": 85.318,
+    "altM": 1350,
+    "region": "Kathmandu",
+    "notes": "Primary international referral hospital in Nepal for evacuated trekkers.",
+    "verified": null
+  },
+  {
+    "id": "ciwec-pokhara",
+    "name": "CIWEC Hospital Pokhara",
+    "kind": "hospital",
+    "lat": 28.21,
+    "lng": 83.957,
+    "altM": 820,
+    "region": "Pokhara",
+    "notes": "Main medical center for Annapurna and western Nepal evacuations.",
+    "verified": null
+  },
+  {
+    "id": "air-dynasty",
+    "name": "Air Dynasty Heli Services",
+    "kind": "heli_operator",
+    "lat": 27.697,
+    "lng": 85.356,
+    "altM": 1350,
+    "region": "Kathmandu",
+    "notes": "Emergency air ambulance dispatch across Everest and Annapurna regions.",
+    "verified": null
+  },
+  {
+    "id": "heli-everest",
+    "name": "Heli Everest Operations",
+    "kind": "heli_operator",
+    "lat": 27.698,
+    "lng": 85.359,
+    "altM": 1350,
+    "region": "Kathmandu",
+    "notes": "Specialized high-altitude charter and rescue fleet.",
+    "verified": null
+  },
+  {
+    "id": "helipad-lobuche",
+    "name": "Lobuche Helipad",
+    "kind": "helipad",
+    "lat": 27.948,
+    "lng": 86.81,
+    "altM": 4940,
+    "region": "Khumbu",
+    "notes": "Designated clearing near Pyramid research center, weather permitting.",
+    "verified": null
+  },
+  {
+    "id": "tourist-police-namche",
+    "name": "Namche Police Post",
+    "kind": "police",
+    "lat": 27.806,
+    "lng": 86.71,
+    "altM": 3440,
+    "region": "Khumbu",
+    "notes": "TIMS & Sagarmatha National Park entry registry point.",
+    "verified": null
   }
 ]

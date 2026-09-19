@@ -4,7 +4,9 @@ import React, { useState } from "react";
 import type { ExtendedSosEvent } from "./SosQueue";
 import type { Position } from "@/lib/types";
 import { formatAltitude } from "@/lib/format";
-import { EMERGENCY_RESOURCES } from "@/lib/emergency-resources";
+import { getResources } from "@/lib/data";
+
+const EMERGENCY_RESOURCES = getResources();
 import { TopoBackground } from "./TopoBackground";
 import {
   MapPin,

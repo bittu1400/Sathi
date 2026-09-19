@@ -408,7 +408,8 @@ function validateResource(
   if (hasOwn(value, "notes") && value.notes !== undefined) {
     requiredString(value, "notes", path);
   }
-  validateVerification(value.verified, `${path}.verified`, true);
+  // null = "unverified" badge; a phone number must always carry a verified source.
+  validateVerification(value.verified, `${path}.verified`, hasOwn(value, "phone"));
 }
 
 function validateRouteIndex(): Set<string> {
