@@ -10,6 +10,7 @@ import { AltitudeHero } from "@/components/trek/AltitudeHero";
 import { NextWaypoint } from "@/components/trek/NextWaypoint";
 import { AltitudeLadder } from "@/components/trek/AltitudeLadder";
 import { AlertFeed } from "@/components/trek/AlertFeed";
+import { CheckinSheet } from "@/components/trek/CheckinSheet";
 import { Map } from "@/components/map/Map";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -24,6 +25,7 @@ function TrekContent() {
     routeParam || "ebc"
   );
   const [isTrekActive, setIsTrekActive] = React.useState<boolean>(true);
+  const [isCheckinOpen, setIsCheckinOpen] = React.useState<boolean>(false);
 
   const routeData = activeRouteId ? getRoute(activeRouteId) : null;
   const isFullRoute = routeData && "waypoints" in routeData;
@@ -128,10 +130,23 @@ function TrekContent() {
         <p className="text-xs text-text-muted">
           Record your 4 Lake Louise symptoms and sleeping location to update your safety status.
         </p>
-        <Button variant="primary" className="w-full">
+        <Button
+          variant="primary"
+          className="w-full"
+          onClick={() => setIsCheckinOpen(true)}
+        >
           Open Lake Louise Check-in Sheet
         </Button>
       </Card>
+
+      {/* CheckinSheet Modal */}
+      {fullRoute && (
+        <CheckinSheet
+          isOpen={isCheckinOpen}
+          onClose={() => setIsCheckinOpen(false)}
+          waypoints={fullRoute.waypoints}
+        />
+      )}
 
       {/* Emergency SOS FAB Placeholder & End Trek Menu */}
       <div className="flex items-center justify-between pt-4 border-t border-border/60">
