@@ -21,7 +21,7 @@ function ensurePMTilesProtocol() {
 export interface MapProps {
   route?: RouteDetail;
   resources?: Resource[];
-  position?: { lat: number; lng: number; accuracyM?: number };
+  position?: { lat: number; lng: number; accuracyM?: number | null };
   progressIndex?: number;
   sos?: { lat: number; lng: number }[];
   tilesSource?: "remote" | Blob;
