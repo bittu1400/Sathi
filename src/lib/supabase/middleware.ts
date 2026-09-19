@@ -1,4 +1,5 @@
 import { createServerClient } from "@supabase/ssr"
+import { supabaseEnv } from "./env"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function updateSession(request: NextRequest) {
@@ -6,8 +7,7 @@ export async function updateSession(request: NextRequest) {
     request,
   })
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321"
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy-anon-key"
+  const { url: supabaseUrl, anonKey: supabaseAnonKey } = supabaseEnv()
 
   const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

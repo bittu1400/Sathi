@@ -134,12 +134,18 @@ export default function SettingsPage() {
       if (!user) return
 
       // Deleting profile row triggers cascade on treks and data per schema
-      const { error: deleteError } = await supabase
+      const { data: deleted, error: deleteError } = await supabase
         .from("profiles")
         .delete()
         .eq("id", user.id)
+        .select("id")
 
       if (deleteError) throw deleteError
+      // RLS turns a refused delete into "0 rows"; never tell the user data is gone when it isn't.
+      if (deleted?.length !== 1) throw new Error("Your data could not be deleted. Please try again or contact the team.")
+      localStorage.removeItem("sathiSession")
+      localStorage.removeItem("sathiTrekLog")
+      localStorage.removeItem("sathiLatestSos")
 
       await supabase.auth.signOut()
       router.push("/login")

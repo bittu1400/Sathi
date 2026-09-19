@@ -4,11 +4,18 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import { safeNext } from "@/lib/safe-next"
+
+const DEMO_GMAIL = process.env.NEXT_PUBLIC_DEMO_GMAIL ?? ""
+const demoEmail = (tag: string) => {
+  const [local, domain] = DEMO_GMAIL.split("@")
+  return `${local}+${tag}@${domain}`
+}
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = searchParams.get("next") || "/trek"
+  const next = safeNext(searchParams.get("next"))
   const authError = searchParams.get("error")
 
   const [isSignUp, setIsSignUp] = React.useState(false)
@@ -20,7 +27,7 @@ function LoginForm() {
     authError === "unauthorized" ? "You do not have permission to access that page." : null
   )
 
-  const isDemo = process.env.NEXT_PUBLIC_DEMO === "1"
+  const isDemo = process.env.NEXT_PUBLIC_DEMO === "1" && DEMO_GMAIL.includes("@")
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -198,7 +205,7 @@ function LoginForm() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setEmail("demo+trekker@gmail.com")}
+              onClick={() => setEmail(demoEmail("trekker"))}
               className="text-xs"
             >
               Trekker
@@ -207,7 +214,7 @@ function LoginForm() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setEmail("demo+rescue@gmail.com")}
+              onClick={() => setEmail(demoEmail("rescue"))}
               className="text-xs"
             >
               Rescue
@@ -216,7 +223,7 @@ function LoginForm() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setEmail("demo+agency@gmail.com")}
+              onClick={() => setEmail(demoEmail("agency"))}
               className="text-xs"
             >
               Agency

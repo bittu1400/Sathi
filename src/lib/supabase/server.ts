@@ -1,10 +1,10 @@
 import { createServerClient } from "@supabase/ssr"
+import { supabaseEnv } from "./env"
 import { cookies } from "next/headers"
 
 export async function createClient() {
   const cookieStore = await cookies()
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:54321"
-  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "dummy-anon-key"
+  const { url: supabaseUrl, anonKey: supabaseAnonKey } = supabaseEnv()
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
     cookies: {

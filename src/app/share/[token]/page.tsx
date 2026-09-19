@@ -99,10 +99,8 @@ export default async function FamilySharePage({
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col">
-      {/* 60s auto-refresh meta */}
-      <head>
-        <meta httpEquiv="refresh" content="60" />
-      </head>
+      {/* 60 s auto-refresh; React hoists this <meta> into <head>. */}
+      <meta httpEquiv="refresh" content="60" />
 
       {/* Top Header */}
       <header className="h-14 border-b border-border bg-card/60 backdrop-blur px-4 sm:px-8 flex items-center justify-between">
