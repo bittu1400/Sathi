@@ -3,11 +3,13 @@ import { Waypoint } from "@/lib/types";
 import { Badge } from "../ui/badge";
 import { Navigation, Wifi, WifiOff } from "lucide-react";
 import { cn } from "cn";
+import { formatAltitude, formatGain, formatKm } from "@/lib/format";
 
 export interface NextWaypointProps {
   waypoint: Waypoint;
-  distanceKm: number;
-  altitudeDeltaM: number;
+  /** null until there is a GPS fix. */
+  distanceKm: number | null;
+  altitudeDeltaM: number | null;
   className?: string;
 }
 
@@ -34,18 +36,20 @@ export function NextWaypoint({
           </span>
           <h4 className="font-semibold text-base text-text">{waypoint.name}</h4>
           <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
-            <span>{waypoint.altM.toLocaleString()} m</span>
-            <span>·</span>
-            <span>
-              {altitudeDeltaM >= 0 ? `+${altitudeDeltaM}` : altitudeDeltaM} m elev
-            </span>
+            <span>{formatAltitude(waypoint.altM)}</span>
+            {altitudeDeltaM !== null && (
+              <>
+                <span>·</span>
+                <span>{formatGain(altitudeDeltaM)}</span>
+              </>
+            )}
           </div>
         </div>
       </div>
 
       <div className="flex flex-col items-end gap-1.5 shrink-0">
         <span className="text-lg font-mono font-bold text-accent">
-          {distanceKm.toFixed(1)} km
+          {distanceKm === null ? "—" : formatKm(distanceKm)}
         </span>
         <Badge
           variant={

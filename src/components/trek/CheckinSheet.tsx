@@ -6,176 +6,142 @@ import { RedFlagList } from "./RedFlagList";
 import { SleepPicker } from "./SleepPicker";
 import { AmsResultCard } from "./AmsResultCard";
 import { Button } from "../ui/button";
-import { Waypoint, RedFlag } from "@/lib/types";
+import { useSos } from "../sos/SosProvider";
+import { recordCheckin } from "@/lib/trek-log";
+import { newId } from "@/lib/id";
+import type { AmsResult, RedFlag, RouteDetail } from "@/lib/types";
 import { X, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 export interface CheckinSheetProps {
-  isOpen: boolean;
+  route: RouteDetail;
+  trekId: string;
+  /** Pre-selected "tonight I sleep at" waypoint. */
+  defaultSleepWaypointId: string;
   onClose: () => void;
-  waypoints: Waypoint[];
 }
 
-export function CheckinSheet({ isOpen, onClose, waypoints }: CheckinSheetProps) {
-  const [step, setStep] = React.useState<"form" | "redflags" | "sleep" | "result">("form");
-  const [scores, setScores] = React.useState<LakeLouiseScores>({
-    headache: 0,
-    gi: 0,
-    fatigue: 0,
-    dizziness: 0,
-  });
-  const [selectedFlags, setSelectedFlags] = React.useState<RedFlag[]>([]);
-  const [selectedSleepId, setSelectedSleepId] = React.useState<string>(
-    waypoints[0]?.id || "ebc-lobuche"
-  );
-  const [sleepAltM, setSleepAltM] = React.useState<number>(
-    waypoints[0]?.altM || 4940
-  );
+type Step = "form" | "redflags" | "sleep" | "result";
+const STEP_LABEL: Record<Exclude<Step, "result">, string> = { form: "1/3", redflags: "2/3", sleep: "3/3" };
 
-  if (!isOpen) return null;
+/** Evening check-in (SPEC A-07). The verdict comes only from evaluateAms(). Mounted while open. */
+export function CheckinSheet({ route, trekId, defaultSleepWaypointId, onClose }: CheckinSheetProps) {
+  const sos = useSos();
+  const [step, setStep] = React.useState<Step>("form");
+  const [scores, setScores] = React.useState<LakeLouiseScores>({ headache: 0, gi: 0, fatigue: 0, dizziness: 0 });
+  const [redFlags, setRedFlags] = React.useState<RedFlag[]>([]);
+  const [sleepId, setSleepId] = React.useState(defaultSleepWaypointId);
+  const [result, setResult] = React.useState<AmsResult | null>(null);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
-  const totalLls =
-    scores.headache + scores.gi + scores.fatigue + scores.dizziness;
-  const hasAms = scores.headache >= 1 && totalLls >= 3;
-  const hasRedFlags = selectedFlags.length > 0;
+  React.useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
-  let severity: "ok" | "info" | "caution" | "warning" | "danger" = "ok";
-  let headline = "No warning signs right now. Keep ascending gradually.";
-  let reasons: string[] = [`Planned sleeping altitude: ${sleepAltM.toLocaleString()} m`];
-  let actions: string[] = [
-    "Continue ascending gradually",
-    "Stay hydrated and eat well",
-    "Check in again tomorrow evening",
-  ];
-
-  if (hasRedFlags) {
-    severity = "danger";
-    headline = "Descend now. Do not go higher.";
-    reasons = [
-      `Red flags detected: ${selectedFlags.join(", ")}`,
-      `Planned sleeping altitude: ${sleepAltM.toLocaleString()} m`,
-      "Possible HACE or HAPE complication.",
-    ];
-    actions = [
-      "Start descending with a companion right away",
-      "Do not stay alone. Tell your guide or teahouse owner",
-      "Use SOS to alert coordination",
-    ];
-  } else if (totalLls >= 10 && hasAms) {
-    severity = "danger";
-    headline = "Descend now. Severe AMS present.";
-    reasons = [`Total Lake Louise Score: ${totalLls}`, `Sleeping altitude: ${sleepAltM.toLocaleString()} m`];
-    actions = ["Descend at least 300–1,000m immediately"];
-  } else if (totalLls >= 6 && hasAms) {
-    severity = "warning";
-    headline = "Do not go higher today.";
-    reasons = [`Moderate AMS present (LLS ${totalLls})`, `Sleeping altitude: ${sleepAltM.toLocaleString()} m`];
-    actions = ["Rest at this altitude", "Do not ascend until symptoms clear"];
-  } else if (totalLls >= 3 && hasAms) {
-    severity = "caution";
-    headline = "Take it easy. Don't ascend further today.";
-    reasons = [`Mild AMS present (LLS ${totalLls})`, `Sleeping altitude: ${sleepAltM.toLocaleString()} m`];
-    actions = ["Rest and reassess", "Drink fluids and eat"];
-  }
+  const submit = async () => {
+    const sleep = route.waypoints.find((w) => w.id === sleepId) ?? null;
+    setSaving(true);
+    setError(null);
+    try {
+      const saved = await recordCheckin(route, {
+        id: newId(),
+        trekId,
+        recordedAt: new Date().toISOString(),
+        ...scores,
+        redFlags,
+        sleepWaypointId: sleep?.id ?? null,
+        sleepAltM: sleep?.altM ?? null,
+        lls: scores.headache + scores.gi + scores.fatigue + scores.dizziness,
+      });
+      setResult(saved);
+      setStep("result");
+    } catch {
+      setError("Couldn't save the check-in on this device. Try again.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-bg/80 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-surface border border-border w-full max-w-lg h-[90vh] sm:h-auto max-h-[90vh] rounded-t-[var(--radius-lg)] sm:rounded-[var(--radius-lg)] flex flex-col shadow-2xl overflow-hidden">
-        {/* Header */}
-        <div className="p-4 border-b border-border flex items-center justify-between bg-surface-2/60">
-          <div className="flex items-center gap-2">
-            {step !== "form" && step !== "result" && (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-0 backdrop-blur-md sm:items-center sm:p-4">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="checkin-title"
+        className="flex h-[90vh] max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[var(--radius-lg)] border border-border bg-surface shadow-2xl sm:h-auto sm:rounded-[var(--radius-lg)]"
+      >
+        <div className="flex items-center justify-between border-b border-border bg-surface-2/60 p-3">
+          <div className="flex items-center gap-1">
+            {(step === "redflags" || step === "sleep") && (
               <button
                 type="button"
-                onClick={() =>
-                  setStep(
-                    step === "sleep"
-                      ? "redflags"
-                      : step === "redflags"
-                      ? "form"
-                      : "form"
-                  )
-                }
-                className="p-1 rounded-lg text-text-muted hover:text-text"
+                aria-label="Back"
+                onClick={() => setStep(step === "sleep" ? "redflags" : "form")}
+                className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:text-text"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="h-5 w-5" />
               </button>
             )}
-            <h3 className="font-bold text-base text-text">
-              {step === "result" ? "AMS Assessment Result" : "Evening AMS Check-in"}
-            </h3>
+            <h2 id="checkin-title" className="px-2 text-base font-bold text-text">
+              {step === "result" ? "Your check-in result" : "Evening check-in"}
+            </h2>
           </div>
           <button
             type="button"
+            aria-label="Close check-in"
             onClick={onClose}
-            className="p-1.5 rounded-lg border border-border text-text-muted hover:text-text"
+            className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-sm)] border border-border text-text-muted hover:text-text"
           >
-            <X className="w-5 h-5" />
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          {step === "form" && (
-            <LakeLouiseForm scores={scores} onChange={setScores} />
-          )}
-
-          {step === "redflags" && (
-            <RedFlagList
-              selectedFlags={selectedFlags}
-              onChange={setSelectedFlags}
-            />
-          )}
-
+        <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6" aria-live="polite">
+          {step === "form" && <LakeLouiseForm scores={scores} onChange={setScores} />}
+          {step === "redflags" && <RedFlagList selectedFlags={redFlags} onChange={setRedFlags} />}
           {step === "sleep" && (
-            <SleepPicker
-              waypoints={waypoints}
-              selectedWaypointId={selectedSleepId}
-              onChange={(id, alt) => {
-                setSelectedSleepId(id);
-                setSleepAltM(alt);
+            <SleepPicker waypoints={route.waypoints} selectedWaypointId={sleepId} onChange={(id) => setSleepId(id)} />
+          )}
+          {step === "result" && result && (
+            <AmsResultCard
+              result={result}
+              onTriggerSos={() => {
+                onClose();
+                sos.open("altitude_illness");
               }}
             />
           )}
-
-          {step === "result" && (
-            <AmsResultCard
-              severity={severity}
-              headline={headline}
-              reasons={reasons}
-              actions={actions}
-            />
+          {error && (
+            <p role="alert" className="text-sm text-danger">
+              {error}
+            </p>
           )}
         </div>
 
-        {/* Footer Actions */}
-        <div className="p-4 border-t border-border bg-surface-2/60 flex items-center justify-between">
-          {step !== "result" ? (
+        <div className="flex items-center justify-between border-t border-border bg-surface-2/60 p-4">
+          {step === "result" ? (
+            <Button variant="primary" className="w-full" onClick={onClose}>
+              Done
+            </Button>
+          ) : (
             <>
-              <span className="text-xs font-mono text-text-muted">
-                Step {step === "form" ? "1/3" : step === "redflags" ? "2/3" : "3/3"}
-              </span>
-
+              <span className="font-mono text-xs text-text-muted">Step {STEP_LABEL[step]}</span>
               {step === "sleep" ? (
-                <Button variant="primary" onClick={() => setStep("result")}>
-                  <Check className="w-4 h-4 mr-1.5" />
-                  Submit Assessment
+                <Button variant="primary" onClick={submit} loading={saving}>
+                  <Check className="mr-1.5 h-4 w-4" />
+                  Save check-in
                 </Button>
               ) : (
-                <Button
-                  variant="primary"
-                  onClick={() =>
-                    setStep(step === "form" ? "redflags" : "sleep")
-                  }
-                >
+                <Button variant="primary" onClick={() => setStep(step === "form" ? "redflags" : "sleep")}>
                   Next
-                  <ArrowRight className="w-4 h-4 ml-1.5" />
+                  <ArrowRight className="ml-1.5 h-4 w-4" />
                 </Button>
               )}
             </>
-          ) : (
-            <Button variant="primary" className="w-full" onClick={onClose}>
-              Done & Save Check-in
-            </Button>
           )}
         </div>
       </div>

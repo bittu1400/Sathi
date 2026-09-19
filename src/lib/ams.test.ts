@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { evaluateAms } from "@/lib/ams";
+import { amsInputFromCheckins, evaluateAms } from "@/lib/ams";
 import type { AmsInput, RedFlag } from "@/lib/types";
 
 const checkin = (
@@ -281,5 +281,42 @@ describe("same-day escalation", () => {
     expect(evaluateAms(input({ latest })).alerts[0]?.dedupeKey).toBe(
       "ams_symptoms:caution:2026-09-20",
     );
+  });
+});
+
+describe("amsInputFromCheckins", () => {
+  const c = (recordedAt: string, sleepAltM: number | null, headache: 0 | 1 | 2 | 3 = 0) => ({
+    id: recordedAt,
+    trekId: "t",
+    recordedAt,
+    headache,
+    gi: 0 as const,
+    fatigue: 0 as const,
+    dizziness: 0 as const,
+    redFlags: [],
+    sleepWaypointId: null,
+    sleepAltM,
+    lls: headache,
+  });
+
+  it("keeps the last sleep altitude per Nepal day and orders latest/previous", () => {
+    const input = amsInputFromCheckins(2860, [
+      c("2026-09-19T13:00:00Z", 4410, 1), // 18:45 NPT on the 19th
+      c("2026-09-18T13:00:00Z", 3860),
+      c("2026-09-19T15:00:00Z", 4940, 2), // 20:45 NPT, replaces 4410 for the 19th
+    ]);
+    expect(input.sleepAltitudes).toEqual([
+      { date: "2026-09-18", altM: 3860 },
+      { date: "2026-09-19", altM: 4940 },
+    ]);
+    expect(input.latest?.headache).toBe(2);
+    expect(input.previous?.headache).toBe(1);
+  });
+
+  it("feeds the gain rule: +1,080 m in one night is a caution", () => {
+    const result = evaluateAms(
+      amsInputFromCheckins(2860, [c("2026-09-18T13:00:00Z", 3860), c("2026-09-19T13:00:00Z", 4940)]),
+    );
+    expect(result.alerts.map((a) => a.kind)).toContain("ams_gain");
   });
 });

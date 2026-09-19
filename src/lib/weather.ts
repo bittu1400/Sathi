@@ -33,7 +33,8 @@ const REASONS = {
 
 type ForecastPayload = Omit<Forecast, "stale">;
 
-function isEligible(waypoint: Waypoint): boolean {
+/** SAFETY §4: passes, base camps and anything above 4,500 m get a go/no-go. */
+export function isEligible(waypoint: Waypoint): boolean {
   return (
     waypoint.kind === "pass" ||
     waypoint.kind === "basecamp" ||

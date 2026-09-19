@@ -1,81 +1,59 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Position, RouteDetail } from "@/lib/types";
-import { estimateAltitude, haversineKm } from "../geo";
+import type { Position, RouteDetail } from "@/lib/types";
+import { estimateAltitude, haversineKm } from "@/lib/geo";
+import { newId } from "@/lib/id";
+import { recordPosition } from "@/lib/trek-log";
 
-export function useTrackPosition(route?: RouteDetail | null) {
-  const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
+const MIN_INTERVAL_MS = 120_000;
+const MIN_MOVE_M = 50;
+
+export type GpsState = "waiting" | "tracking" | "denied" | "unavailable";
+
+/**
+ * Watches GPS while trek mode is open. A fix is stored (through the outbox)
+ * every 2 minutes or every 50 m. No fake fallback: without a fix, position is null.
+ */
+export function useTrackPosition(route: RouteDetail | null, trekId: string | null) {
+  const [position, setPosition] = useState<Position | null>(null);
+  const [state, setState] = useState<GpsState>(() =>
+    typeof navigator !== "undefined" && !("geolocation" in navigator) ? "unavailable" : "waiting",
+  );
 
   useEffect(() => {
-    if (typeof window === "undefined" || !("geolocation" in navigator)) return;
+    if (!route || !trekId || !("geolocation" in navigator)) return;
 
-    let lastTime = 0;
-    let lastLat = 0;
-    let lastLng = 0;
+    let last: { time: number; lat: number; lng: number } | null = null;
 
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
+        const { latitude: lat, longitude: lng, accuracy, altitude, altitudeAccuracy } = pos.coords;
+        setState("tracking");
         const now = Date.now();
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const distM =
-          haversineKm({ lat: lastLat, lng: lastLng }, { lat, lng }) * 1000;
+        const moved = last ? haversineKm(last, { lat, lng }) * 1000 : Infinity;
+        if (last && now - last.time < MIN_INTERVAL_MS && moved < MIN_MOVE_M) return;
+        last = { time: now, lat, lng };
 
-        // Store if >= 2 min elapsed or moved >= 50 m
-        if (now - lastTime >= 120000 || distM >= 50 || lastTime === 0) {
-          lastTime = now;
-          lastLat = lat;
-          lastLng = lng;
-
-          const gpsAlt = pos.coords.altitude;
-          const gpsAccuracy = pos.coords.altitudeAccuracy;
-          const altM =
-            route?.waypoints
-              ? estimateAltitude(
-                  route,
-                  { lat, lng },
-                  gpsAlt ?? null,
-                  gpsAccuracy ?? null,
-                )
-              : (gpsAlt ?? 3440);
-
-          const newPos: Position = {
-            id: `pos-${now}`,
-            trekId: "active-trek",
-            lat,
-            lng,
-            altM: Math.round(altM),
-            accuracyM: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : 15,
-            recordedAt: new Date().toISOString(),
-            source: "gps",
-          };
-
-          setCurrentPosition(newPos);
-        }
+        const fix: Position = {
+          id: newId(),
+          trekId,
+          lat,
+          lng,
+          altM: Math.round(estimateAltitude(route, { lat, lng }, altitude, altitudeAccuracy)),
+          accuracyM: Math.round(accuracy),
+          recordedAt: new Date(pos.timestamp).toISOString(),
+          source: "gps",
+        };
+        setPosition(fix);
+        recordPosition(fix).catch(() => {});
       },
-      () => {
-        // Fallback default position (e.g. Dingboche in EBC) if GPS disabled/unsupported
-        setCurrentPosition({
-          id: "pos-fallback",
-          trekId: "active-trek",
-          lat: 27.892,
-          lng: 86.831,
-          altM: 4410,
-          accuracyM: 20,
-          recordedAt: new Date().toISOString(),
-          source: "demo",
-        });
-      },
-      {
-        enableHighAccuracy: false,
-        maximumAge: 60000,
-        timeout: 10000,
-      }
+      (err) => setState(err.code === err.PERMISSION_DENIED ? "denied" : "unavailable"),
+      { enableHighAccuracy: true, maximumAge: 60_000, timeout: 30_000 },
     );
 
     return () => navigator.geolocation.clearWatch(watchId);
-  }, [route]);
+  }, [route, trekId]);
 
-  return currentPosition;
+  return { position, state };
 }

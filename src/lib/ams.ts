@@ -1,6 +1,7 @@
 import type {
   AlertKind,
   AmsInput,
+  Checkin,
   AmsResult,
   RedFlag,
   Severity,
@@ -272,4 +273,28 @@ export function evaluateAms(input: AmsInput): AmsResult {
   }
 
   return { level, headline, actions, reasons, alerts };
+}
+
+/** One night per Nepal calendar day: the last sleep altitude reported that day. */
+export function sleepNights(
+  checkins: Pick<Checkin, "recordedAt" | "sleepAltM" | "sleepWaypointId">[],
+): { date: string; altM: number; waypointId: string | null }[] {
+  const byDay = new Map<string, { date: string; altM: number; waypointId: string | null }>();
+  for (const c of [...checkins].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))) {
+    if (c.sleepAltM === null) continue;
+    const date = nepalDay.format(new Date(c.recordedAt));
+    byDay.set(date, { date, altM: c.sleepAltM, waypointId: c.sleepWaypointId });
+  }
+  return [...byDay.values()];
+}
+
+/** Build the engine input from a trek's check-ins (oldest → newest order not required). */
+export function amsInputFromCheckins(startAltM: number, checkins: Checkin[]): AmsInput {
+  const sorted = [...checkins].sort((a, b) => a.recordedAt.localeCompare(b.recordedAt));
+  return {
+    startAltM,
+    sleepAltitudes: sleepNights(sorted).map(({ date, altM }) => ({ date, altM })),
+    latest: sorted.at(-1) ?? null,
+    previous: sorted.at(-2) ?? null,
+  };
 }
