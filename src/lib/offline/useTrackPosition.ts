@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Position, RouteDetail } from "@/lib/types";
-import { estimateAltitude, haversineDistanceKm } from "../geo";
+import { estimateAltitude, haversineKm } from "../geo";
 
 export function useTrackPosition(route?: RouteDetail | null) {
   const [currentPosition, setCurrentPosition] = useState<Position | null>(null);
@@ -19,7 +19,8 @@ export function useTrackPosition(route?: RouteDetail | null) {
         const now = Date.now();
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        const distM = haversineDistanceKm(lastLat, lastLng, lat, lng) * 1000;
+        const distM =
+          haversineKm({ lat: lastLat, lng: lastLng }, { lat, lng }) * 1000;
 
         // Store if >= 2 min elapsed or moved >= 50 m
         if (now - lastTime >= 120000 || distM >= 50 || lastTime === 0) {
@@ -28,19 +29,23 @@ export function useTrackPosition(route?: RouteDetail | null) {
           lastLng = lng;
 
           const gpsAlt = pos.coords.altitude;
+          const gpsAccuracy = pos.coords.altitudeAccuracy;
           const altM =
-            gpsAlt && pos.coords.altitudeAccuracy && pos.coords.altitudeAccuracy < 50
-              ? Math.round(gpsAlt)
-              : route?.waypoints
-              ? estimateAltitude(lat, lng, route.waypoints)
-              : 3440;
+            route?.waypoints
+              ? estimateAltitude(
+                  route,
+                  { lat, lng },
+                  gpsAlt ?? null,
+                  gpsAccuracy ?? null,
+                )
+              : (gpsAlt ?? 3440);
 
           const newPos: Position = {
             id: `pos-${now}`,
             trekId: "active-trek",
             lat,
             lng,
-            altM,
+            altM: Math.round(altM),
             accuracyM: pos.coords.accuracy ? Math.round(pos.coords.accuracy) : 15,
             recordedAt: new Date().toISOString(),
             source: "gps",
