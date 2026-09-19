@@ -19,10 +19,25 @@
 Next.js · TypeScript · Tailwind CSS · MapLibre GL + PMTiles (Protomaps) · Supabase · Open-Meteo · eSewa (test) · Vercel
 
 ## Getting started
+Requires Node 24+ and pnpm 11.
 ```bash
 pnpm install
 cp .env.example .env.local   # fill in values
-pnpm dev
+pnpm dev                     # http://localhost:3000
+pnpm check                   # typecheck + lint + tests + build
+```
+
+## Project layout
+```
+src/
+  app/          routes (trekker app, /rescue, /agency, /share, /demo, API routes)
+  components/   ui (design system), map, trek, sos, rescue, landing, plan
+  data/         bundled route + emergency-resource JSON (works offline)
+  lib/          pure logic (AMS, weather, geo, alerts), db access, outbox, offline packs
+supabase/       SQL migrations + seed
+scripts/        data validation, seeding
+content/        curated guidance
+public/         service worker, manifest, icons, images, basemap assets
 ```
 
 ## Contributing

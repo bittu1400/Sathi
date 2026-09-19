@@ -15,23 +15,28 @@ The team keeps the full specs in a **private sibling repo** at `../sathi-docs/`.
 If the folder is missing, ask the human for the relevant section. Don't guess.
 
 ## Stack
-Next.js (App Router, TypeScript strict) · Tailwind v4 + CSS variable tokens · shadcn/ui · lucide-react · MapLibre GL + PMTiles + Protomaps basemaps · Supabase (Postgres, RLS, Auth, Realtime, Storage) · idb-keyval · hand-written service worker (`public/sw.js`) · Open-Meteo · eSewa ePay v2 (test mode) · Anthropic SDK (`claude-sonnet-5`, P2 only) · Vitest · pnpm · Vercel.
+**Next.js 16** (App Router, Turbopack, TypeScript strict) · Tailwind v4 + CSS variable tokens · shadcn/ui (Radix base, `radix-nova` style; `cn` comes from the `cn` package) · lucide-react · MapLibre GL + PMTiles + Protomaps basemaps · Supabase (Postgres, RLS, Auth, Realtime, Storage) · idb-keyval · hand-written service worker (`public/sw.js`) · Open-Meteo · eSewa ePay v2 (test mode) · Anthropic SDK (`claude-sonnet-5`, P2 only) · Vitest · pnpm · Vercel.
 
 **Do not add dependencies** outside this list without the human's explicit OK.
+
+**Next.js 16 is newer than most training data.** Before using a Next API, read the matching guide in `node_modules/next/dist/docs/` (see AGENTS.md). Known changes: middleware is now **`src/proxy.ts`**; `LayoutProps`/`PageProps` route types are generated (`next typegen`, which runs inside `pnpm typecheck`).
 
 ## Commands
 ```bash
 pnpm dev          # local dev server
 pnpm check        # typecheck + lint + unit tests + build: must pass before every PR
 pnpm test         # vitest (src/**/*.test.ts)
-pnpm typecheck
+pnpm typecheck    # next typegen + tsc
+pnpm lint
+pnpm format       # prettier
 ```
+Node 24+ (`.nvmrc`), pnpm 11. Copy `.env.example` to `.env.local` and ask the team for the values.
 
 ## Layout & ownership
 Each teammate owns folders. **Only edit files in the current task's scope.** If a change is needed elsewhere, stop and tell the human.
-- **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
+- **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}`, `src/lib/utils.ts`, `components.json`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
 - **B (Backend/Data/Logic):** `supabase/`, `scripts/`, `content/`, `src/data/`, `src/lib/{types,database.types,data,geo,ams,ams-copy,weather,alerts,recommend,pass}.ts`, `src/lib/db/`, `src/app/pass/`, `src/app/api/pay/`, `src/lib/esewa.ts`, `src/components/Paywall.tsx`
-- **C (Rescue/Integration/Demo):** root configs, `.github/`, `src/lib/{supabase/,outbox.ts,sos.ts,auth.ts,demo/}`, `src/components/{sos,rescue}`, `src/app/{login,settings,sos,share,rescue,agency,demo,assistant,api/assistant}`, `src/middleware.ts` (or `src/proxy.ts` on Next 16+)
+- **C (Rescue/Integration/Demo):** root configs, `.github/`, `src/lib/{supabase/,outbox.ts,sos.ts,auth.ts,demo/}`, `src/components/{sos,rescue}`, `src/app/{login,settings,sos,share,rescue,agency,demo,assistant,api/assistant}`, `src/proxy.ts`, `src/lib/format.ts` (shared formatters; anyone may add a formatter with a test)
 
 `src/lib/types.ts` is the **shared contract**. Don't change it unless the task explicitly says so.
 
