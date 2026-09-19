@@ -484,7 +484,7 @@ export default function DemoPage() {
                 </p>
               </div>
               <Button
-                variant={forcedOffline ? "default" : "outline"}
+                variant={forcedOffline ? "primary" : "outline"}
                 size="sm"
                 onClick={toggleForcedOffline}
                 className="shrink-0 min-w-[110px]"

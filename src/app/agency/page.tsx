@@ -79,9 +79,9 @@ export default async function AgencyPage() {
     channel: row.channel,
     status: row.status,
     acknowledgedBy: row.acknowledged_by,
-    acknowledgedAt: row.acknowledged_at ?? null,
-    resolvedAt: row.resolved_at ?? null,
-    resolutionNotes: row.resolution_notes ?? null,
+    acknowledgedAt: null,
+    resolvedAt: null,
+    resolutionNotes: null,
     trekkerName: row.profile?.display_name || "Trekker",
     routeId: row.trek?.route_id || "ebc",
     emergencyContact: row.profile?.emergency_contact_name
