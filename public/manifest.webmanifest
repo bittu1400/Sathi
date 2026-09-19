@@ -1,11 +1,18 @@
 {
   "name": "Sathi — Offline Trekking Safety",
   "short_name": "Sathi",
-  "description": "Offline-first trekking safety companion for Nepal: route intelligence, AMS monitoring, and SOS.",
-  "start_url": "/",
+  "description": "Offline-first trekking safety companion for Nepal: route intelligence, AMS monitoring, data-free SOS and live rescue dashboard.",
+  "lang": "en",
+  "dir": "ltr",
+  "id": "/",
+  "scope": "/",
+  "start_url": "/trek",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
   "background_color": "#0A0E13",
   "theme_color": "#0A0E13",
+  "categories": ["health", "navigation", "travel"],
   "icons": [
     {
       "src": "/icons/icon-192.png",
@@ -20,7 +27,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-maskable-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
@@ -30,16 +37,16 @@
     {
       "name": "Trek Mode",
       "short_name": "Trek",
-      "description": "Open trek mode",
-      "url": "/trek"
+      "description": "Open trek mode — GPS tracking, altitude, AMS monitoring",
+      "url": "/trek",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     },
     {
       "name": "SOS Emergency",
       "short_name": "SOS",
-      "description": "Open the emergency SOS page",
-      "url": "/sos"
+      "description": "Send emergency SOS — works offline",
+      "url": "/sos",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
     }
-  ],
-  "id": "/",
-  "scope": "/"
+  ]
 }

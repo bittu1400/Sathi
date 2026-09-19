@@ -16,11 +16,26 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sathi — Offline Trekking Safety for Nepal",
-  description: "Offline-first route intelligence, AMS monitoring, data-free SOS & live rescue dashboard.",
+  // SEO-1: metadataBase required for OG image URLs
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "https://sathi.vercel.app"
+  ),
+  title: {
+    default: "Sathi — Offline Trekking Safety for Nepal",
+    template: "%s · Sathi",
+  },
+  description:
+    "Offline-first route intelligence, AMS monitoring, data-free SOS & live rescue dashboard. Safety is free.",
   manifest: "/manifest.webmanifest",
   icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
   appleWebApp: { capable: true, title: "Sathi", statusBarStyle: "black-translucent" },
+  openGraph: {
+    type: "website",
+    siteName: "Sathi",
+    title: "Sathi — Offline Trekking Safety for Nepal",
+    description:
+      "One-tap SOS that works without data. AMS check-ins, live rescue dashboard, offline maps. Safety is free.",
+  },
 };
 
 // Matches --bg of the default (dark) theme; browser chrome can't read CSS variables.
@@ -47,6 +62,10 @@ export default function RootLayout({
         />
       </head>
       <body className="min-h-full flex flex-col bg-bg text-text">
+        {/* FND-5: skip link must be the very first focusable element in the DOM */}
+        <a href="#main-content" className="skip-link">
+          Skip to content
+        </a>
         <Providers>
           <AppShell>{children}</AppShell>
           <SwRegister />

@@ -6,11 +6,13 @@
 @custom-variant sunlight (&:is([data-theme="sunlight"] *));
 
 @theme inline {
+  /* Core palette */
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
   --color-surface-3: var(--surface-3);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-text: var(--text);
   --color-text-muted: var(--text-muted);
   --color-text-faint: var(--text-faint);
@@ -21,13 +23,39 @@
   --color-caution: var(--caution);
   --color-warning: var(--warning);
   --color-danger: var(--danger);
+  --color-danger-ink: var(--danger-ink);
   --color-sos: var(--sos);
   --color-sos-ink: var(--sos-ink);
+  --color-scrim: var(--scrim);
 
+  /* Shape */
   --radius-sm: var(--radius-sm);
   --radius: var(--radius);
   --radius-lg: var(--radius-lg);
   --shadow-custom: var(--shadow);
+  --shadow-elev-1: var(--elev-1);
+  --shadow-elev-2: var(--elev-2);
+  --shadow-elev-3: var(--elev-3);
+
+  /* Motion */
+  --duration-micro: var(--dur-micro);
+  --duration-ui: var(--dur-ui);
+  --duration-sheet: var(--dur-sheet);
+  --duration-exit: var(--dur-exit);
+  --ease-in: var(--ease-in);
+  --ease-out: var(--ease-out);
+  --ease-sheet: var(--ease-sheet);
+
+  /* Z-index scale */
+  --z-index-nav: var(--z-nav);
+  --z-index-fab: var(--z-fab);
+  --z-index-sheet: var(--z-sheet);
+  --z-index-toast: var(--z-toast);
+
+  /* Icon sizes */
+  --size-icon-sm: var(--icon-sm);
+  --size-icon-md: var(--icon-md);
+  --size-icon-lg: var(--icon-lg);
 
   /* shadcn compatibility mappings */
   --color-background: var(--bg);
@@ -44,8 +72,9 @@
   --color-muted-foreground: var(--text-muted);
   --color-accent-foreground: var(--accent-ink);
   --color-destructive: var(--danger);
-  --color-destructive-foreground: #FFFFFF;
-  --color-input: var(--border);
+  /* FND-1c: was raw #FFFFFF (3.27:1 on dark danger) — use danger-ink token instead */
+  --color-destructive-foreground: var(--danger-ink);
+  --color-input: var(--border-strong);
   --color-ring: var(--accent);
 
   --font-sans: var(--font-sans);
@@ -53,15 +82,18 @@
 }
 
 :root {
-  /* Summit Night (default dark theme) */
+  /* ─── Summit Night (default dark theme) ─── */
   --bg:          #0A0E13;
   --surface:     #11171F;
   --surface-2:   #18202B;
   --surface-3:   #212B38;
   --border:      #2A3544;
+  /* FND-1d: form-control boundary needs ≥3:1 (old border was 1.56:1) */
+  --border-strong: #485E76;
   --text:        #E9EEF4;
   --text-muted:  #8C99AB;
-  --text-faint:  #5D6A7C;
+  /* FND-1a: was #5D6A7C (3.27:1 on surface) — lifted to ≥4.5:1 */
+  --text-faint:  #7D8A9D;
   --accent:      #7CC4FF;
   --accent-ink:  #06121F;
   --ok:          #3DDC97;
@@ -69,12 +101,41 @@
   --caution:     #FFC24B;
   --warning:     #FF8A3D;
   --danger:      #FF4D4F;
+  /* FND-1c: white-on-danger was 3.27:1 — use dark ink instead */
+  --danger-ink:  #FFD6D6;
   --sos:         #FF5A1F;
   --sos-ink:     #1A0700;
+  /* Scrim: 50% black for modals (was inconsistent /70 /80 /90) */
+  --scrim:       rgba(0, 0, 0, 0.50);
+
+  /* Shape */
   --radius-sm:   8px;
   --radius:      14px;
   --radius-lg:   22px;
   --shadow:      0 1px 0 rgba(255,255,255,.04) inset, 0 12px 32px rgba(0,0,0,.45);
+  --elev-1:      0 1px 4px rgba(0,0,0,.30);
+  --elev-2:      0 4px 16px rgba(0,0,0,.40);
+  --elev-3:      0 12px 32px rgba(0,0,0,.50);
+
+  /* Motion (FND-1e: were absent — components improvised their own values) */
+  --dur-micro:   80ms;
+  --dur-ui:      160ms;
+  --dur-sheet:   320ms;
+  --dur-exit:    200ms;
+  --ease-in:     cubic-bezier(0.4, 0, 1, 1);
+  --ease-out:    cubic-bezier(0, 0, 0.2, 1);
+  --ease-sheet:  cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Z-index scale (FND-1e: tab bar, SOS FAB and header were all z-40) */
+  --z-nav:   40;
+  --z-fab:   45;
+  --z-sheet: 50;
+  --z-toast: 60;
+
+  /* Icon sizes */
+  --icon-sm: 16px;
+  --icon-md: 20px;
+  --icon-lg: 24px;
 }
 
 [data-theme="sunlight"] {
@@ -83,19 +144,34 @@
   --surface-2:   #F0F2F5;
   --surface-3:   #E6E9EE;
   --border:      #D3D9E1;
+  /* FND-1d: sunlight form border (old was 1.33:1) */
+  --border-strong: #8A97A8;
   --text:        #0B1117;
   --text-muted:  #4A5666;
-  --text-faint:  #7A8696;
-  --accent:      #0B6BCB;
+  /* FND-1a: was #7A8696 (3.70:1 on surface) — lifted to ≥4.5:1 */
+  --text-faint:  #5F6B7B;
+  /* FND-1b: sunlight accent chips were 4.27:1 — darkened to pass */
+  --accent:      #0A5FB0;
   --accent-ink:  #FFFFFF;
-  --ok:          #0E8F5B;
-  --info:        #0B6BCB;
-  --caution:     #9A6700;
-  --warning:     #C24E00;
+  /* FND-1b: ok on sunlight bg was 3.84:1 — darkened */
+  --ok:          #0A7048;
+  --info:        #0A5FB0;
+  /* FND-1b: caution on sunlight was 4.54:1 — nudge darker */
+  --caution:     #7F5400;
+  /* FND-1b: warning on sunlight was 4.47:1 — darkened */
+  --warning:     #A94100;
   --danger:      #C8102E;
-  --sos:         #E03E00;
+  /* FND-1c: white-on-danger is OK in sunlight (5.88:1) but keep token consistent */
+  --danger-ink:  #FFFFFF;
+  /* FND-1b: sos on sunlight was 4.03:1 — darkened */
+  --sos:         #C93700;
+  /* FND-1b: sos-ink on sunlight was 4.32:1 — white still fails at xs text; fix sos first */
   --sos-ink:     #FFFFFF;
+  --scrim:       rgba(0, 0, 0, 0.40);
   --shadow:      0 1px 2px rgba(10,20,30,.06), 0 8px 24px rgba(10,20,30,.08);
+  --elev-1:      0 1px 3px rgba(10,20,30,.08);
+  --elev-2:      0 4px 12px rgba(10,20,30,.12);
+  --elev-3:      0 8px 24px rgba(10,20,30,.16);
 }
 
 @layer base {
@@ -107,7 +183,7 @@
     background-color: var(--bg);
     color: var(--text);
     font-family: var(--font-sans), sans-serif;
-    min-height: 100vh;
+    min-height: 100dvh;
   }
   html {
     color-scheme: dark;
@@ -115,7 +191,43 @@
   html[data-theme="sunlight"] {
     color-scheme: light;
   }
+
+  /* FND-3: inputs < 16px trigger iOS zoom — baseline 16px on touch widths */
+  @media (hover: none) {
+    input,
+    select,
+    textarea {
+      font-size: 16px;
+    }
+  }
+
+  /* Skip-to-content link (FND-5) */
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: auto;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+  }
+  .skip-link:focus {
+    position: fixed;
+    top: 1rem;
+    left: 1rem;
+    z-index: 9999;
+    width: auto;
+    height: auto;
+    padding: 0.5rem 1rem;
+    background: var(--accent);
+    color: var(--accent-ink);
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+    font-size: 0.875rem;
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
 }
+
 /* Respect reduced motion everywhere (pulses, spinners, countdown ring). */
 @media (prefers-reduced-motion: reduce) {
   *,
