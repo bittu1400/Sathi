@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { enqueue, flush, getOutboxItems, clearOutbox } from "./outbox"
+import { enqueue, flush, getOutboxItems, clearOutbox, newId, patchQueued } from "./outbox"
 
 // Mock Supabase client
 function createMockSupabase(handler?: (table: string, row: Record<string, unknown>, opts: { onConflict: string; ignoreDuplicates: boolean }) => Promise<{ error: Error | null }>) {
@@ -85,5 +85,48 @@ describe("Outbox", () => {
     expect(remaining.length).toBe(1)
     expect(remaining[0]?.id).toBe("pos-fail")
     expect(remaining[0]?.attempts).toBe(1)
+  })
+})
+
+describe("Outbox concurrency", () => {
+  beforeEach(async () => {
+    await clearOutbox()
+  })
+
+  it("keeps a row enqueued while a flush is in flight", async () => {
+    await enqueue("positions", { id: "pos-1" }, { autoFlush: false })
+    let release: () => void = () => {}
+    const gate = new Promise<void>((resolve) => (release = resolve))
+    const mockSupabase = createMockSupabase(async () => {
+      await gate
+      return { error: null }
+    })
+
+    const flushing = flush(mockSupabase)
+    await enqueue("sos_events", { id: "sos-late" }, { autoFlush: false })
+    release()
+    expect(await flushing).toEqual({ sent: 1, failed: 0 })
+
+    const remaining = await getOutboxItems()
+    expect(remaining.map((i) => i.id)).toEqual(["sos-late"])
+  })
+
+  it("keeps both rows when two enqueues race", async () => {
+    await Promise.all([
+      enqueue("checkins", { id: "c-1" }, { autoFlush: false }),
+      enqueue("alerts", { id: "a-1" }, { autoFlush: false }),
+    ])
+    expect((await getOutboxItems()).map((i) => i.id).sort()).toEqual(["a-1", "c-1"])
+  })
+
+  it("patches a queued row and reports rows that already left", async () => {
+    await enqueue("sos_events", { id: "sos-1", status: "open" }, { autoFlush: false })
+    expect(await patchQueued("sos-1", { status: "resolved" })).toBe(true)
+    expect((await getOutboxItems())[0]?.row.status).toBe("resolved")
+    expect(await patchQueued("missing", { status: "resolved" })).toBe(false)
+  })
+
+  it("generates RFC 4122 v4 ids", () => {
+    expect(newId()).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
   })
 })

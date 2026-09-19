@@ -1,82 +1,41 @@
 "use client"
 
 import * as React from "react"
-import Link from "next/link"
-import { ShieldAlert, ArrowLeft } from "lucide-react"
+import { ShieldAlert } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import type { SosEvent } from "@/lib/types"
-import { SosStatus } from "@/components/sos/SosStatus"
-import { OfflineSosPanel } from "@/components/sos/OfflineSosPanel"
 import { useSos } from "@/components/sos/SosProvider"
+import { SosActiveView } from "@/components/sos/SosActiveView"
+import { latestSosStore } from "@/lib/session"
 
-function getStoredSos(): SosEvent | null {
-  if (typeof window === "undefined") return null
-  try {
-    const saved = localStorage.getItem("sathiLatestSos")
-    return saved ? (JSON.parse(saved) as SosEvent) : null
-  } catch {
-    return null
-  }
-}
-
+/** SPEC §9.1 step 6: my latest SOS from local state, works offline. */
 export default function SosPage() {
-  const [sos, setSos] = React.useState<SosEvent | null>(getStoredSos)
+  const sos = latestSosStore.useValue()
   const { open } = useSos()
-
-  const handleResolve = () => {
-    if (sos) {
-      const updated = { ...sos, status: "resolved" as const }
-      setSos(updated)
-      localStorage.setItem("sathiLatestSos", JSON.stringify(updated))
-    }
-  }
+  const active = sos && sos.status !== "resolved" ? sos : null
 
   return (
-    <main className="min-h-screen bg-background text-foreground py-8 px-4 max-w-lg mx-auto space-y-6">
-      <div className="flex items-center justify-between pb-2 border-b border-border">
-        <Link
-          href="/"
-          className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          Home
-        </Link>
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Emergency Center
-        </span>
-      </div>
-
-      {!sos || sos.status === "resolved" ? (
-        <div className="p-8 text-center bg-card border border-border rounded-2xl space-y-4 shadow-sm">
-          <div className="inline-flex p-4 rounded-full bg-muted text-muted-foreground">
-            <ShieldAlert className="w-8 h-8" />
-          </div>
-          <div className="space-y-1">
-            <h2 className="text-xl font-bold">No Active Emergency</h2>
-            <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-              You do not have an active SOS beacon broadcast. In an emergency, trigger a new beacon immediately.
-            </p>
-          </div>
-
-          <div className="pt-4">
-            <Button
-              type="button"
-              onClick={() => open()}
-              className="bg-red-600 hover:bg-red-700 text-white font-bold px-8 h-12 rounded-xl text-sm uppercase tracking-wide"
-            >
-              Trigger Emergency SOS
-            </Button>
-          </div>
-        </div>
-      ) : sos.channel === "online" ? (
-        <div className="bg-card border border-red-500/40 rounded-2xl p-2 shadow-lg">
-          <SosStatus sos={sos} onResolve={handleResolve} />
+    <div className="mx-auto max-w-lg space-y-6 py-4">
+      <h1 className="text-xl font-bold text-text">Emergency</h1>
+      {active ? (
+        <div className="rounded-[var(--radius-lg)] border border-sos/40 bg-surface shadow-lg">
+          <SosActiveView sos={active} />
         </div>
       ) : (
-        <div className="bg-card border border-amber-500/40 rounded-2xl p-2 shadow-lg">
-          <OfflineSosPanel sos={sos} onResolve={handleResolve} />
+        <div className="space-y-4 rounded-[var(--radius-lg)] border border-border bg-surface p-8 text-center">
+          <div className="inline-flex rounded-full bg-surface-2 p-4 text-text-muted">
+            <ShieldAlert className="h-8 w-8" />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-lg font-bold text-text">No active SOS</h2>
+            <p className="mx-auto max-w-xs text-sm text-text-muted">
+              In an emergency, send an SOS. It works without mobile data.
+            </p>
+          </div>
+          <Button type="button" variant="sos" size="lg" onClick={() => open()} className="w-full">
+            Send SOS
+          </Button>
         </div>
       )}
-    </main>
+    </div>
   )
 }

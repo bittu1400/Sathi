@@ -1,46 +1,40 @@
 import * as React from "react";
 import { SeverityBanner } from "../ui/severity-banner";
 import { Button } from "../ui/button";
+import { STANDARD_DISCLAIMER } from "@/lib/ams-copy";
+import type { AmsResult } from "@/lib/types";
 
 export interface AmsResultCardProps {
-  severity: "ok" | "info" | "caution" | "warning" | "danger";
-  headline: string;
-  reasons: string[];
-  actions: string[];
-  onTriggerSos?: () => void;
+  result: AmsResult;
+  onTriggerSos: () => void;
 }
 
-export function AmsResultCard({
-  severity,
-  headline,
-  reasons,
-  actions,
-  onTriggerSos,
-}: AmsResultCardProps) {
-  const isDanger = severity === "danger";
+/** Shows exactly what evaluateAms() returned; no wording of its own. */
+export function AmsResultCard({ result, onTriggerSos }: AmsResultCardProps) {
+  const isDanger = result.level === "danger";
 
   return (
     <div className="space-y-4">
       <SeverityBanner
-        severity={severity === "ok" ? "info" : severity}
-        headline={headline}
-        reasons={reasons}
-        disclaimer="Sathi provides general safety information and helps you share your location. It does not provide medical diagnosis or guarantee rescue. In an emergency, descend if you can do so safely, and contact local rescue services directly. If in doubt, go down."
+        severity={result.level === "ok" ? "info" : result.level}
+        headline={result.headline}
+        reasons={result.reasons}
+        disclaimer={STANDARD_DISCLAIMER}
         actions={
           isDanger ? (
-            <Button variant="sos" size="lg" className="w-full mt-2" onClick={onTriggerSos}>
-              Start SOS Rescue Immediately
+            <Button variant="sos" size="lg" className="mt-2 w-full" onClick={onTriggerSos}>
+              Send SOS
             </Button>
           ) : undefined
         }
       />
 
-      {actions.length > 0 && (
-        <div className="bg-surface border border-border rounded-[var(--radius)] p-4 space-y-2">
-          <h4 className="font-semibold text-sm text-text">Recommended Actions:</h4>
-          <ul className="list-disc list-inside text-sm text-text-muted space-y-1">
-            {actions.map((act, idx) => (
-              <li key={idx}>{act}</li>
+      {result.actions.length > 0 && (
+        <div className="space-y-2 rounded-[var(--radius)] border border-border bg-surface p-4">
+          <h4 className="text-sm font-semibold text-text">What to do now</h4>
+          <ul className="list-inside list-disc space-y-1 text-sm text-text-muted">
+            {result.actions.map((action) => (
+              <li key={action}>{action}</li>
             ))}
           </ul>
         </div>

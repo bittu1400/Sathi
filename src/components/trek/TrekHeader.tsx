@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ConnectivityPill } from "../ui/connectivity-pill";
+import { LiveConnectivityPill } from "../live-connectivity";
 import { Badge } from "../ui/badge";
 
 export interface TrekHeaderProps {
@@ -17,11 +17,11 @@ export function TrekHeader({ routeName, dayNumber, status = "active" }: TrekHead
           <Badge variant="ok">{status.toUpperCase()}</Badge>
         </div>
         <p className="text-xs font-mono text-accent font-semibold">
-          Day {dayNumber} of Trek
+          Day {dayNumber}
         </p>
       </div>
 
-      <ConnectivityPill status="online" />
+      <LiveConnectivityPill />
     </div>
   );
 }

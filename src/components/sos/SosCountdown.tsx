@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import type { SosCategory } from "@/lib/types"
+import { cn } from "cn"
 
 interface SosCountdownProps {
   initialCategory?: SosCategory
@@ -10,123 +11,104 @@ interface SosCountdownProps {
   onComplete: (data: { category: SosCategory; note: string }) => void
 }
 
+const SECONDS = 5
 const CATEGORIES: { id: SosCategory; label: string }[] = [
-  { id: "altitude_illness", label: "Altitude Illness" },
-  { id: "injury", label: "Injury / Trauma" },
-  { id: "lost", label: "Lost / Off Trail" },
-  { id: "weather", label: "Severe Weather" },
-  { id: "other", label: "Other Emergency" },
+  { id: "altitude_illness", label: "Altitude illness" },
+  { id: "injury", label: "Injury" },
+  { id: "lost", label: "Lost" },
+  { id: "weather", label: "Weather" },
+  { id: "other", label: "Other" },
 ]
+const CIRCUMFERENCE = 2 * Math.PI * 40
 
-export function SosCountdown({
-  initialCategory = "altitude_illness",
-  onCancel,
-  onComplete,
-}: SosCountdownProps) {
-  const [seconds, setSeconds] = React.useState(5)
+/** SPEC §9.1 step 2: the countdown never waits for input; picking a category or typing doesn't reset it. */
+export function SosCountdown({ initialCategory = "altitude_illness", onCancel, onComplete }: SosCountdownProps) {
+  const [seconds, setSeconds] = React.useState(SECONDS)
   const [category, setCategory] = React.useState<SosCategory>(initialCategory)
   const [note, setNote] = React.useState("")
+  const latest = React.useRef({ category, note, onComplete })
+  React.useEffect(() => {
+    latest.current = { category, note, onComplete }
+  }, [category, note, onComplete])
+  const fired = React.useRef(false)
 
   React.useEffect(() => {
-    if (seconds <= 0) {
-      onComplete({ category, note })
-      return
+    if (seconds > 0) {
+      const timer = setTimeout(() => setSeconds((s) => s - 1), 1000)
+      return () => clearTimeout(timer)
     }
-
-    const timer = setTimeout(() => {
-      setSeconds((prev) => prev - 1)
-    }, 1000)
-
-    return () => clearTimeout(timer)
-  }, [seconds, category, note, onComplete])
-
-  // Circumference for r=40 is 2 * PI * 40 = 251.3
-  const strokeDashoffset = 251.3 - (251.3 * seconds) / 5
+    if (!fired.current) {
+      fired.current = true
+      latest.current.onComplete({ category: latest.current.category, note: latest.current.note })
+    }
+  }, [seconds])
 
   return (
-    <div className="flex flex-col items-center justify-between h-full p-6 text-foreground max-w-md mx-auto space-y-6">
-      <div className="text-center space-y-1">
-        <h2 className="text-2xl font-black tracking-tight text-red-600 uppercase">
-          Emergency SOS
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          Dispatching emergency beacon in {seconds}s...
+    <div className="mx-auto flex h-full max-w-md flex-col items-center justify-between space-y-6 p-6 text-text">
+      <div className="space-y-1 text-center">
+        <p className="text-2xl font-black uppercase tracking-tight text-sos">Emergency SOS</p>
+        <p className="text-sm text-text-muted" aria-live="assertive">
+          Sending in {seconds} s
         </p>
       </div>
 
-      {/* Countdown Ring */}
-      <div className="relative w-36 h-36 flex items-center justify-center">
-        <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+      <div className="relative flex h-36 w-36 items-center justify-center" aria-hidden="true">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="40" className="stroke-surface-3" strokeWidth="8" fill="transparent" />
           <circle
             cx="50"
             cy="50"
             r="40"
-            className="stroke-muted"
+            className="stroke-sos transition-all duration-1000 ease-linear motion-reduce:transition-none"
             strokeWidth="8"
-            fill="transparent"
-          />
-          <circle
-            cx="50"
-            cy="50"
-            r="40"
-            className="stroke-red-600 transition-all duration-1000 ease-linear"
-            strokeWidth="8"
-            strokeDasharray="251.3"
-            strokeDashoffset={strokeDashoffset}
+            strokeDasharray={CIRCUMFERENCE}
+            strokeDashoffset={CIRCUMFERENCE - (CIRCUMFERENCE * seconds) / SECONDS}
             strokeLinecap="round"
             fill="transparent"
           />
         </svg>
-        <span className="absolute text-5xl font-mono font-black text-red-600">
-          {seconds}
-        </span>
+        <span className="absolute font-mono text-5xl font-black tabular-nums text-sos">{seconds}</span>
       </div>
 
-      {/* Category selector */}
-      <div className="w-full space-y-2">
-        <label className="block text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">
-          Emergency Category
-        </label>
+      <fieldset className="w-full space-y-2">
+        <legend className="mb-2 w-full text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
+          What happened?
+        </legend>
         <div className="grid grid-cols-2 gap-2">
           {CATEGORIES.map((cat) => (
             <button
               type="button"
               key={cat.id}
+              aria-pressed={category === cat.id}
               onClick={() => setCategory(cat.id)}
-              className={`p-2.5 text-xs font-medium rounded-lg border text-center transition-all ${
+              className={cn(
+                "min-h-12 rounded-[var(--radius-sm)] border p-2.5 text-sm font-medium transition-colors",
                 category === cat.id
-                  ? "bg-red-600 text-white border-red-600 font-bold shadow"
-                  : "bg-card border-border hover:bg-muted text-foreground"
-              }`}
+                  ? "border-sos bg-sos font-bold text-sos-ink"
+                  : "border-border bg-surface-2 text-text hover:bg-surface-3"
+              )}
             >
               {cat.label}
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
-      {/* Quick optional note */}
-      <div className="w-full space-y-1">
+      <label className="w-full">
+        <span className="sr-only">Optional note</span>
         <input
           type="text"
           value={note}
+          maxLength={500}
           onChange={(e) => setNote(e.target.value)}
-          placeholder="Brief details (e.g. fallen 5m, head wound)..."
-          className="w-full px-3 py-2 text-xs border border-input rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-red-500"
+          placeholder="Optional note (e.g. fell, head wound)"
+          className="h-12 w-full rounded-[var(--radius-sm)] border border-border bg-bg px-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-sos"
         />
-      </div>
+      </label>
 
-      {/* Large Cancel Button */}
-      <div className="w-full pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onCancel}
-          className="w-full h-14 text-base font-bold border-2 border-foreground hover:bg-muted"
-        >
-          Cancel SOS
-        </Button>
-      </div>
+      <Button type="button" variant="outline" size="lg" onClick={onCancel} className="w-full border-2 border-text" autoFocus>
+        Cancel
+      </Button>
     </div>
   )
 }

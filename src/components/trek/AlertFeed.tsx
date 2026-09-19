@@ -24,10 +24,9 @@ export function AlertFeed({ alerts, onAcknowledge, className }: AlertFeedProps) 
           key={alert.id}
           severity={alert.severity}
           headline={alert.title}
-          reasons={[alert.body]}
+          reasons={[alert.body, ...alert.actions].filter(Boolean)}
           actions={
             <Button
-              size="sm"
               variant="secondary"
               onClick={() => onAcknowledge?.(alert.id)}
             >

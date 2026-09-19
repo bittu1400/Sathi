@@ -27,7 +27,7 @@
     "permits": ["ACAP Permit", "TIMS Card"],
     "bestSeasons": ["spring", "autumn"],
     "heroImage": "/images/routes/annapurna-circuit.webp",
-    "hasFullData": true
+    "hasFullData": false
   },
   {
     "id": "poon-hill",
@@ -42,7 +42,7 @@
     "permits": ["ACAP Permit", "TIMS Card"],
     "bestSeasons": ["spring", "autumn", "winter"],
     "heroImage": "/images/routes/poon-hill.webp",
-    "hasFullData": true
+    "hasFullData": false
   },
   {
     "id": "langtang",

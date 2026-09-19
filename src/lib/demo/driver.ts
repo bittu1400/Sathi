@@ -1,402 +1,189 @@
+"use client"
+
 import { createClient } from "@/lib/supabase/client"
-import { clearOutbox, enqueue, flush } from "@/lib/outbox"
-import { isOnline } from "@/lib/offline/status"
-import { buildEbcTimeline, SCENARIO_ALERTS } from "./scenario-ebc"
+import { clearOutbox, flush } from "@/lib/outbox"
+import { endTrek, resolveSos } from "@/lib/db/queries"
+import { newId } from "@/lib/id"
+import { deriveAlerts } from "@/lib/alerts"
+import { evaluateWeather } from "@/lib/weather"
+import { acknowledgeAlert, recordAlerts, recordCheckin, recordPosition, trekLogStore } from "@/lib/trek-log"
+import {
+  demoModeStore,
+  latestSosStore,
+  refreshSession,
+  sessionStore,
+  weatherFixtureStore,
+  type TrekSession,
+} from "@/lib/session"
+import { sendSos } from "@/lib/sos-actions"
+import type { Forecast, RedFlag } from "@/lib/types"
+import { BAD_CHECKIN, EBC_ITINERARY, EBC_ROUTE, dayTrack, waypoint, type DemoDay } from "./scenario-ebc"
 import stormForecast from "./fixtures/forecast-storm.json"
 
-export interface DemoDriverState {
-  activeTrekId: string | null
-  shareToken: string | null
-  currentDay: number
-  altitudeM: number
-  isOffline: boolean
-  lastSosId: string | null
-  history: string[]
+const DAY_MS = 86_400_000
+const NO_AMS = { level: "ok" as const, headline: "", actions: [], reasons: [], alerts: [] }
+
+/**
+ * /demo scenario (C-07). Every step goes through the same code paths a real
+ * trekker uses: treks via lib/db, positions/check-ins/alerts via the outbox,
+ * AMS and weather verdicts from the tested engines, SOS via sos-actions.
+ */
+async function session(): Promise<TrekSession> {
+  const s = (await refreshSession()) ?? sessionStore.get()
+  if (!s) throw new Error("Sign in as the demo trekker first (/login).")
+  return s
 }
 
-const LOCAL_STORAGE_ACTIVE_TREK = "sathiActiveTrekId"
-const LOCAL_STORAGE_SHARE_TOKEN = "sathiActiveShareToken"
+async function activeTrek() {
+  const s = await session()
+  if (!s.trek) throw new Error("No active trek. Run “Start EBC trek” first.")
+  return { ...s, trek: s.trek }
+}
 
-export class DemoDriver {
-  private supabase = createClient()
+/**
+ * Scripted time on demo day N (default 18:00 NPT = 12:15 UTC). "Today" is day 7, so
+ * day-7 times that would be in the future are pulled to `minutesAgo` before now:
+ * the scripted Lobuche check-in stays earlier than the live one made on stage.
+ */
+function timeOn(startedAt: string, day: number, hourUtc = 12.25, minutesAgo = 1) {
+  const start = new Date(startedAt)
+  start.setUTCHours(0, 0, 0, 0)
+  const scripted = start.getTime() + (day - 1) * DAY_MS + hourUtc * 3_600_000
+  return new Date(Math.min(scripted, Date.now() - minutesAgo * 60_000)).toISOString()
+}
 
-  private async getUserId(): Promise<string> {
-    const { data } = await this.supabase.auth.getUser()
-    if (data.user?.id) return data.user.id
-    // Fallback deterministic demo trekker UUID if running without active session
-    return "00000000-0000-0000-0000-000000000001"
+async function playDay(trekId: string, startedAt: string, day: DemoDay) {
+  const track = dayTrack(day)
+  for (const [i, p] of track.entries()) {
+    await recordPosition({
+      id: newId(),
+      trekId,
+      ...p,
+      accuracyM: 10,
+      recordedAt: timeOn(startedAt, day.day, 3 + i * 2, 5 - i), // 08:45, 10:45, 12:45 NPT
+      source: "demo",
+    })
   }
+  const sleep = waypoint(day.toId)
+  await recordCheckin(EBC_ROUTE, {
+    id: newId(),
+    trekId,
+    recordedAt: timeOn(startedAt, day.day),
+    ...day.checkin,
+    redFlags: [],
+    sleepWaypointId: sleep.id,
+    sleepAltM: sleep.altM,
+    lls: day.checkin.headache + day.checkin.gi + day.checkin.fatigue + day.checkin.dizziness,
+  })
+}
 
-  getActiveTrekId(): string | null {
-    if (typeof window === "undefined") return null
-    return localStorage.getItem(LOCAL_STORAGE_ACTIVE_TREK)
-  }
-
-  getActiveShareToken(): string | null {
-    if (typeof window === "undefined") return null
-    return localStorage.getItem(LOCAL_STORAGE_SHARE_TOKEN)
-  }
-
-  /**
-   * Step 1: Reset
-   * Terminate active treks, clear outbox, clear local alerts, resolve open SOS.
-   */
-  async reset(): Promise<{ ok: boolean; message: string }> {
-    const userId = await this.getUserId()
-
-    // 1. Resolve open SOS events
-    await this.supabase
+export const demoDriver = {
+  /** Resolve my open SOS, end my active trek, clear everything on this device. */
+  async reset(): Promise<string> {
+    const s = await session()
+    const sb = createClient()
+    const { data: open, error } = await sb
       .from("sos_events")
-      .update({
-        status: "resolved",
-        note: "Resolved during demo reset",
-      })
-      .eq("user_id", userId)
+      .select("id")
+      .eq("user_id", s.userId)
       .neq("status", "resolved")
+    if (error) throw new Error(error.message)
+    for (const { id } of open ?? []) await resolveSos(sb, id, "Demo reset")
+    if (s.trek) await endTrek(sb, s.trek.id, "aborted")
 
-    // 2. Complete/abort active treks
-    await this.supabase
-      .from("treks")
-      .update({
-        status: "completed",
-        ended_at: new Date().toISOString(),
-      })
-      .eq("user_id", userId)
-      .eq("status", "active")
-
-    // 3. Clear outbox queue
     await clearOutbox()
+    trekLogStore.set(null)
+    latestSosStore.set(null)
+    weatherFixtureStore.set(null)
+    localStorage.removeItem("sathiForcedOffline")
+    window.dispatchEvent(new Event("storage"))
+    demoModeStore.set(1)
+    await refreshSession()
+    return `Reset: ${open?.length ?? 0} SOS resolved${s.trek ? ", active trek ended" : ""}, device data cleared.`
+  },
 
-    // 4. Reset browser state flags
-    if (typeof window !== "undefined") {
-      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_TREK)
-      localStorage.removeItem(LOCAL_STORAGE_SHARE_TOKEN)
-      localStorage.removeItem("sathiForcedOffline")
-      localStorage.removeItem("sathiWeatherFixture")
-      localStorage.removeItem("sathiLocalAlerts")
-      localStorage.setItem("sathiDemo", "1") // Signal to trek mode to use simulated data
-      window.dispatchEvent(new Event("storage"))
+  /** Active EBC trek that started 6 days ago, so today is day 7 (Lobuche) as in DEMO.md. */
+  async startEbcTrek(): Promise<string> {
+    const s = await session()
+    if (s.trek) throw new Error("A trek is already active. Reset first.")
+    const startedAt = new Date(Date.now() - 6 * DAY_MS).toISOString()
+    const { error } = await createClient()
+      .from("treks")
+      .insert({ user_id: s.userId, route_id: "ebc", status: "active", started_at: startedAt })
+    if (error) throw new Error(error.message)
+    demoModeStore.set(1)
+    await refreshSession()
+    return "EBC trek started 6 days ago (today is day 7). Share link ready."
+  },
+
+  /** Days 1–6: Lukla → Dingboche, symptom-free check-ins; the gain cautions of those days are acknowledged. */
+  async fastForwardDingboche(): Promise<string> {
+    const { trek } = await activeTrek()
+    for (const day of EBC_ITINERARY.slice(0, 6)) await playDay(trek.id, trek.startedAt!, day)
+    await flush()
+    // The trekker saw and acknowledged those days' alerts on the day; today starts clean.
+    for (const alert of trekLogStore.get()?.alerts ?? []) {
+      if (!alert.acknowledgedAt) await acknowledgeAlert(alert)
     }
+    return "Days 1–6 played: Lukla → Dingboche (4,410 m); past alerts acknowledged."
+  },
 
-    return {
-      ok: true,
-      message: "Reset completed: active treks closed, SOS resolved, outbox emptied.",
-    }
-  }
+  /** Day 7: Dingboche → Lobuche. The engine raises the +530 m gain caution. */
+  async advanceToLobuche(): Promise<string> {
+    const { trek } = await activeTrek()
+    await playDay(trek.id, trek.startedAt!, EBC_ITINERARY[6]!)
+    await flush()
+    return "Day 7 played: Lobuche (4,940 m), +530 m sleeping gain."
+  },
 
-  /**
-   * Step 2: Start EBC Trek
-   * Creates a trek backdated 8 days, activates a 14-day Trek Pass.
-   */
-  async startEbcTrek(): Promise<{ ok: boolean; trekId: string; shareToken: string }> {
-    const userId = await this.getUserId()
-    const trekId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "demo-ebc-trek-01"
-    const shareToken = Math.random().toString(36).substring(2, 14)
-    const eightDaysAgo = new Date(Date.now() - 8 * 86400000).toISOString()
-    const sixDaysFromNow = new Date(Date.now() + 6 * 86400000).toISOString()
-
-    // 1. Insert active trek
-    const { error: trekErr } = await this.supabase.from("treks").insert({
-      id: trekId,
-      user_id: userId,
-      route_id: "ebc",
-      status: "active",
-      started_at: eightDaysAgo,
-      share_token: shareToken,
-    })
-
-    if (trekErr) throw new Error(`Failed to start trek: ${trekErr.message}`)
-
-    // 2. Insert/update pass
-    await this.supabase.from("passes").upsert(
-      {
-        id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "demo-pass-01",
-        user_id: userId,
-        tier: "pass14",
-        status: "active",
-        days: 14,
-        provider: "mock",
-        payment_ref: "DEMO-PASS-EBC-PITCH",
-        amount_npr: 3900,
-        activated_at: eightDaysAgo,
-        expires_at: sixDaysFromNow,
-      },
-      { onConflict: "user_id" }
-    )
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem(LOCAL_STORAGE_ACTIVE_TREK, trekId)
-      localStorage.setItem(LOCAL_STORAGE_SHARE_TOKEN, shareToken)
-      window.dispatchEvent(new Event("storage"))
-    }
-
-    return { ok: true, trekId, shareToken }
-  }
-
-  /**
-   * Step 3: Fast-forward to Dingboche (Days 1–6)
-   * Inserts historical GPS coordinates and nightly check-ins up to Dingboche rest day (4,410m).
-   */
-  async fastForwardDingboche(trekId?: string): Promise<{ ok: boolean; insertedCount: number }> {
-    const targetTrekId = trekId || this.getActiveTrekId()
-    if (!targetTrekId) throw new Error("No active trek found. Please start an EBC trek first.")
-
-    const timeline = buildEbcTimeline()
-    let insertedPositions = 0
-
-    // Process Days 1 through 6
-    for (const day of timeline.slice(0, 6)) {
-      const dayBaseTime = new Date(Date.now() + day.dateOffsetDays * 86400000)
-
-      // 1. Insert trail positions
-      for (let i = 0; i < day.positions.length; i++) {
-        const p = day.positions[i]!
-        const recordedAt = new Date(dayBaseTime.getTime() + (i * 2 + 8) * 3600000).toISOString() // 08:00, 10:00, etc.
-
-        await enqueue("positions", {
-          trek_id: targetTrekId,
-          lat: p.lat,
-          lng: p.lng,
-          alt_m: p.altM,
-          accuracy_m: 8.5,
-          recorded_at: recordedAt,
-          source: "demo",
-        })
-        insertedPositions++
-      }
-
-      // 2. Insert evening check-in (recorded at 19:30 local)
-      if (day.checkin) {
-        const eveningTime = new Date(dayBaseTime.getTime() + 19.5 * 3600000).toISOString()
-        await enqueue("checkins", {
-          trek_id: targetTrekId,
-          recorded_at: eveningTime,
-          headache: day.checkin.headache,
-          gi: day.checkin.gi,
-          fatigue: day.checkin.fatigue,
-          dizziness: day.checkin.dizziness,
-          red_flags: day.checkin.redFlags,
-          sleep_waypoint_id: day.to.id,
-          sleep_alt_m: day.sleepAltM,
-        })
-      }
-    }
-
-    if (isOnline()) {
-      await flush(this.supabase)
-    }
-
-    return { ok: true, insertedCount: insertedPositions }
-  }
-
-  /**
-   * Step 4: Advance to Lobuche (Day 7)
-   * Advances track to Lobuche (4,940m).
-   * Sleep altitude went from 4,410m to 4,940m (+530m gain), triggering R6 caution.
-   */
-  async advanceToLobuche(trekId?: string): Promise<{ ok: boolean; altitudeM: number }> {
-    const targetTrekId = trekId || this.getActiveTrekId()
-    if (!targetTrekId) throw new Error("No active trek found. Please start an EBC trek first.")
-
-    const timeline = buildEbcTimeline()
-    const day7 = timeline[6]! // Day 7
-    const dayBaseTime = new Date(Date.now() + day7.dateOffsetDays * 86400000)
-
-    // 1. Positions along Dingboche -> Thukla -> Lobuche
-    for (let i = 0; i < day7.positions.length; i++) {
-      const p = day7.positions[i]!
-      const recordedAt = new Date(dayBaseTime.getTime() + (i * 2 + 8) * 3600000).toISOString()
-
-      await enqueue("positions", {
-        trek_id: targetTrekId,
-        lat: p.lat,
-        lng: p.lng,
-        alt_m: p.altM,
-        accuracy_m: 6.0,
-        recorded_at: recordedAt,
-        source: "demo",
-      })
-    }
-
-    // 2. Evening check-in at Lobuche (4,940m)
-    const eveningTime = new Date(dayBaseTime.getTime() + 19.5 * 3600000).toISOString()
-    await enqueue("checkins", {
-      trek_id: targetTrekId,
-      recorded_at: eveningTime,
-      headache: 0,
-      gi: 0,
-      fatigue: 1,
-      dizziness: 0,
-      red_flags: [],
-      sleep_waypoint_id: "lobuche",
-      sleep_alt_m: 4940,
-    })
-
-    // 3. R6 Caution alert (+530m gain above 3,000m)
-    const alertDef = SCENARIO_ALERTS.altitudeGainCaution
-    await enqueue("alerts", {
-      trek_id: targetTrekId,
-      kind: alertDef.kind,
-      severity: alertDef.severity,
-      title: alertDef.title,
-      body: alertDef.body,
-      actions: alertDef.actions,
-      dedupe_key: alertDef.dedupeKey,
-      created_at: eveningTime,
-      acknowledged_at: null,
-    })
-
-    if (isOnline()) {
-      await flush(this.supabase)
-    }
-
-    return { ok: true, altitudeM: 4940 }
-  }
-
-  /**
-   * Step 5: Bad Check-in (LLS 7)
-   * Headache 2, fatigue 2, GI 2, dizziness 1 (total = 7) -> Warning.
-   * If includeAtaxia = true -> Red flag ataxia -> Danger.
-   */
-  async submitBadCheckin(
-    opts: { includeAtaxia?: boolean } = {},
-    trekId?: string
-  ): Promise<{ ok: boolean; severity: string; lls: number }> {
-    const targetTrekId = trekId || this.getActiveTrekId()
-    if (!targetTrekId) throw new Error("No active trek found.")
-
-    const now = new Date().toISOString()
-    const redFlags: string[] = opts.includeAtaxia ? ["ataxia"] : []
-
-    // 1. Enqueue check-in
-    await enqueue("checkins", {
-      trek_id: targetTrekId,
-      recorded_at: now,
-      headache: 2,
-      gi: 2,
-      fatigue: 2,
-      dizziness: 1,
-      red_flags: redFlags,
-      sleep_waypoint_id: "lobuche",
-      sleep_alt_m: 4940,
-    })
-
-    // 2. Enqueue matching alert
-    const alertDef = opts.includeAtaxia ? SCENARIO_ALERTS.ataxiaDanger : SCENARIO_ALERTS.badCheckinWarning
-
-    await enqueue("alerts", {
-      trek_id: targetTrekId,
-      kind: alertDef.kind,
-      severity: alertDef.severity,
-      title: alertDef.title,
-      body: alertDef.body,
-      actions: alertDef.actions,
-      dedupe_key: `${alertDef.dedupeKey}:${Date.now()}`,
-      created_at: now,
-      acknowledged_at: null,
-    })
-
-    if (isOnline()) {
-      await flush(this.supabase)
-    }
-
-    return {
-      ok: true,
-      severity: alertDef.severity,
+  /** Now, at Lobuche on day 7: LLS 7 (warning), or with ataxia (danger). */
+  async submitBadCheckin(includeAtaxia: boolean): Promise<string> {
+    const { trek } = await activeTrek()
+    const redFlags: RedFlag[] = includeAtaxia ? ["ataxia"] : []
+    const lobuche = waypoint("ebc-lobuche")
+    const result = await recordCheckin(EBC_ROUTE, {
+      id: newId(),
+      trekId: trek.id,
+      recordedAt: new Date().toISOString(),
+      ...BAD_CHECKIN,
+      redFlags,
+      sleepWaypointId: lobuche.id,
+      sleepAltM: lobuche.altM,
       lls: 7,
-    }
-  }
+    })
+    await flush()
+    return `Check-in LLS 7${includeAtaxia ? " + ataxia" : ""}: engine says ${result.level.toUpperCase()}.`
+  },
 
-  /**
-   * Step 6: Weather turns
-   * Injects high pass storm fixture for Kongma La / Thorong La (75 km/h gusts -> no_go).
-   */
-  async injectStormWeather(trekId?: string): Promise<{ ok: boolean; verdict: string }> {
-    const targetTrekId = trekId || this.getActiveTrekId()
+  /** Storm fixture for the next high waypoint after Lobuche; weather engine decides. */
+  async injectStormWeather(): Promise<string> {
+    const { trek } = await activeTrek()
+    const forecast = stormForecast as unknown as Forecast
+    weatherFixtureStore.set(forecast)
+    const target = waypoint("ebc-gorakshep")
+    const verdict = evaluateWeather(forecast, target)
+    await recordAlerts(trek.id, deriveAlerts({ ams: NO_AMS, weather: { verdict, waypoint: target }, trekId: trek.id, now: new Date() }))
+    await flush()
+    return `Storm injected for ${target.name}: verdict ${verdict.verdict.toUpperCase()}.`
+  },
 
-    if (typeof window !== "undefined") {
-      localStorage.setItem("sathiWeatherFixture", JSON.stringify(stormForecast))
-      window.dispatchEvent(new Event("storage"))
-    }
+  setOffline(forced: boolean) {
+    if (forced) localStorage.setItem("sathiForcedOffline", "1")
+    else localStorage.removeItem("sathiForcedOffline")
+    window.dispatchEvent(new Event("storage"))
+  },
 
-    if (targetTrekId) {
-      const alertDef = SCENARIO_ALERTS.stormNoGo
-      await enqueue("alerts", {
-        trek_id: targetTrekId,
-        kind: alertDef.kind,
-        severity: alertDef.severity,
-        title: alertDef.title,
-        body: alertDef.body,
-        actions: alertDef.actions,
-        dedupe_key: alertDef.dedupeKey,
-        created_at: new Date().toISOString(),
-        acknowledged_at: null,
-      })
+  /** Altitude-illness SOS at Lobuche; queued if the device is (simulated) offline. */
+  async triggerSos(): Promise<string> {
+    await activeTrek()
+    const lobuche = waypoint("ebc-lobuche")
+    const sos = await sendSos("altitude_illness", "Severe headache and stumbling at Lobuche.", lobuche)
+    return sos.receivedAt ? "SOS delivered to coordination." : "SOS queued (offline). SMS panel shown on the trek device."
+  },
 
-      if (isOnline()) {
-        await flush(this.supabase)
-      }
-    }
-
-    return { ok: true, verdict: "no_go" }
-  }
-
-  /**
-   * Step 7: Go Offline
-   * Simulates airplane mode on the operator device.
-   */
-  setOfflineMode(forced: boolean): { ok: boolean; forcedOffline: boolean } {
-    if (typeof window !== "undefined") {
-      if (forced) {
-        localStorage.setItem("sathiForcedOffline", "1")
-      } else {
-        localStorage.removeItem("sathiForcedOffline")
-      }
-      window.dispatchEvent(new Event("storage"))
-    }
-    return { ok: true, forcedOffline: forced }
-  }
-
-  /**
-   * Step 8: Trigger SOS
-   * Creates an emergency SOS incident at Lobuche (4,940m).
-   */
-  async triggerSos(trekId?: string): Promise<{ ok: boolean; sosId: string; channel: string }> {
-    const targetTrekId = trekId || this.getActiveTrekId()
-    const userId = await this.getUserId()
-    const sosId = typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : "demo-sos-01"
-    const channel = isOnline() ? "online" : "queued"
-
-    const sosPayload = {
-      id: sosId,
-      trek_id: targetTrekId,
-      user_id: userId,
-      lat: 27.9483,
-      lng: 86.8125,
-      alt_m: 4940,
-      accuracy_m: 14.0,
-      category: "altitude_illness",
-      note: "Severe headache (LLS 7) and difficulty balancing at Lobuche high camp.",
-      last_checkin_lls: 7,
-      created_at: new Date().toISOString(),
-      channel: channel,
-      status: "open",
-    }
-
-    await enqueue("sos_events", sosPayload)
-
-    return { ok: true, sosId, channel }
-  }
-
-  /**
-   * Step 9: Back Online & Flush
-   * Restores connectivity and flushes queued SOS + check-ins to rescue dashboard.
-   */
-  async backOnlineAndFlush(): Promise<{ ok: boolean; sent: number }> {
-    this.setOfflineMode(false)
-    const result = await flush(this.supabase)
-    return { ok: true, sent: result.sent }
-  }
+  async backOnlineAndFlush(): Promise<string> {
+    this.setOffline(false)
+    const { sent, failed } = await flush()
+    return `Back online: ${sent} queued item(s) sent${failed ? `, ${failed} failed` : ""}.`
+  },
 }
-
-export const demoDriver = new DemoDriver()

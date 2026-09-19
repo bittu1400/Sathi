@@ -1,4 +1,5 @@
 import React from "react";
+import { cn } from "cn";
 
 interface KpiBarProps {
   openSosCount: number;
@@ -7,60 +8,36 @@ interface KpiBarProps {
   alerts24hCount: number;
 }
 
-export function KpiBar({
-  openSosCount,
-  activeTreksCount,
-  trekkersAbove4000m,
-  alerts24hCount,
-}: KpiBarProps) {
+function Kpi({ label, value, tone, className }: { label: string; value: number; tone?: string; className?: string }) {
   return (
-    <div className="flex items-center gap-4 text-xs">
-      {/* Open SOS */}
+    <div className={cn("flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-border bg-surface-2/40 px-2.5 py-1 text-text-muted", className)}>
+      <span>{label}</span>
+      <span className={cn("font-mono text-sm font-bold tabular-nums text-text", tone)}>{value}</span>
+    </div>
+  );
+}
+
+export function KpiBar({ openSosCount, activeTreksCount, trekkersAbove4000m, alerts24hCount }: KpiBarProps) {
+  return (
+    <div className="flex items-center gap-3 text-xs" aria-live="polite">
       <div
-        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md border font-medium transition-colors ${
-          openSosCount > 0
-            ? "bg-red-500/15 border-red-500/40 text-red-400 animate-pulse"
-            : "bg-muted/40 border-border text-muted-foreground"
-        }`}
+        className={cn(
+          "flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1 font-medium",
+          openSosCount > 0 ? "border-sos/50 bg-sos/15 text-sos" : "border-border bg-surface-2/40 text-text-muted",
+        )}
       >
-        <span
-          className={`h-2 w-2 rounded-full ${
-            openSosCount > 0 ? "bg-red-500" : "bg-emerald-500"
-          }`}
-        />
-        <span>Open SOS:</span>
-        <span className="font-mono font-bold text-sm">
-          {openSosCount}
-        </span>
+        <span className={cn("h-2 w-2 rounded-full", openSosCount > 0 ? "bg-sos" : "bg-ok")} />
+        <span>Open SOS</span>
+        <span className="font-mono text-sm font-bold tabular-nums">{openSosCount}</span>
       </div>
-
-      {/* Active Treks */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-muted/20 text-muted-foreground">
-        <span>Active Treks:</span>
-        <span className="font-mono font-bold text-sm text-foreground">
-          {activeTreksCount}
-        </span>
-      </div>
-
-      {/* Trekkers > 4,000m */}
-      <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-muted/20 text-muted-foreground">
-        <span>Above 4,000 m:</span>
-        <span className="font-mono font-bold text-sm text-foreground">
-          {trekkersAbove4000m}
-        </span>
-      </div>
-
-      {/* Alerts 24h */}
-      <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-border bg-muted/20 text-muted-foreground">
-        <span>Alerts (24h):</span>
-        <span
-          className={`font-mono font-bold text-sm ${
-            alerts24hCount > 0 ? "text-amber-400" : "text-foreground"
-          }`}
-        >
-          {alerts24hCount}
-        </span>
-      </div>
+      <Kpi label="Active treks" value={activeTreksCount} />
+      <Kpi label="Above 4,000 m" value={trekkersAbove4000m} className="hidden sm:flex" />
+      <Kpi
+        label="Alerts (24h)"
+        value={alerts24hCount}
+        tone={alerts24hCount > 0 ? "text-caution" : undefined}
+        className="hidden md:flex"
+      />
     </div>
   );
 }

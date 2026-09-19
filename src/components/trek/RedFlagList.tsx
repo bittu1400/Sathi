@@ -2,6 +2,7 @@ import * as React from "react";
 import { RedFlag } from "@/lib/types";
 import { AlertOctagon } from "lucide-react";
 import { cn } from "cn";
+import { RED_FLAG_LABELS } from "@/lib/ams-copy";
 
 export interface RedFlagListProps {
   selectedFlags: RedFlag[];
@@ -10,13 +11,10 @@ export interface RedFlagListProps {
 }
 
 export function RedFlagList({ selectedFlags, onChange, className }: RedFlagListProps) {
-  const redFlags: { id: RedFlag; label: string }[] = [
-    { id: "confusion", label: "Confused, very drowsy, or acting strangely" },
-    { id: "ataxia", label: "Can't walk in a straight line heel-to-toe / stumbling" },
-    { id: "breathless_at_rest", label: "Out of breath while resting" },
-    { id: "wet_cough", label: "Wet or gurgling cough, or pink/frothy spit" },
-    { id: "severe_headache_unrelieved", label: "Severe headache that painkillers don't help" },
-  ];
+  const redFlags = (Object.keys(RED_FLAG_LABELS) as RedFlag[]).map((id) => ({
+    id,
+    label: RED_FLAG_LABELS[id],
+  }));
 
   const toggleFlag = (flagId: RedFlag) => {
     if (selectedFlags.includes(flagId)) {

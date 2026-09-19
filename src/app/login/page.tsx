@@ -4,11 +4,18 @@ import * as React from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
+import { safeNext } from "@/lib/safe-next"
+
+const DEMO_GMAIL = process.env.NEXT_PUBLIC_DEMO_GMAIL ?? ""
+const demoEmail = (tag: string) => {
+  const [local, domain] = DEMO_GMAIL.split("@")
+  return `${local}+${tag}@${domain}`
+}
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const next = searchParams.get("next") || "/trek"
+  const next = safeNext(searchParams.get("next"))
   const authError = searchParams.get("error")
 
   const [isSignUp, setIsSignUp] = React.useState(false)
@@ -20,7 +27,7 @@ function LoginForm() {
     authError === "unauthorized" ? "You do not have permission to access that page." : null
   )
 
-  const isDemo = process.env.NEXT_PUBLIC_DEMO === "1"
+  const isDemo = process.env.NEXT_PUBLIC_DEMO === "1" && DEMO_GMAIL.includes("@")
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,12 +90,12 @@ function LoginForm() {
   }
 
   return (
-    <div className="w-full max-w-md p-6 bg-card border border-border rounded-xl shadow-lg space-y-6">
+    <div className="w-full max-w-md p-6 bg-surface border border-border rounded-xl shadow-lg space-y-6">
       <div className="text-center space-y-2">
         <h1 className="text-2xl font-bold tracking-tight">
           {isSignUp ? "Create your Sathi account" : "Welcome back to Sathi"}
         </h1>
-        <p className="text-sm text-muted-foreground">
+        <p className="text-sm text-text-muted">
           {isSignUp
             ? "Sign up for offline trekking intelligence & safety monitoring."
             : "Sign in to access your treks, check-ins, and safety coordination."}
@@ -98,7 +105,7 @@ function LoginForm() {
       {error && (
         <div
           role="alert"
-          className="p-3 text-sm rounded-lg bg-destructive/10 border border-destructive text-destructive"
+          className="p-3 text-sm rounded-lg bg-danger/10 border border-danger text-danger"
         >
           {error}
         </div>
@@ -109,7 +116,7 @@ function LoginForm() {
           <div className="space-y-1">
             <label
               htmlFor="displayName"
-              className="block text-sm font-medium text-foreground"
+              className="block text-sm font-medium text-text"
             >
               Display Name
             </label>
@@ -120,7 +127,7 @@ function LoginForm() {
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               placeholder="e.g. Maya Shrestha"
-              className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full px-3 py-2 border border-border rounded-md bg-bg text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
             />
           </div>
         )}
@@ -128,7 +135,7 @@ function LoginForm() {
         <div className="space-y-1">
           <label
             htmlFor="email"
-            className="block text-sm font-medium text-foreground"
+            className="block text-sm font-medium text-text"
           >
             Email Address
           </label>
@@ -139,14 +146,14 @@ function LoginForm() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder="you@example.com"
-            className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-3 py-2 border border-border rounded-md bg-bg text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
 
         <div className="space-y-1">
           <label
             htmlFor="password"
-            className="block text-sm font-medium text-foreground"
+            className="block text-sm font-medium text-text"
           >
             Password
           </label>
@@ -157,7 +164,7 @@ function LoginForm() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="••••••••"
-            className="w-full px-3 py-2 border border-input rounded-md bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+            className="w-full px-3 py-2 border border-border rounded-md bg-bg text-text text-sm focus:outline-none focus:ring-2 focus:ring-accent"
           />
         </div>
 
@@ -177,7 +184,7 @@ function LoginForm() {
             setIsSignUp(!isSignUp)
             setError(null)
           }}
-          className="text-primary hover:underline font-medium"
+          className="text-accent hover:underline font-medium"
         >
           {isSignUp
             ? "Already have an account? Sign in"
@@ -187,18 +194,17 @@ function LoginForm() {
 
       {isDemo && !isSignUp && (
         <div className="pt-4 border-t border-border space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-center">
+          <p className="text-xs font-semibold uppercase tracking-wider text-text-muted text-center">
             Quick Demo Logins
           </p>
-          <p className="text-xs text-muted-foreground text-center">
+          <p className="text-xs text-text-muted text-center">
             Pre-fills demo emails (password required).
           </p>
           <div className="grid grid-cols-3 gap-2 pt-1">
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              onClick={() => setEmail("demo+trekker@gmail.com")}
+              onClick={() => setEmail(demoEmail("trekker"))}
               className="text-xs"
             >
               Trekker
@@ -206,8 +212,7 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              onClick={() => setEmail("demo+rescue@gmail.com")}
+              onClick={() => setEmail(demoEmail("rescue"))}
               className="text-xs"
             >
               Rescue
@@ -215,8 +220,7 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
-              onClick={() => setEmail("demo+agency@gmail.com")}
+              onClick={() => setEmail(demoEmail("agency"))}
               className="text-xs"
             >
               Agency
@@ -230,8 +234,8 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-background text-foreground">
-      <React.Suspense fallback={<div className="text-sm text-muted-foreground">Loading login...</div>}>
+    <main className="min-h-screen flex flex-col items-center justify-center p-4 bg-bg text-text">
+      <React.Suspense fallback={<div className="text-sm text-text-muted">Loading login...</div>}>
         <LoginForm />
       </React.Suspense>
     </main>

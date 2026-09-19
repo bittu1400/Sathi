@@ -1,239 +1,154 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import type { SosEvent, SosStatus } from "@/lib/types";
-import { formatAltitude } from "@/lib/format";
+import React, { useState } from "react";
 import { AlertTriangle, Clock, Radio, CheckCircle2 } from "lucide-react";
+import type { SosStatus } from "@/lib/types";
+import type { SosWithContext } from "@/lib/db/queries";
+import { formatAltitude } from "@/lib/format";
+import { getRoute } from "@/lib/data";
+import { cn } from "cn";
 
-export interface ExtendedSosEvent extends SosEvent {
-  trekkerName?: string;
-  routeName?: string;
-}
+export const CATEGORY_LABELS: Record<string, string> = {
+  altitude_illness: "Altitude illness",
+  injury: "Injury",
+  lost: "Lost / off trail",
+  weather: "Severe weather",
+  other: "Other emergency",
+};
 
-interface SosQueueProps {
-  events: ExtendedSosEvent[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}
+export const STATUS_STYLE: Record<SosStatus, string> = {
+  open: "bg-sos/20 text-sos",
+  acknowledged: "bg-caution/20 text-caution",
+  resolved: "bg-ok/20 text-ok",
+};
 
-function formatTimeSince(dateString: string, currentTimestamp: number): string {
-  if (!currentTimestamp) return "just now";
-  const seconds = Math.floor(
-    (currentTimestamp - new Date(dateString).getTime()) / 1000
-  );
+const CHANNEL_STYLE = {
+  online: "border-info/30 bg-info/10 text-info",
+  queued: "border-caution/30 bg-caution/10 text-caution",
+  sms: "border-ok/30 bg-ok/10 text-ok",
+} as const;
+
+export function timeSince(iso: string, now: number | null): string {
+  if (now === null) return "";
+  const seconds = Math.max(0, Math.floor((now - Date.parse(iso)) / 1000));
   if (seconds < 5) return "just now";
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return `${minutes}m ago`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return `${Math.floor(hours / 24)}d ago`;
+  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  altitude_illness: "Altitude Illness",
-  injury: "Physical Injury",
-  lost: "Lost / Route Off-track",
-  weather: "Severe Weather",
-  other: "Emergency SOS",
-};
+export const routeName = (routeId: string | null) => (routeId ? (getRoute(routeId)?.name ?? routeId) : "No active trek");
 
-export function SosQueue({ events, selectedId, onSelect }: SosQueueProps) {
-  const [filter, setFilter] = useState<"all" | "open" | "acknowledged">("open");
-  const [now, setNow] = useState<number>(() =>
-    typeof window !== "undefined" ? Date.now() : 0
-  );
+const RANK: Record<SosStatus, number> = { open: 0, acknowledged: 1, resolved: 2 };
+type Filter = "open" | "acknowledged" | "all";
 
-  // Live timer tick every 3s
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 3000);
-    return () => clearInterval(timer);
-  }, []);
+interface SosQueueProps {
+  events: SosWithContext[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+  now: number | null;
+}
 
-  // Filter & sort: Open first, then Acknowledged, then Resolved; newest first
-  const filteredEvents = events
-    .filter((e) => {
-      if (filter === "open") return e.status === "open";
-      if (filter === "acknowledged") return e.status === "acknowledged";
-      return true;
-    })
-    .sort((a, b) => {
-      const rank = (status: SosStatus) => {
-        if (status === "open") return 0;
-        if (status === "acknowledged") return 1;
-        return 2;
-      };
-      const rankDiff = rank(a.status) - rank(b.status);
-      if (rankDiff !== 0) return rankDiff;
-      return (
-        new Date(b.receivedAt || b.createdAt).getTime() -
-        new Date(a.receivedAt || a.createdAt).getTime()
-      );
-    });
+export function SosQueue({ events, selectedId, onSelect, now }: SosQueueProps) {
+  const [filter, setFilter] = useState<Filter>("open");
 
-  const openCount = events.filter((e) => e.status === "open").length;
-  const ackCount = events.filter((e) => e.status === "acknowledged").length;
+  const visible = events
+    .filter((e) => filter === "all" || e.status === filter)
+    .sort(
+      (a, b) =>
+        RANK[a.status] - RANK[b.status] ||
+        Date.parse(b.receivedAt ?? b.createdAt) - Date.parse(a.receivedAt ?? a.createdAt),
+    );
+  const counts = {
+    open: events.filter((e) => e.status === "open").length,
+    acknowledged: events.filter((e) => e.status === "acknowledged").length,
+    all: events.length,
+  };
 
   return (
-    <div className="flex h-full flex-col bg-background/95 border-r border-border">
-      {/* Header & Tabs */}
-      <div className="p-3 border-b border-border space-y-2.5">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold tracking-tight text-foreground flex items-center gap-2">
-            <Radio className="h-4 w-4 text-orange-500 animate-pulse" />
-            SOS Incident Queue
-          </h2>
-          <span className="text-xs font-mono text-muted-foreground">
-            {events.length} total
-          </span>
-        </div>
-
-        {/* Filter pill tabs */}
-        <div className="flex rounded-lg bg-muted/40 p-1 text-xs font-medium">
-          <button
-            onClick={() => setFilter("open")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1 rounded-md transition-all cursor-pointer ${
-              filter === "open"
-                ? "bg-background text-foreground shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span>Open</span>
-            {openCount > 0 && (
-              <span className="h-4 min-w-[16px] px-1 rounded-full bg-red-500/20 text-red-400 font-mono text-[10px] flex items-center justify-center">
-                {openCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setFilter("acknowledged")}
-            className={`flex-1 flex items-center justify-center gap-1.5 py-1 rounded-md transition-all cursor-pointer ${
-              filter === "acknowledged"
-                ? "bg-background text-foreground shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <span>Ack</span>
-            {ackCount > 0 && (
-              <span className="h-4 min-w-[16px] px-1 rounded-full bg-amber-500/20 text-amber-400 font-mono text-[10px] flex items-center justify-center">
-                {ackCount}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={() => setFilter("all")}
-            className={`flex-1 py-1 rounded-md transition-all cursor-pointer ${
-              filter === "all"
-                ? "bg-background text-foreground shadow-sm font-semibold"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            All
-          </button>
+    <div className="flex h-full flex-col border-r border-border bg-bg/95">
+      <div className="space-y-2.5 border-b border-border p-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
+          <Radio className="h-4 w-4 text-sos" />
+          SOS queue
+        </h2>
+        <div role="tablist" className="flex rounded-[var(--radius-sm)] bg-surface-2/60 p-1 text-xs font-medium">
+          {(["open", "acknowledged", "all"] as const).map((f) => (
+            <button
+              key={f}
+              type="button"
+              role="tab"
+              aria-selected={filter === f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors",
+                filter === f ? "bg-bg font-semibold text-text shadow-sm" : "text-text-muted hover:text-text",
+              )}
+            >
+              <span className="capitalize">{f === "acknowledged" ? "Ack" : f}</span>
+              <span className="font-mono tabular-nums text-[10px]">{counts[f]}</span>
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Queue items */}
-      <div className="flex-1 overflow-y-auto divide-y divide-border/40">
-        {filteredEvents.length === 0 ? (
-          <div className="p-8 text-center text-muted-foreground text-xs space-y-2">
-            <CheckCircle2 className="h-8 w-8 mx-auto text-muted-foreground/40" />
-            <p className="font-medium text-foreground">No incidents in this view</p>
-            <p className="text-[11px]">All distress signals are monitored 24/7.</p>
+      <div className="flex-1 divide-y divide-border/40 overflow-y-auto" aria-live="polite">
+        {visible.length === 0 ? (
+          <div className="space-y-2 p-8 text-center text-xs text-text-muted">
+            <CheckCircle2 className="mx-auto h-8 w-8 opacity-40" />
+            <p className="font-medium text-text">No incidents in this view</p>
           </div>
         ) : (
-          filteredEvents.map((event) => {
-            const isSelected = event.id === selectedId;
-            const isOpen = event.status === "open";
-            const isAck = event.status === "acknowledged";
-
-            return (
-              <button
-                key={event.id}
-                onClick={() => onSelect(event.id)}
-                className={`w-full text-left p-3.5 transition-all relative block cursor-pointer ${
-                  isSelected
-                    ? "bg-muted/60 border-l-4 border-l-orange-500"
-                    : "hover:bg-muted/30 border-l-4 border-l-transparent"
-                }`}
-              >
-                {/* Top row: Status & Channel & Time */}
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <div className="flex items-center gap-1.5">
-                    {isOpen ? (
-                      <span className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-500/20 text-red-400 uppercase tracking-wider animate-pulse">
-                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                        Open
-                      </span>
-                    ) : isAck ? (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 uppercase tracking-wider">
-                        Acknowledged
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 uppercase tracking-wider">
-                        Resolved
-                      </span>
-                    )}
-
-                    {/* Channel badge */}
-                    <span
-                      className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${
-                        event.channel === "sms"
-                          ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
-                          : event.channel === "queued"
-                          ? "bg-amber-500/10 text-amber-400 border border-amber-500/30"
-                          : "bg-sky-500/10 text-sky-400 border border-sky-500/30"
-                      }`}
-                    >
-                      {event.channel.toUpperCase()}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1 text-[11px] font-mono text-muted-foreground">
-                    <Clock className="h-3 w-3" />
-                    <span>{formatTimeSince(event.createdAt, now)}</span>
-                  </div>
-                </div>
-
-                {/* Category headline */}
-                <div className="font-semibold text-sm text-foreground mb-1 flex items-center justify-between">
-                  <span>
-                    {CATEGORY_LABELS[event.category] || "Emergency SOS"}
+          visible.map((event) => (
+            <button
+              key={event.id}
+              type="button"
+              onClick={() => onSelect(event.id)}
+              aria-current={event.id === selectedId}
+              className={cn(
+                "relative block w-full border-l-4 p-3.5 text-left transition-colors",
+                event.id === selectedId ? "border-l-sos bg-surface-2/70" : "border-l-transparent hover:bg-surface-2/40",
+              )}
+            >
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5">
+                  <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", STATUS_STYLE[event.status])}>
+                    {event.status}
                   </span>
-                  {event.altM && (
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {formatAltitude(event.altM)}
-                    </span>
-                  )}
-                </div>
-
-                {/* Trekker and Route Info */}
-                <div className="text-xs text-muted-foreground flex items-center justify-between">
-                  <span className="font-medium text-foreground/80">
-                    {event.trekkerName || "Solo Trekker"}
-                  </span>
-                  <span className="text-[11px] truncate max-w-[140px]">
-                    {event.routeName || "Khumbu Trail"}
+                  <span className={cn("rounded border px-1.5 py-0.5 font-mono text-[10px]", CHANNEL_STYLE[event.channel])}>
+                    {event.channel.toUpperCase()}
                   </span>
                 </div>
-
-                {/* Note preview if present */}
-                {event.note && (
-                  <p className="mt-2 text-xs text-muted-foreground/90 italic bg-background/50 p-1.5 rounded border border-border/40 truncate">
-                    &quot;{event.note}&quot;
-                  </p>
+                <span className="flex items-center gap-1 font-mono text-[11px] text-text-muted">
+                  <Clock className="h-3 w-3" />
+                  {timeSince(event.createdAt, now)}
+                </span>
+              </div>
+              <div className="mb-1 flex items-center justify-between text-sm font-semibold">
+                <span>{CATEGORY_LABELS[event.category]}</span>
+                {event.altM !== null && (
+                  <span className="font-mono text-xs tabular-nums text-text-muted">{formatAltitude(event.altM)}</span>
                 )}
-
-                {/* Last Check-in / LLS info */}
-                {event.lastCheckinLls !== null && event.lastCheckinLls !== undefined && (
-                  <div className="mt-1.5 text-[11px] font-mono text-amber-400/90 flex items-center gap-1">
-                    <AlertTriangle className="h-3 w-3" />
-                    <span>Lake Louise Score: {event.lastCheckinLls}</span>
-                  </div>
-                )}
-              </button>
-            );
-          })
+              </div>
+              <div className="flex items-center justify-between text-xs text-text-muted">
+                <span className="font-medium text-text/80">{event.trekkerName}</span>
+                <span className="max-w-[160px] truncate text-[11px]">{routeName(event.routeId)}</span>
+              </div>
+              {event.note && (
+                <p className="mt-2 truncate rounded border border-border/40 bg-bg/50 p-1.5 text-xs italic text-text-muted">
+                  &ldquo;{event.note}&rdquo;
+                </p>
+              )}
+              {event.lastCheckinLls !== null && (
+                <p className="mt-1.5 flex items-center gap-1 font-mono text-[11px] text-caution">
+                  <AlertTriangle className="h-3 w-3" />
+                  Last Lake Louise score {event.lastCheckinLls}
+                </p>
+              )}
+            </button>
+          ))
         )}
       </div>
     </div>
