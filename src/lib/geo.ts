@@ -1,61 +1,119 @@
-import { Waypoint } from "./types";
+import type {
+  ResourceKind,
+  RouteDetail,
+  Waypoint,
+} from "@/lib/types";
 
-export function haversineDistanceKm(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371; // Earth radius in km
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLon = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
+export interface GeoPoint {
+  lat: number;
+  lng: number;
 }
 
-export function nearestWaypoints(
-  lat: number,
-  lng: number,
-  waypoints: Waypoint[]
-): { waypoint: Waypoint; distanceKm: number }[] {
-  return waypoints
-    .map((wp) => ({
-      waypoint: wp,
-      distanceKm: haversineDistanceKm(lat, lng, wp.lat, wp.lng),
+export interface NearestOptions {
+  kinds?: ResourceKind[];
+  limit?: number;
+}
+
+const EARTH_RADIUS_KM = 6371;
+
+export function haversineKm(a: GeoPoint, b: GeoPoint): number {
+  const latDelta = ((b.lat - a.lat) * Math.PI) / 180;
+  const lngDelta = ((b.lng - a.lng) * Math.PI) / 180;
+  const latA = (a.lat * Math.PI) / 180;
+  const latB = (b.lat * Math.PI) / 180;
+  const haversine =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(latA) * Math.cos(latB) * Math.sin(lngDelta / 2) ** 2;
+
+  return (
+    2 *
+    EARTH_RADIUS_KM *
+    Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine))
+  );
+}
+
+export function nearest<T extends GeoPoint>(
+  items: T[],
+  point: GeoPoint,
+  options: NearestOptions = {},
+): Array<T & { distanceKm: number }> {
+  const filtered = options.kinds
+    ? items.filter((item) => {
+        const itemKind = "kind" in item ? item.kind : undefined;
+        return options.kinds?.includes(itemKind as ResourceKind);
+      })
+    : items;
+
+  const result = filtered
+    .map((item) => ({
+      ...item,
+      distanceKm: haversineKm(item, point),
     }))
     .sort((a, b) => a.distanceKm - b.distanceKm);
+
+  return options.limit === undefined
+    ? result
+    : result.slice(0, Math.max(0, options.limit));
+}
+
+export function nearestWaypoint(
+  route: Pick<RouteDetail, "waypoints">,
+  point: GeoPoint,
+): { waypoint: Waypoint; distanceKm: number; index: number } {
+  const [first, ...rest] = route.waypoints;
+  if (!first) {
+    throw new Error("Route must contain at least one waypoint");
+  }
+
+  return rest.reduce(
+    (closest, waypoint, offset) => {
+      const distanceKm = haversineKm(waypoint, point);
+      return distanceKm < closest.distanceKm
+        ? { waypoint, distanceKm, index: offset + 1 }
+        : closest;
+    },
+    {
+      waypoint: first,
+      distanceKm: haversineKm(first, point),
+      index: 0,
+    },
+  );
 }
 
 export function estimateAltitude(
-  lat: number,
-  lng: number,
-  waypoints: Waypoint[]
-): number | null {
-  if (!waypoints || waypoints.length === 0) return null;
-  const sorted = nearestWaypoints(lat, lng, waypoints);
-  const closest = sorted[0];
-  if (!closest) return null;
-
-  if (closest.distanceKm < 0.1 || sorted.length < 2) {
-    return closest.waypoint.altM;
+  route: Pick<RouteDetail, "waypoints">,
+  point: GeoPoint,
+  gpsAltM: number | null,
+  gpsAccuracyM: number | null = null,
+): number {
+  if (gpsAltM !== null && gpsAccuracyM !== null && gpsAccuracyM < 50) {
+    return gpsAltM;
   }
 
-  const second = sorted[1];
-  if (!second || second.distanceKm > 10) {
-    return closest.waypoint.altM;
+  const nearestPoints = nearest(route.waypoints, point, { limit: 2 });
+  const [first, second] = nearestPoints;
+  if (!first) {
+    throw new Error("Route must contain at least one waypoint");
+  }
+  if (!second) {
+    return first.altM;
   }
 
-  // Inverse distance weighted average between nearest 2 waypoints
-  const w1 = 1 / Math.max(closest.distanceKm, 0.01);
-  const w2 = 1 / Math.max(second.distanceKm, 0.01);
+  const totalDistance = first.distanceKm + second.distanceKm;
+  if (totalDistance === 0) {
+    return first.altM;
+  }
 
-  return Math.round(
-    (closest.waypoint.altM * w1 + second.waypoint.altM * w2) / (w1 + w2)
+  return (
+    (first.altM * second.distanceKm + second.altM * first.distanceKm) /
+    totalDistance
   );
+}
+
+export function nextWaypoint(
+  route: Pick<RouteDetail, "waypoints">,
+  point: GeoPoint,
+): Waypoint | null {
+  const { index } = nearestWaypoint(route, point);
+  return route.waypoints[index + 1] ?? null;
 }
