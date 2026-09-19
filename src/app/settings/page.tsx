@@ -341,7 +341,6 @@ export default function SettingsPage() {
         <Button
           type="button"
           variant="danger"
-          size="sm"
           onClick={() => setShowDeleteDialog(true)}
         >
           Delete My Data
@@ -353,10 +352,12 @@ export default function SettingsPage() {
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="delete-title"
+          onKeyDown={(e) => e.key === "Escape" && setShowDeleteDialog(false)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-bg/70 p-4"
         >
           <div className="bg-surface border border-border rounded-xl p-6 max-w-sm w-full space-y-4 shadow-xl">
-            <h4 className="text-lg font-bold">Delete your data?</h4>
+            <h4 id="delete-title" className="text-lg font-bold">Delete your data?</h4>
             <p className="text-xs text-text-muted">
               This action cannot be undone. All your profile information, recorded tracks, and trek history will be permanently deleted.
             </p>
@@ -364,7 +365,6 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 disabled={deleting}
                 onClick={() => setShowDeleteDialog(false)}
               >
@@ -373,7 +373,6 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant="danger"
-                size="sm"
                 disabled={deleting}
                 onClick={handleDeleteData}
               >

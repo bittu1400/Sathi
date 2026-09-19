@@ -41,12 +41,23 @@ export default async function RouteDetailPage({
   const fullRoute = isFullDetail ? (route as RouteDetail) : null;
   const resources = getResources().filter((r) => r.region.toLowerCase().includes(route.region.toLowerCase()));
 
-  const elevationWaypoints = fullRoute?.waypoints.map((wp, idx) => ({
-    id: wp.id,
-    name: wp.name,
-    altitudeM: wp.altM,
-    distanceKm: idx * 6,
-  }));
+  // Profile follows the stages in walking order; distance is the stages' own trail distance.
+  // Acclimatization days (from = to) are side hikes and don't move you along the trail.
+  const elevationWaypoints = fullRoute
+    ? fullRoute.stages
+        .filter((s) => s.fromId !== s.toId)
+        .reduce<{ id: string; name: string; altitudeM: number; distanceKm: number }[]>((ticks, stage) => {
+          const byId = (id: string) => fullRoute.waypoints.find((w) => w.id === id);
+          if (ticks.length === 0) {
+            const from = byId(stage.fromId);
+            if (from) ticks.push({ id: from.id, name: from.name, altitudeM: from.altM, distanceKm: 0 });
+          }
+          const to = byId(stage.toId);
+          const last = ticks.at(-1)?.distanceKm ?? 0;
+          if (to) ticks.push({ id: to.id, name: to.name, altitudeM: to.altM, distanceKm: last + stage.distanceKm });
+          return ticks;
+        }, [])
+    : undefined;
 
   return (
     <div className="space-y-8 pb-20">

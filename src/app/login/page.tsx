@@ -204,7 +204,6 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setEmail(demoEmail("trekker"))}
               className="text-xs"
             >
@@ -213,7 +212,6 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setEmail(demoEmail("rescue"))}
               className="text-xs"
             >
@@ -222,7 +220,6 @@ function LoginForm() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={() => setEmail(demoEmail("agency"))}
               className="text-xs"
             >

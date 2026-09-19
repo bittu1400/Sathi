@@ -130,7 +130,6 @@ export function RouteFinder({ routes }: RouteFinderProps) {
                 key={f}
                 type="button"
                 variant={fitness === f ? "primary" : "secondary"}
-                size="sm"
                 onClick={() => setFitness(f)}
                 className="capitalize"
               >
@@ -192,7 +191,7 @@ export function RouteFinder({ routes }: RouteFinderProps) {
                     <span className="text-2xl font-mono font-extrabold text-accent">{score}%</span>
                   </div>
                   <Link href={`/routes/${route.id}`}>
-                    <Button variant="primary" size="sm">
+                    <Button variant="primary">
                       View Route
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </Button>
