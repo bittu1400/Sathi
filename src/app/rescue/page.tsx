@@ -6,7 +6,7 @@ import { RescueConsole } from "@/components/rescue/RescueConsole";
 export const dynamic = "force-dynamic";
 
 export default async function RescuePage() {
-  const { user } = await requireRole("coordinator", "/rescue");
+  const { user, profile } = await requireRole("coordinator", "/rescue");
   const supabase = await createClient();
 
   // Render the empty console with an error banner rather than crash the page.
@@ -23,6 +23,7 @@ export default async function RescuePage() {
       initialAlerts24h={alerts24h}
       initialError={events && treks ? null : "Couldn't load live data. Retrying…"}
       coordinatorId={user.id}
+      coordinatorName={profile.displayName}
     />
   );
 }
