@@ -70,3 +70,7 @@ export const weatherHeadline = (
     : verdict === "caution"
       ? `Cross ${name} with care.`
       : `Conditions look workable for ${name}.`;
+
+// SAFETY.md §1, shown under every SOS view.
+export const SOS_DISCLAIMER =
+  "This alerts coordination and your emergency contact. It is not a guarantee of rescue. Keep trying other means: guide, teahouse phone, other trekkers.";

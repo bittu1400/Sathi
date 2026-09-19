@@ -1,5 +1,6 @@
 import type { SosEvent, SosCategory, SosChannel, SosStatus } from "@/lib/types"
 import { formatNepalTime } from "@/lib/format"
+import { newId } from "@/lib/id"
 
 export interface BuildSosParams {
   id?: string
@@ -17,14 +18,8 @@ export interface BuildSosParams {
 }
 
 export function buildSos(params: BuildSosParams): SosEvent {
-  const id =
-    params.id ||
-    (typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : Math.random().toString(36).substring(2))
-
   return {
-    id,
+    id: params.id || newId(),
     trekId: params.trekId || null,
     userId: params.userId,
     lat: params.lat ?? null,

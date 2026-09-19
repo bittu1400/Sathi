@@ -1,59 +1,58 @@
 "use client"
 
 import * as React from "react"
-import type { SosCategory, SosEvent } from "@/lib/types"
+import type { SosCategory } from "@/lib/types"
+import { subscribeOutboxStatus } from "@/lib/outbox"
+import { isOnline } from "@/lib/offline/status"
+import { refreshSession } from "@/lib/session"
+import { syncSosDelivery } from "./actions"
 import { SosSheet } from "./SosSheet"
 
 interface SosContextType {
   open: (category?: SosCategory) => void
   close: () => void
   isOpen: boolean
-  latestSos: SosEvent | null
 }
 
 const SosContext = React.createContext<SosContextType | null>(null)
 
-function getStoredSos(): SosEvent | null {
-  if (typeof window === "undefined") return null
-  try {
-    const saved = localStorage.getItem("sathiLatestSos")
-    return saved ? (JSON.parse(saved) as SosEvent) : null
-  } catch {
-    return null
-  }
-}
-
 export function SosProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = React.useState(false)
   const [category, setCategory] = React.useState<SosCategory>("altitude_illness")
-  const [latestSos, setLatestSos] = React.useState<SosEvent | null>(getStoredSos)
+
+  // Keep the offline session fresh and notice when a queued SOS gets delivered.
+  React.useEffect(() => {
+    const refresh = () => {
+      if (isOnline()) refreshSession().catch(() => {})
+    }
+    refresh()
+    window.addEventListener("online", refresh)
+    const unsubscribe = subscribeOutboxStatus(() => {
+      syncSosDelivery().catch(() => {})
+    })
+    return () => {
+      window.removeEventListener("online", refresh)
+      unsubscribe()
+    }
+  }, [])
 
   const open = React.useCallback((cat: SosCategory = "altitude_illness") => {
     setCategory(cat)
     setIsOpen(true)
-    setLatestSos(getStoredSos())
   }, [])
-
-  const close = React.useCallback(() => {
-    setIsOpen(false)
-  }, [])
+  const close = React.useCallback(() => setIsOpen(false), [])
+  const value = React.useMemo(() => ({ open, close, isOpen }), [open, close, isOpen])
 
   return (
-    <SosContext.Provider value={{ open, close, isOpen, latestSos }}>
+    <SosContext.Provider value={value}>
       {children}
-      <SosSheet
-        isOpen={isOpen}
-        initialCategory={category}
-        onClose={close}
-      />
+      {isOpen && <SosSheet initialCategory={category} onClose={close} />}
     </SosContext.Provider>
   )
 }
 
 export function useSos() {
   const ctx = React.useContext(SosContext)
-  if (!ctx) {
-    throw new Error("useSos must be used within an SosProvider")
-  }
+  if (!ctx) throw new Error("useSos must be used within an SosProvider")
   return ctx
 }
