@@ -6,7 +6,7 @@ import { endTrek, resolveSos } from "@/lib/db/queries"
 import { newId } from "@/lib/id"
 import { deriveAlerts } from "@/lib/alerts"
 import { evaluateWeather } from "@/lib/weather"
-import { recordAlerts, recordCheckin, recordPosition, trekLogStore } from "@/lib/trek-log"
+import { acknowledgeAlert, recordAlerts, recordCheckin, recordPosition, trekLogStore } from "@/lib/trek-log"
 import {
   demoModeStore,
   latestSosStore,
@@ -116,12 +116,16 @@ export const demoDriver = {
     return "EBC trek started 6 days ago (today is day 7). Share link ready."
   },
 
-  /** Days 1–6: Lukla → Dingboche, all check-ins green. */
+  /** Days 1–6: Lukla → Dingboche, symptom-free check-ins; the gain cautions of those days are acknowledged. */
   async fastForwardDingboche(): Promise<string> {
     const { trek } = await activeTrek()
     for (const day of EBC_ITINERARY.slice(0, 6)) await playDay(trek.id, trek.startedAt!, day)
     await flush()
-    return "Days 1–6 played: Lukla → Dingboche (4,410 m)."
+    // The trekker saw and acknowledged those days' alerts on the day; today starts clean.
+    for (const alert of trekLogStore.get()?.alerts ?? []) {
+      if (!alert.acknowledgedAt) await acknowledgeAlert(alert)
+    }
+    return "Days 1–6 played: Lukla → Dingboche (4,410 m); past alerts acknowledged."
   },
 
   /** Day 7: Dingboche → Lobuche. The engine raises the +530 m gain caution. */

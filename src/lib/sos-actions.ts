@@ -8,7 +8,7 @@ import { sosToRow } from "@/lib/db/map"
 import { buildSos } from "@/lib/sos"
 import { getRoute } from "@/lib/data"
 import { estimateAltitude } from "@/lib/geo"
-import { latestSosStore, sessionStore } from "@/lib/session"
+import { demoModeStore, latestSosStore, sessionStore } from "@/lib/session"
 import type { RouteDetail, SosCategory, SosEvent } from "@/lib/types"
 
 const GPS_TIMEOUT_MS = 5000
@@ -37,9 +37,12 @@ export async function sendSos(
   demoPosition?: { lat: number; lng: number; altM: number },
 ): Promise<SosEvent> {
   const session = sessionStore.get()
+  // In demo mode the trek's last recorded (scripted) position is used, never the venue GPS.
   const fix = demoPosition
     ? ({ coords: { latitude: demoPosition.lat, longitude: demoPosition.lng, altitude: demoPosition.altM, altitudeAccuracy: 5, accuracy: 10 } } as GeolocationPosition)
-    : await currentPosition()
+    : demoModeStore.get() !== null
+      ? null
+      : await currentPosition()
   const last = session?.lastPosition ?? null
   const lat = fix?.coords.latitude ?? last?.lat ?? null
   const lng = fix?.coords.longitude ?? last?.lng ?? null

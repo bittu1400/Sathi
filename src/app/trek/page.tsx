@@ -74,6 +74,11 @@ function TrekContent() {
   }, [trek, online]);
 
   const demoMode = demoModeStore.useValue() !== null;
+  // A phone showing a /demo trek (scripted positions) joins demo mode too: no venue GPS in the track or the SOS.
+  const lastSource = log?.positions.at(-1)?.source;
+  React.useEffect(() => {
+    if (lastSource === "demo" && demoModeStore.get() === null) demoModeStore.set(1);
+  }, [lastSource]);
   const { position, state: gps } = useTrackPosition(route, demoMode ? null : (trek?.id ?? null));
   const trekLog = trek && log?.trekId === trek.id ? log : null;
   const checkins = React.useMemo(() => trekLog?.checkins ?? [], [trekLog]);
