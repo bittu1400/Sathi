@@ -1,20 +1,26 @@
 import * as React from "react";
+import type { Metadata } from "next";
 import { getRoutes } from "@/lib/data";
 import { RouteBrowserClient } from "@/components/trek/RouteBrowserClient";
 
+export const metadata: Metadata = { title: "Routes" };
+
 export default function RoutesPage() {
   const routes = getRoutes();
+  const full = routes.filter((r) => r.hasFullData).length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Trekking Routes</h1>
-        <p className="text-text-muted text-base mt-1">
-          Explore high-altitude trails in Nepal with offline map packs, AMS guidance, and safety intelligence.
+      <div className="space-y-1">
+        <h1 className="text-h1">Trekking routes</h1>
+        <p className="text-text-muted">
+          {full} of {routes.length} routes have full stage data today. The rest are previews.
         </p>
       </div>
-
-      <RouteBrowserClient routes={routes} />
+      {/* useSearchParams needs a Suspense boundary. */}
+      <React.Suspense fallback={null}>
+        <RouteBrowserClient routes={routes} />
+      </React.Suspense>
     </div>
   );
 }
