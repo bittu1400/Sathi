@@ -84,8 +84,19 @@ export function addResourceLayers(
     type: "circle",
     source: "resources",
     paint: {
-      "circle-radius": 7,
-      "circle-color": token("caution"),
+      "circle-radius": 8,
+      // Kind decides the colour: medical ok, air accent, police warning, rest caution.
+      "circle-color": [
+        "match",
+        ["get", "kind"],
+        ["hra_post", "hospital", "health_post"],
+        token("ok"),
+        ["heli_operator", "helipad"],
+        token("accent"),
+        "police",
+        token("warning"),
+        token("caution"),
+      ],
       "circle-stroke-width": 2,
       "circle-stroke-color": token("bg"),
     },
@@ -109,7 +120,7 @@ export function setPositionLayer(map: MapLibreMap, position: { lat: number; lng:
     id: "me-halo",
     type: "circle",
     source: "me",
-    paint: { "circle-radius": 14, "circle-color": token("info"), "circle-opacity": 0.25 },
+    paint: { "circle-radius": 14, "circle-color": token("accent"), "circle-opacity": 0.25 },
   });
   map.addLayer({
     id: "me-dot",
@@ -117,7 +128,7 @@ export function setPositionLayer(map: MapLibreMap, position: { lat: number; lng:
     source: "me",
     paint: {
       "circle-radius": 6,
-      "circle-color": token("info"),
+      "circle-color": token("accent"),
       "circle-stroke-width": 2,
       "circle-stroke-color": token("text"),
     },

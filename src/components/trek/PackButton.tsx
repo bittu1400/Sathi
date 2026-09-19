@@ -1,9 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Button } from "../ui/button";
+import { CheckCircle2, Download, Trash2 } from "lucide-react";
 import { downloadPack, getPack, deletePack } from "@/lib/offline/packs";
-import { Download, CheckCircle, Trash2, Loader2 } from "lucide-react";
+import { Button } from "../ui/button";
+import { Panel } from "../ui/panel";
+import { Progress } from "../ui/spinner";
+import { runWithUndo } from "../ui/use-undo";
 
 export interface PackButtonProps {
   routeId: string;
@@ -11,77 +14,57 @@ export interface PackButtonProps {
   tilesBytes: number;
 }
 
-export function PackButton({
-  routeId,
-  tilesUrl,
-  tilesBytes,
-}: PackButtonProps) {
-  const [status, setStatus] = React.useState<"idle" | "downloading" | "ready">(
-    "idle"
-  );
-  const [progress, setProgress] = React.useState<number>(0);
+/** Offline pack panel: size, progress, done, error with retry, remove with Undo. */
+export function PackButton({ routeId, tilesUrl, tilesBytes }: PackButtonProps) {
+  const [status, setStatus] = React.useState<"idle" | "downloading" | "ready" | "error">("idle");
+  const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
-    getPack(routeId).then((blob) => {
-      if (blob) setStatus("ready");
-    });
+    getPack(routeId).then((blob) => blob && setStatus("ready"));
   }, [routeId]);
 
-  const handleDownload = async () => {
+  const download = async () => {
     setStatus("downloading");
     setProgress(0);
-    const blob = await downloadPack(routeId, tilesUrl, tilesBytes, (pct) => {
-      setProgress(pct);
+    const blob = await downloadPack(routeId, tilesUrl, tilesBytes, setProgress);
+    setStatus(blob ? "ready" : "error");
+  };
+
+  const remove = () =>
+    runWithUndo({
+      apply: () => setStatus("idle"),
+      revert: () => setStatus("ready"),
+      commit: () => deletePack(routeId),
+      message: "Offline pack removed",
     });
-    if (blob) {
-      setStatus("ready");
-    } else {
-      setStatus("idle");
-    }
-  };
-
-  const handleRemove = async () => {
-    await deletePack(routeId);
-    setStatus("idle");
-  };
-
-  if (status === "ready") {
-    return (
-      <div className="flex items-center gap-2">
-        <Button variant="secondary" className="bg-ok/10 text-ok border-ok/30">
-          <CheckCircle className="w-4 h-4 mr-1.5" />
-          Offline Ready
-        </Button>
-        <Button variant="ghost" size="icon" title="Remove Pack" onClick={handleRemove}>
-          <Trash2 className="w-4 h-4 text-text-muted hover:text-danger" />
-        </Button>
-      </div>
-    );
-  }
-
-  if (status === "downloading") {
-    return (
-      <div className="space-y-1">
-        <Button variant="secondary" disabled>
-          <Loader2 className="w-4 h-4 mr-2 animate-spin text-accent" />
-          Downloading ({progress}%)
-        </Button>
-        <div className="w-full bg-surface-3 h-1.5 rounded-full overflow-hidden">
-          <div
-            className="bg-accent h-full transition-all duration-200"
-            style={{ width: `${progress}%` }}
-          />
-        </div>
-      </div>
-    );
-  }
 
   const megabytes = Math.round(tilesBytes / (1024 * 1024));
 
   return (
-    <Button variant="secondary" onClick={handleDownload}>
-      <Download className="w-4 h-4 mr-2" />
-      Download offline pack{megabytes > 0 ? ` · ${megabytes} MB` : ""}
-    </Button>
+    <Panel title="Offline map pack" meta={megabytes > 0 ? `${megabytes} MB` : undefined} className="space-y-3">
+      {status === "ready" ? (
+        <div className="flex items-center justify-between gap-3">
+          <p className="flex items-center gap-2 text-body text-ok">
+            <CheckCircle2 className="size-5" aria-hidden /> Saved on this phone
+          </p>
+          <Button variant="ghost" onClick={remove}>
+            <Trash2 className="size-4" aria-hidden /> Remove
+          </Button>
+        </div>
+      ) : status === "downloading" ? (
+        <div className="space-y-2">
+          <p className="text-body">Downloading… {progress}%</p>
+          <Progress value={progress} valueText={`${progress}% of ${megabytes} MB`} />
+        </div>
+      ) : (
+        <>
+          <p className="text-small text-text-muted">Wi-Fi recommended. Lets the base map load with no signal.</p>
+          {status === "error" && <p className="text-small text-danger">Download failed. Check your connection and retry.</p>}
+          <Button variant="secondary" className="w-full" onClick={download}>
+            <Download className="size-4" aria-hidden /> {status === "error" ? "Retry download" : "Download pack"}
+          </Button>
+        </>
+      )}
+    </Panel>
   );
 }

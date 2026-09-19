@@ -4,28 +4,14 @@ import { Panel } from "../ui/panel";
 import { Readout } from "../ui/readout";
 import { Banner } from "../ui/banner";
 import { ElevationProfile } from "../trek/ElevationProfile";
+import { profileTicks } from "../trek/profile-ticks";
 import { getRoute } from "@/lib/data";
 import type { RouteDetail } from "@/lib/types";
 import { GAIN_CAUTION_ACTIONS, GAIN_CAUTION_HEADLINE } from "@/lib/ams-copy";
 import { formatAltitude, formatGain } from "@/lib/format";
 
-/** Cumulative distance along the stages, from real EBC data. */
-function ebcTicks() {
-  const route = getRoute("ebc") as RouteDetail;
-  const byId = (id: string) => route.waypoints.find((w) => w.id === id);
-  return route.stages
-    .filter((s) => s.fromId !== s.toId)
-    .reduce<{ id: string; name: string; altitudeM: number; distanceKm: number }[]>((ticks, stage) => {
-      const from = byId(stage.fromId);
-      if (ticks.length === 0 && from) ticks.push({ id: from.id, name: from.name, altitudeM: from.altM, distanceKm: 0 });
-      const to = byId(stage.toId);
-      if (to) ticks.push({ id: to.id, name: to.name, altitudeM: to.altM, distanceKm: (ticks.at(-1)?.distanceKm ?? 0) + stage.distanceKm });
-      return ticks;
-    }, []);
-}
-
 export function LandingHero() {
-  const ticks = ebcTicks();
+  const ticks = profileTicks(getRoute("ebc") as RouteDetail);
   return (
     <section className="grid items-center gap-8 py-8 lg:grid-cols-2 lg:gap-12 lg:py-16">
       <div className="space-y-6">

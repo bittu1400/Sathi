@@ -1,91 +1,97 @@
-import * as React from "react";
-import { Resource } from "@/lib/types";
-import { Badge } from "../ui/badge";
-import { Phone, Shield, Cross, Landmark, Navigation } from "lucide-react";
-import { cn } from "cn";
+"use client";
 
-export interface ResourceListProps {
-  resources: Resource[];
-  className?: string;
+import * as React from "react";
+import { Copy, Phone } from "lucide-react";
+import type { Resource, ResourceKind } from "@/lib/types";
+import { Button } from "../ui/button";
+import { EmptyState } from "../ui/empty-state";
+import { Status } from "../ui/status";
+import { toast } from "../ui/toast";
+
+const kindLabel: Record<ResourceKind, string> = {
+  hra_post: "HRA aid post",
+  hospital: "Hospital or clinic",
+  health_post: "Health post",
+  heli_operator: "Helicopter operator",
+  helipad: "Helipad",
+  police: "Tourist police",
+  embassy: "Embassy",
+  rescue_org: "Rescue organisation",
+};
+
+/** Only splits the country code; per-city grouping isn't verified. */
+const formatPhone = (p: string) => p.replace(/^\+977/, "+977 ");
+
+function Row({ res }: { res: Resource }) {
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(res.phone!);
+      toast.success("Number copied");
+    } catch {
+      toast.error("Couldn't copy. Select the number instead.");
+    }
+  };
+  return (
+    <li className="space-y-2 border-b border-line p-4 last:border-0">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 space-y-1">
+          <p className="text-body font-medium">{res.name}</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Status>{kindLabel[res.kind] ?? "Emergency resource"}</Status>
+            {res.verified === null && <Status unverified>Not yet verified</Status>}
+          </div>
+        </div>
+        {res.phone ? (
+          <div className="flex items-center gap-2">
+            <Button asChild variant="secondary">
+              <a href={`tel:${res.phone}`} aria-label={`Call ${res.name}`}>
+                <Phone className="size-4" aria-hidden />
+                <span className="font-mono tabular-nums">{formatPhone(res.phone)}</span>
+              </a>
+            </Button>
+            <Button variant="ghost" size="icon" aria-label={`Copy number for ${res.name}`} onClick={copy}>
+              <Copy className="size-4" aria-hidden />
+            </Button>
+          </div>
+        ) : (
+          <p className="text-small text-text-muted">No number listed</p>
+        )}
+      </div>
+      {res.notes && <p className="text-small text-text-muted">{res.notes}</p>}
+      {res.seasonal && <p className="text-small text-caution">{res.seasonal}</p>}
+      {res.verified && (
+        <details className="text-small text-text-muted">
+          <summary className="cursor-pointer">Source</summary>
+          <p className="pt-1">
+            {res.verified.source} · <span className="font-mono">{res.verified.date}</span>
+          </p>
+        </details>
+      )}
+    </li>
+  );
 }
 
-export function ResourceList({ resources, className }: ResourceListProps) {
-  if (!resources || resources.length === 0) {
-    return (
-      <div className="p-4 text-center text-text-muted text-sm border border-border rounded-[var(--radius)] bg-surface">
-        No emergency medical or rescue resources listed for this route segment.
-      </div>
-    );
-  }
-
-  const getKindIcon = (kind: Resource["kind"]) => {
-    switch (kind) {
-      case "hra_post":
-      case "hospital":
-      case "health_post":
-        return <Cross className="w-4 h-4 text-ok" />;
-      case "heli_operator":
-      case "helipad":
-        return <Navigation className="w-4 h-4 text-info" />;
-      case "police":
-        return <Shield className="w-4 h-4 text-warning" />;
-      default:
-        return <Landmark className="w-4 h-4 text-text-muted" />;
-    }
-  };
-
-  const formatKindLabel = (kind: Resource["kind"]) => {
-    switch (kind) {
-      case "hra_post":
-        return "HRA Medical Aid Post";
-      case "hospital":
-        return "Hospital / Clinic";
-      case "health_post":
-        return "Local Health Post";
-      case "heli_operator":
-        return "Helicopter Operator";
-      case "helipad":
-        return "Helipad";
-      case "police":
-        return "Tourist Police Post";
-      default:
-        return "Emergency Resource";
-    }
-  };
-
+function Group({ title, items }: { title: string; items: Resource[] }) {
+  if (items.length === 0) return null;
   return (
-    <div className={cn("space-y-3", className)}>
-      {resources.map((res) => (
-        <div
-          key={res.id}
-          className="p-4 rounded-[var(--radius)] border border-border bg-surface hover:bg-surface-2/60 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-        >
-          <div className="space-y-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              {getKindIcon(res.kind)}
-              <h4 className="font-semibold text-base text-text">{res.name}</h4>
-              <Badge variant="neutral">{formatKindLabel(res.kind)}</Badge>
-              {res.verified === null && <Badge variant="unverified">Unverified</Badge>}
-            </div>
-            {res.notes && (
-              <p className="text-sm text-text-muted">{res.notes}</p>
-            )}
-            {res.seasonal && (
-              <p className="text-xs text-caution font-medium">{res.seasonal}</p>
-            )}
-          </div>
+    <div className="space-y-2">
+      <h3 className="text-label text-text-muted">{title}</h3>
+      <ul className="overflow-hidden rounded-[var(--radius-lg)] border border-line bg-surface">
+        {items.map((r) => (
+          <Row key={r.id} res={r} />
+        ))}
+      </ul>
+    </div>
+  );
+}
 
-          {res.phone && (
-            <a
-              href={`tel:${res.phone}`}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-accent/15 text-accent border border-accent/40 font-mono text-sm font-semibold hover:bg-accent/25 transition-colors self-start sm:self-center"
-            >
-              <Phone className="w-4 h-4" />
-              {res.phone}
-            </a>
-          )}
-        </div>
-      ))}
+export function ResourceList({ resources }: { resources: Resource[] }) {
+  if (resources.length === 0)
+    return <EmptyState title="No emergency resources listed" description="None are on file for this route yet." />;
+  return (
+    <div className="space-y-4">
+      <Group title="Verified" items={resources.filter((r) => r.verified !== null)} />
+      <Group title="Not yet verified" items={resources.filter((r) => r.verified === null)} />
     </div>
   );
 }
