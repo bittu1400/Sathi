@@ -40,7 +40,8 @@ Use it for: approving/merging PRs · Supabase dashboard work (hosted migrations,
 ## Where the specs are
 The full specs live in **`docs/`** (see rule zero). **Before writing any code, read the files your task names**:
 - `SPEC.md`: architecture, types contract, DB schema, module behaviour, screens (source of truth)
-- `DESIGN.md`: design tokens, components, visual rules
+- `REDESIGN.md`: the "Instrument" dark-only UI redesign. **It overrides DESIGN.md for anything visual** (tokens, components, screens)
+- `DESIGN.md`: the earlier design tokens and rules (superseded by REDESIGN.md where they differ)
 - `SAFETY.md`: the **only** allowed source of medical/safety rules and wording
 - `DATA.md`: static data formats and sources
 - `TODO.md`: task list with acceptance criteria. **Start at its "NEXT" section**: the ordered list of what to do now
@@ -70,7 +71,7 @@ Node 24+ (`.nvmrc`), pnpm 11. Copy `.env.example` to `.env.local` and ask the te
 
 ## Layout & ownership
 Each teammate owns folders. **Only edit files in the current task's scope.** If a change is needed elsewhere, stop and tell the human.
-- **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}`, `src/components/{app-shell,providers,sw-register,theme-toggle,live-connectivity}.tsx`, `src/lib/utils.ts`, `components.json`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
+- **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}` (`ui/shell/` holds the header, tab bar and account menu), `src/components/{app-shell,providers,sw-register,live-connectivity}.tsx`, `src/lib/utils.ts`, `components.json`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
 - **B (Backend/Data/Logic):** `supabase/`, `scripts/`, `content/`, `src/data/`, `src/lib/{types,database.types,data,geo,ams,ams-copy,weather,alerts,recommend,pass,emergency-resources}.ts`, `src/lib/db/`, `src/app/pass/`, `src/app/api/pay/`, `src/lib/esewa.ts`, `src/components/Paywall.tsx`
 - **C (Rescue/Integration/Demo):** root configs, `.github/`, `src/lib/{supabase/,outbox.ts,sos.ts,sos-actions.ts,session.ts,trek-log.ts,local-store.ts,use-now.ts,id.ts,safe-next.ts,auth.ts,demo/}`, `src/components/{sos,rescue}`, `src/app/{login,settings,sos,share,rescue,agency,demo,assistant,api/assistant}`, `src/proxy.ts`, `src/lib/format.ts` (shared formatters; anyone may add a formatter with a test)
 
