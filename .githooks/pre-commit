@@ -2,6 +2,14 @@
 # Blocks commits that would leak private files into this PUBLIC repo.
 # Installed automatically by `pnpm install` (package.json "prepare" sets core.hooksPath).
 
+branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+if [ "$branch" = "main" ]; then
+  echo "✖ Commit blocked: never commit on main. Work on a task branch:"
+  echo "  git switch -c <a|b|c>/<TASK-ID>-<slug>     e.g. a/A-05-route-detail"
+  echo "  (your changes are kept; switching branch carries them over)"
+  exit 1
+fi
+
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 
 if printf '%s\n' "$staged" | grep -qE '^docs(/|$)'; then

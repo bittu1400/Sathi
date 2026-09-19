@@ -15,6 +15,11 @@ An offline-first trekking safety PWA for Nepal: route intelligence, altitude-sic
 
 Guards: `.gitignore`, `.githooks/pre-commit` (installed by `pnpm install`), a CI check, and `.claude/settings.json` deny rules. Don't work around any of them.
 
+## Rule one: always work on a branch, never on `main`
+`main` is protected on GitHub (PR + 1 approval + green `check`, no direct pushes, no force pushes), and the pre-commit hook blocks commits on `main`.
+- Start every task with: `git switch main && git pull && git -C docs pull && git switch -c <a|b|c>/<TASK-ID>-<slug>` (A = Aarif, B = Pwan, C = Suraj).
+- Push your branch (`git push -u origin HEAD`) and open a PR. Never push to `main`, never force-push, never merge your own PR without an approval.
+
 ## Where the specs are
 The full specs live in **`docs/`** (see rule zero). **Before writing any code, read the files your task names**:
 - `SPEC.md`: architecture, types contract, DB schema, module behaviour, screens (source of truth)
