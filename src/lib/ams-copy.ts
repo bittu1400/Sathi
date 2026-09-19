@@ -55,3 +55,18 @@ export const MILD_HEADACHE_INFO =
   "Mild headache without other symptoms. Rest, hydrate, and check in again later.";
 export const OK_MESSAGE =
   "No warning signs right now. Keep ascending gradually and check in every evening.";
+
+// Weather wording mirrors SAFETY.md §4.
+export const WEATHER_DISCLAIMER =
+  "Guidance, not a guarantee. Ask your guide and local teahouses about conditions.";
+export const WEATHER_NOGO_BODY =
+  "Consider waiting a day. Most pass crossings start before dawn. Decide with your guide.";
+export const weatherHeadline = (
+  verdict: "go" | "caution" | "no_go",
+  name: string,
+) =>
+  verdict === "no_go"
+    ? `Not a good day to cross ${name}.`
+    : verdict === "caution"
+      ? `Cross ${name} with care.`
+      : `Conditions look workable for ${name}.`;

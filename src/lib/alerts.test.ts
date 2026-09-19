@@ -144,3 +144,36 @@ describe("deriveAlerts", () => {
     ]);
   });
 });
+
+describe("deriveAlerts weather", () => {
+  const empty: AmsResult = { level: "ok", headline: "", actions: [], reasons: [], alerts: [] };
+  const pass = { id: "ebc-kongma-la", name: "Kongma La" };
+
+  it("adds a no_go alert with SAFETY wording and a per-pass daily key", () => {
+    vi.stubGlobal("crypto", { randomUUID: vi.fn(() => "w-1") });
+    const [alert] = deriveAlerts({
+      ams: empty,
+      weather: { verdict: { verdict: "no_go", reasons: ["Maximum wind gust is at least 70 km/h."] }, waypoint: pass },
+      trekId: "trek-1",
+      now: new Date("2026-09-19T20:00:00Z"),
+    });
+    expect(alert).toMatchObject({
+      kind: "weather_nogo",
+      severity: "warning",
+      title: "Not a good day to cross Kongma La.",
+      actions: ["Maximum wind gust is at least 70 km/h."],
+      dedupeKey: "weather_nogo:ebc-kongma-la:2026-09-20",
+    });
+  });
+
+  it("adds nothing for a go verdict", () => {
+    expect(
+      deriveAlerts({
+        ams: empty,
+        weather: { verdict: { verdict: "go", reasons: [] }, waypoint: pass },
+        trekId: "trek-1",
+        now: new Date(),
+      }),
+    ).toEqual([]);
+  });
+});

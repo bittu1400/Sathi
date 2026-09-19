@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Forecast, Waypoint } from "@/lib/types";
 
 const cache = new Map<string, unknown>();
@@ -76,6 +76,32 @@ beforeEach(() => {
 });
 
 describe("evaluateWeather", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-09-19T00:00:00+05:45"));
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("ignores hours that are already past", () => {
+    const gusts = Array(25).fill(0);
+    gusts[5] = 90; // 05:00, already past at 20:00
+    const late = new Date("2026-09-19T20:00:00+05:45");
+    const times = Array.from(
+      { length: 48 },
+      (_, index) =>
+        `2026-09-${index < 24 ? "19" : "20"}T${String(index % 24).padStart(2, "0")}:00`,
+    );
+    const pastOnly = forecast({ times, gusts: [...gusts, ...Array(23).fill(0)] });
+    expect(evaluateWeather(pastOnly, waypoint(), late).verdict).toBe("go");
+    const upcoming = forecast({
+      times,
+      gusts: times.map((_, index) => (index === 22 ? 90 : 0)),
+    });
+    expect(evaluateWeather(upcoming, waypoint(), late).verdict).toBe("no_go");
+  });
+
   it.each([
     ["70 km/h gust", { gusts: withFirst(Array(25).fill(0), 70) }, "no_go"],
     ["15 cm snowfall", { snowfall: withFirst(Array(25).fill(0), 15) }, "no_go"],

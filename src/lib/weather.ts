@@ -41,10 +41,24 @@ function isEligible(waypoint: Waypoint): boolean {
   );
 }
 
-function next24Hours(forecast: Forecast): number[] {
+// Open-Meteo hourly times are local (Asia/Kathmandu) and start at 00:00 today.
+const nepalHour = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Asia/Kathmandu",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+});
+
+function next24Hours(forecast: Forecast, now: Date): number[] {
+  const times = forecast.hourly.time;
+  const current = `${nepalHour.format(now).replace(" ", "T")}:00`;
+  let start = times.findIndex((time) => time >= current);
+  // Stale cache entirely in the past: judge on the latest data we have.
+  if (start === -1) start = Math.max(0, times.length - 24);
   return Array.from(
-    { length: Math.min(24, forecast.hourly.time.length) },
-    (_, index) => index,
+    { length: Math.min(24, times.length - start) },
+    (_, offset) => start + offset,
   );
 }
 
@@ -59,12 +73,13 @@ function localHour(timestamp: string): number | null {
 export function evaluateWeather(
   forecast: Forecast,
   waypoint: Waypoint,
+  now: Date = new Date(),
 ): WeatherVerdict {
   if (!isEligible(waypoint)) {
     return { verdict: "go", reasons: [] };
   }
 
-  const indexes = next24Hours(forecast);
+  const indexes = next24Hours(forecast, now);
   const gusts = indexes
     .map((index) => forecast.hourly.wind_gusts_10m[index])
     .filter((value): value is number => Number.isFinite(value));
