@@ -20,6 +20,23 @@ Guards: `.gitignore`, `.githooks/pre-commit` (installed by `pnpm install`), a CI
 - Start every task with: `git switch main && git pull && git -C docs pull && git switch -c <a|b|c>/<TASK-ID>-<slug>` (A = Aarif, B = Pwan, C = Suraj).
 - Push your branch (`git push -u origin HEAD`) and open a PR. Never push to `main`, never force-push, never merge your own PR without an approval.
 
+## Rule two: small PRs into `main`, so merges never conflict
+The full protocol and the current fix order are in `docs/MERGE-PLAN.md`. Read Part 1 before every task. The short version:
+- **One task = one branch = one PR**, about 400 changed lines at most. The PR base is always `main`, never another feature branch. Never commit on someone else's branch.
+- **Branch prefix = lane of the files you change** (`a/`, `b/`, `c/`), not a person's name.
+- **Contract files** change only in a small dedicated PR that merges first: `src/lib/types.ts`, `src/lib/database.types.ts`, `supabase/migrations/*`, `package.json`, `pnpm-lock.yaml`, `src/app/globals.css`, `src/app/layout.tsx`, `CLAUDE.md`, `.github/*`.
+- **Migrations are append-only.** Never edit a merged one. Name new ones with a UTC timestamp: `supabase/migrations/20260919T1530_<slug>.sql`.
+- **Before the first push:** `git fetch origin && git rebase origin/main`, then `pnpm check`. After the PR exists, update it with `git merge origin/main` or GitHub's "Update branch" button (never force-push).
+- **Conflict in a file your lane doesn't own:** abort the rebase/merge and ask the owner. Never resolve it by taking your version.
+- **Every Supabase call checks `error`** and shows it. Never show success on a failed write.
+
+### ⚠ HUMAN NEEDED
+When a step needs a person, don't do it. Print one line, then carry on with anything else you can do:
+```
+⚠ HUMAN NEEDED (<Aarif|Pwan|Suraj|any>): <what> — <why> — <exact command / URL / click path>
+```
+Use it for: approving/merging PRs · Supabase dashboard work (hosted migrations, auth, storage) · env vars or secrets · GitHub settings · verifying real-world facts (phone numbers, coordinates, prices, safety wording not in `ams-copy.ts`) · editing another lane's files · conflicts in files you don't own · anything destructive (deleting data or branches, `reset --hard`) · adding a dependency.
+
 ## Where the specs are
 The full specs live in **`docs/`** (see rule zero). **Before writing any code, read the files your task names**:
 - `SPEC.md`: architecture, types contract, DB schema, module behaviour, screens (source of truth)
