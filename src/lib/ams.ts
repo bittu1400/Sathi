@@ -118,6 +118,11 @@ const pushAlert = (
   }
 };
 
+/** Rule R6 (SAFETY §2): above 3,000 m, more than 500 m higher in one night is too fast. */
+export function isFastGain(sleepAltM: number, gainM: number): boolean {
+  return sleepAltM > 3000 && gainM > 500;
+}
+
 export function evaluateAms(input: AmsInput): AmsResult {
   const date = localDate(input);
   const alerts: Alert[] = [];
@@ -238,7 +243,7 @@ export function evaluateAms(input: AmsInput): AmsResult {
     : null;
   const gain = tonight === null || lastNight === null ? null : tonight - lastNight;
 
-  if (tonight !== null && gain !== null && tonight > 3000 && gain > 500) {
+  if (tonight !== null && gain !== null && isFastGain(tonight, gain)) {
     const body = gainCautionBody(gain);
     applyLevel("caution", GAIN_CAUTION_HEADLINE, GAIN_CAUTION_ACTIONS);
     reasons.push(body);
