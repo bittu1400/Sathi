@@ -20,13 +20,33 @@ Guards: `.gitignore`, `.githooks/pre-commit` (installed by `pnpm install`), a CI
 - Start every task with: `git switch main && git pull && git -C docs pull && git switch -c <a|b|c>/<TASK-ID>-<slug>` (A = Aarif, B = Pwan, C = Suraj).
 - Push your branch (`git push -u origin HEAD`) and open a PR. Never push to `main`, never force-push, never merge your own PR without an approval.
 
+## Rule two: small PRs into `main`, so merges never conflict
+The full protocol is `docs/MERGE-PLAN.md` Part 1 (read it before every task); what to do next is `docs/TODO.md` → "NEXT". The short version:
+- **One task = one branch = one PR**, about 400 changed lines at most. The PR base is always `main`, never another feature branch. Never commit on someone else's branch.
+- **Branch prefix = lane of the files you change** (`a/`, `b/`, `c/`), not a person's name.
+- **Contract files** change only in a small dedicated PR that merges first: `src/lib/types.ts`, `src/lib/database.types.ts`, `supabase/migrations/*`, `package.json`, `pnpm-lock.yaml`, `src/app/globals.css`, `src/app/layout.tsx`, `CLAUDE.md`, `.github/*`.
+- **Migrations are append-only.** Never edit a merged one. Name new ones with an all-digit UTC timestamp (Supabase skips anything else): `supabase/migrations/20260919153000_<slug>.sql`.
+- **Before the first push:** `git fetch origin && git rebase origin/main`, then `pnpm check`. After the PR exists, update it with `git merge origin/main` or GitHub's "Update branch" button (never force-push).
+- **Conflict in a file your lane doesn't own:** abort the rebase/merge and ask the owner. Never resolve it by taking your version.
+- **Every Supabase call checks `error`** and shows it. Never show success on a failed write.
+
+### ⚠ HUMAN NEEDED
+When a step needs a person, don't do it. Print one line, then carry on with anything else you can do:
+```
+⚠ HUMAN NEEDED (<Aarif|Pwan|Suraj|any>): <what> — <why> — <exact command / URL / click path>
+```
+Use it for: approving/merging PRs · Supabase dashboard work (hosted migrations, auth, storage) · env vars or secrets · GitHub settings · verifying real-world facts (phone numbers, coordinates, prices, safety wording not in `ams-copy.ts`) · editing another lane's files · conflicts in files you don't own · anything destructive (deleting data or branches, `reset --hard`) · adding a dependency.
+
 ## Where the specs are
 The full specs live in **`docs/`** (see rule zero). **Before writing any code, read the files your task names**:
 - `SPEC.md`: architecture, types contract, DB schema, module behaviour, screens (source of truth)
 - `DESIGN.md`: design tokens, components, visual rules
 - `SAFETY.md`: the **only** allowed source of medical/safety rules and wording
 - `DATA.md`: static data formats and sources
-- `TODO.md`: task list with acceptance criteria
+- `TODO.md`: task list with acceptance criteria. **Start at its "NEXT" section**: the ordered list of what to do now
+- `MERGE-PLAN.md`: merge protocol (Part 1) all agents follow
+- `AUDIT.md`: the 2026-09-19 audit; per-finding status at the bottom
+- `DECISIONS.md`: why things are the way they are (read before undoing something)
 If `docs/` is missing, **stop** and tell the human to run: `git clone https://github.com/bittu1400/sathi-docs.git docs` from the repo root. Don't guess the spec.
 Before starting a task, get the latest docs: `git -C docs pull`.
 
@@ -50,9 +70,9 @@ Node 24+ (`.nvmrc`), pnpm 11. Copy `.env.example` to `.env.local` and ask the te
 
 ## Layout & ownership
 Each teammate owns folders. **Only edit files in the current task's scope.** If a change is needed elsewhere, stop and tell the human.
-- **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}`, `src/lib/utils.ts`, `components.json`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
-- **B (Backend/Data/Logic):** `supabase/`, `scripts/`, `content/`, `src/data/`, `src/lib/{types,database.types,data,geo,ams,ams-copy,weather,alerts,recommend,pass}.ts`, `src/lib/db/`, `src/app/pass/`, `src/app/api/pay/`, `src/lib/esewa.ts`, `src/components/Paywall.tsx`
-- **C (Rescue/Integration/Demo):** root configs, `.github/`, `src/lib/{supabase/,outbox.ts,sos.ts,auth.ts,demo/}`, `src/components/{sos,rescue}`, `src/app/{login,settings,sos,share,rescue,agency,demo,assistant,api/assistant}`, `src/proxy.ts`, `src/lib/format.ts` (shared formatters; anyone may add a formatter with a test)
+- **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}`, `src/components/{app-shell,providers,sw-register,theme-toggle,live-connectivity}.tsx`, `src/lib/utils.ts`, `components.json`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
+- **B (Backend/Data/Logic):** `supabase/`, `scripts/`, `content/`, `src/data/`, `src/lib/{types,database.types,data,geo,ams,ams-copy,weather,alerts,recommend,pass,emergency-resources}.ts`, `src/lib/db/`, `src/app/pass/`, `src/app/api/pay/`, `src/lib/esewa.ts`, `src/components/Paywall.tsx`
+- **C (Rescue/Integration/Demo):** root configs, `.github/`, `src/lib/{supabase/,outbox.ts,sos.ts,sos-actions.ts,session.ts,trek-log.ts,local-store.ts,use-now.ts,id.ts,safe-next.ts,auth.ts,demo/}`, `src/components/{sos,rescue}`, `src/app/{login,settings,sos,share,rescue,agency,demo,assistant,api/assistant}`, `src/proxy.ts`, `src/lib/format.ts` (shared formatters; anyone may add a formatter with a test)
 
 `src/lib/types.ts` is the **shared contract**. Don't change it unless the task explicitly says so.
 
