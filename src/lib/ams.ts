@@ -45,13 +45,18 @@ const alertSeverity = (
   title,
   body,
   actions,
-  dedupeKey: `${kind}:${date}`,
+  // Severity is part of the key so a same-day escalation is stored, not deduped away.
+  dedupeKey: `${kind}:${severity}:${date}`,
 });
 
+// Trek day in Nepal time (en-CA formats as YYYY-MM-DD).
+const nepalDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" });
+
 const localDate = (input: AmsInput): string =>
-  input.latest?.recordedAt.slice(0, 10) ??
-  input.sleepAltitudes.at(-1)?.date.slice(0, 10) ??
-  new Date().toISOString().slice(0, 10);
+  input.latest
+    ? nepalDay.format(new Date(input.latest.recordedAt))
+    : (input.sleepAltitudes.at(-1)?.date.slice(0, 10) ??
+      nepalDay.format(new Date()));
 
 const totalScore = (checkin: AmsInput["latest"]): number =>
   checkin === null
@@ -106,9 +111,9 @@ const pushAlert = (
   actions: string[],
   date: string,
 ) => {
-  const alert = alertSeverity(level, kind, title, body, actions, date);
-  if (!alerts.some((existing) => existing.dedupeKey === alert.dedupeKey)) {
-    alerts.push(alert);
+  // Rules run from most to least severe, so the first alert of a kind wins.
+  if (!alerts.some((existing) => existing.kind === kind)) {
+    alerts.push(alertSeverity(level, kind, title, body, actions, date));
   }
 };
 

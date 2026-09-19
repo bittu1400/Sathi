@@ -255,3 +255,31 @@ describe("evaluateAms", () => {
     expect(result.headline).toBe("Do not go higher today.");
   });
 });
+
+describe("same-day escalation", () => {
+  it("gives caution, warning and danger different dedupe keys on one day", () => {
+    const keys = [
+      checkin({ headache: 1, gi: 2 }),
+      checkin({ headache: 2, gi: 2, fatigue: 2 }),
+      checkin({ headache: 3, gi: 3, fatigue: 2, dizziness: 2 }),
+    ].map(
+      (latest) =>
+        evaluateAms(input({ latest })).alerts.find(
+          (alert) => alert.kind === "ams_symptoms",
+        )?.dedupeKey,
+    );
+    expect(keys).toEqual([
+      "ams_symptoms:caution:2026-09-19",
+      "ams_symptoms:warning:2026-09-19",
+      "ams_symptoms:danger:2026-09-19",
+    ]);
+  });
+
+  it("uses the Nepal calendar day for the key", () => {
+    // 20:00 UTC on the 19th is 01:45 on the 20th in Kathmandu.
+    const latest = { ...checkin({ headache: 1, gi: 2 }), recordedAt: "2026-09-19T20:00:00Z" };
+    expect(evaluateAms(input({ latest })).alerts[0]?.dedupeKey).toBe(
+      "ams_symptoms:caution:2026-09-20",
+    );
+  });
+});

@@ -16,7 +16,7 @@ const amsWithAlerts = (): AmsResult => ({
       title: "Altitude symptoms",
       body: "Do not ascend.",
       actions: ["Rest and reassess."],
-      dedupeKey: "ams_symptoms:2026-09-19",
+      dedupeKey: "ams_symptoms:warning:2026-09-19",
     },
     {
       kind: "ams_gain",
@@ -24,7 +24,7 @@ const amsWithAlerts = (): AmsResult => ({
       title: "Large altitude gain",
       body: "Plan a rest day.",
       actions: ["Rest before gaining more altitude."],
-      dedupeKey: "ams_gain:2026-09-19",
+      dedupeKey: "ams_gain:caution:2026-09-19",
     },
   ],
 });
@@ -57,7 +57,7 @@ describe("deriveAlerts", () => {
         actions: ["Rest and reassess."],
         createdAt: now.toISOString(),
         acknowledgedAt: null,
-        dedupeKey: "ams_symptoms:2026-09-19",
+        dedupeKey: "ams_symptoms:warning:2026-09-19",
       },
       {
         id: "alert-id-2",
@@ -69,7 +69,7 @@ describe("deriveAlerts", () => {
         actions: ["Rest before gaining more altitude."],
         createdAt: now.toISOString(),
         acknowledgedAt: null,
-        dedupeKey: "ams_gain:2026-09-19",
+        dedupeKey: "ams_gain:caution:2026-09-19",
       },
     ]);
     expect(randomUUID).toHaveBeenCalledTimes(2);
@@ -139,8 +139,8 @@ describe("deriveAlerts", () => {
     });
 
     expect(result.map((alert) => alert.dedupeKey)).toEqual([
-      "ams_symptoms:2026-09-19",
-      "ams_gain:2026-09-19",
+      "ams_symptoms:warning:2026-09-19",
+      "ams_gain:caution:2026-09-19",
     ]);
   });
 });
