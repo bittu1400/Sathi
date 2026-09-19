@@ -1,60 +1,57 @@
 import * as React from "react";
-import { RedFlag } from "@/lib/types";
-import { AlertOctagon } from "lucide-react";
-import { cn } from "cn";
-import { RED_FLAG_LABELS } from "@/lib/ams-copy";
+import { cn } from "@/lib/utils";
+import type { RedFlag } from "@/lib/types";
+import { DANGER_ACTIONS, DANGER_HEADLINE, RED_FLAG_LABELS } from "@/lib/ams-copy";
+import { Banner } from "../ui/banner";
+import { Button } from "../ui/button";
 
 export interface RedFlagListProps {
   selectedFlags: RedFlag[];
   onChange: (flags: RedFlag[]) => void;
+  /** Ticking any flag shows the danger banner at once, with this action. */
+  onSendSos: () => void;
   className?: string;
 }
 
-export function RedFlagList({ selectedFlags, onChange, className }: RedFlagListProps) {
-  const redFlags = (Object.keys(RED_FLAG_LABELS) as RedFlag[]).map((id) => ({
-    id,
-    label: RED_FLAG_LABELS[id],
-  }));
-
-  const toggleFlag = (flagId: RedFlag) => {
-    if (selectedFlags.includes(flagId)) {
-      onChange(selectedFlags.filter((f) => f !== flagId));
-    } else {
-      onChange([...selectedFlags, flagId]);
-    }
-  };
+export function RedFlagList({ selectedFlags, onChange, onSendSos, className }: RedFlagListProps) {
+  const flags = (Object.keys(RED_FLAG_LABELS) as RedFlag[]).map((id) => ({ id, label: RED_FLAG_LABELS[id] }));
+  const toggle = (id: RedFlag) => onChange(selectedFlags.includes(id) ? selectedFlags.filter((f) => f !== id) : [...selectedFlags, id]);
 
   return (
-    <div className={cn("space-y-3", className)}>
-      <div className="flex items-center gap-2 text-xs uppercase tracking-wider font-semibold text-danger">
-        <AlertOctagon className="w-4 h-4 text-danger" />
-        HACE / HAPE Red Flags Check (Immediate Action Required)
-      </div>
+    <fieldset className={cn("space-y-3", className)}>
+      <legend className="text-body font-medium">Any of these right now?</legend>
+      <p className="text-small text-text-muted">Tick everything that applies. Leave all unticked if none do.</p>
+
+      {selectedFlags.length > 0 && (
+        <Banner
+          severity="danger"
+          headline={DANGER_HEADLINE}
+          reasons={DANGER_ACTIONS}
+          actions={
+            <Button variant="sos" size="lg" className="w-full" onClick={onSendSos}>
+              Send SOS
+            </Button>
+          }
+        />
+      )}
 
       <div className="space-y-2">
-        {redFlags.map((flag) => {
-          const isChecked = selectedFlags.includes(flag.id);
+        {flags.map((flag) => {
+          const checked = selectedFlags.includes(flag.id);
           return (
             <label
               key={flag.id}
               className={cn(
-                "flex items-start gap-3 p-3.5 rounded-[var(--radius-sm)] border cursor-pointer transition-all select-none",
-                isChecked
-                  ? "bg-danger/20 border-danger text-text font-medium"
-                  : "bg-surface-2 border-border text-text-muted hover:bg-surface-3 hover:text-text"
+                "flex min-h-12 cursor-pointer select-none items-start gap-3 rounded-[var(--radius)] border p-3",
+                checked ? "border-danger bg-danger-bg text-text" : "border-control-border bg-surface-2 text-text hover:bg-surface-3"
               )}
             >
-              <input
-                type="checkbox"
-                checked={isChecked}
-                onChange={() => toggleFlag(flag.id)}
-                className="mt-0.5 accent-danger w-4 h-4 rounded cursor-pointer"
-              />
-              <span className="text-sm leading-tight">{flag.label}</span>
+              <input type="checkbox" checked={checked} onChange={() => toggle(flag.id)} className="mt-0.5 size-5 shrink-0 cursor-pointer accent-danger" />
+              <span className="text-body">{flag.label}</span>
             </label>
           );
         })}
       </div>
-    </div>
+    </fieldset>
   );
 }
