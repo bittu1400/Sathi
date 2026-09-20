@@ -65,8 +65,16 @@ export interface PlannedRoute {
    * never disagree. Always present: it needs no second request.
    */
   footHours: number;
-  /** Driving time for the same trip, or null when no road joins the two ends. */
+  /**
+   * Driving time for the same trip — to the trailhead when there is one, since
+   * that is the part you can drive. Null when no road joins the two.
+   */
   carDurationS: number | null;
+  /**
+   * Where the walking starts when it is not where the trekker is: nobody walks
+   * out of Kathmandu to Everest. Null when the route runs from their own start.
+   */
+  trailhead: { name: string; lat: number; lng: number } | null;
   ascentM: number | null;
   geometry: GeoJSON.LineString;
   /**

@@ -56,6 +56,7 @@ export function toPlannedRoutes(features: OrsFeature[], source: RouteSource): Pl
         // Both are filled in by the planner, which knows the whole trip.
         footHours: 0,
         carDurationS: null,
+        trailhead: null,
         ascentM: typeof feature.properties?.ascent === "number" ? Math.round(feature.properties.ascent) : null,
         // ORS sends [lng, lat, elevation]; the third value is kept, GeoJSON allows it.
         geometry: { type: "LineString", coordinates },

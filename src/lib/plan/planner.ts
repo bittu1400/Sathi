@@ -5,6 +5,7 @@ import { fetchCandidates, fetchDuration, fetchThrough } from "./ors";
 import { fetchPoisAlong, orderAlong, poisNear } from "./overpass";
 import { poisAround, regionFor } from "./pois";
 import { simplifyLine } from "./simplify";
+import { curatedTrailhead, roadhead, type Trailhead } from "./trailhead";
 import { buildTourVariants } from "./tour";
 import type {
   LatLng,
@@ -50,7 +51,10 @@ export async function plan(request: PlanRequest): Promise<PlanResult> {
   // Every route between these two points shares the road time, so it is asked
   // for once. A tour is a walking loop through its stops: a road time between
   // its two (nearly identical) ends would mean nothing, so it isn't asked for.
-  const carS = kind === "tour" ? null : await drivingSeconds(request.start, request.end, routes);
+  // The drive is to wherever the walking starts: for a trek out of Kathmandu
+  // that is the trailhead, because the rest of it cannot be driven.
+  const target = routes[0]?.trailhead ?? request.end;
+  const carS = kind === "tour" ? null : await drivingSeconds(request.start, target, routes);
   // Last step: the days are measured on every point ORS sent, the phone only
   // has to draw the line.
   return {
@@ -131,7 +135,7 @@ async function planLine(
   kind: PlanKind,
 ): Promise<PlannedRoute[]> {
   const wanted = interests.length > 0 ? interests : defaultInterests(start, end);
-  const candidates = await fetchCandidates(start, end);
+  const { candidates, trailhead } = await lineCandidates(start, end, kind);
   const first = candidates[0];
   if (!first) return [];
 
@@ -156,12 +160,62 @@ async function planLine(
         const top = topInterest(near, wanted, taken);
         if (top) taken.add(top);
         return {
-          ...withDays(route, days, near, staysIn(near), kind),
+          ...withDays(route, days, near, staysIn(near), kind, trailhead),
           label: top ? `Most ${interestLabel(top).toLowerCase()}` : index === 0 ? "Fastest" : `Alternative ${index}`,
         };
       });
   }
-  return paceVariants(first, days, poisNear(pois, first.geometry.coordinates, 2_000), kind);
+  return paceVariants(first, days, poisNear(pois, first.geometry.coordinates, 2_000), kind, trailhead);
+}
+
+/**
+ * The lines to choose from, and where the walking starts. ORS answers a trek
+ * it considers too long to walk with the road route instead — which is honest
+ * about the road and useless as a trek, because nobody walks out of Kathmandu
+ * to Everest. When that happens the trek is re-planned from its trailhead, and
+ * the card says where the walking begins. A trekker who asked point to point
+ * gets their two points, untouched.
+ */
+async function lineCandidates(
+  start: LatLng,
+  end: LatLng,
+  kind: PlanKind,
+): Promise<{ candidates: PlannedRoute[]; trailhead: Trailhead | null }> {
+  // A curated trek names where it begins. Nobody walks out of Kathmandu to
+  // Everest — they fly to Lukla and start there — so when the trekker is
+  // nowhere near that trailhead the trek is planned from it, and getting there
+  // is shown as the road (or no road) that it is. The engine will happily
+  // answer Kathmandu → Khumbu with a 294 km line; that is not a trek anyone walks.
+  const curated = kind === "trek" ? curatedTrailhead(end) : null;
+  if (curated && haversineKm(start, curated) > TOUR_RADIUS_KM) {
+    const onFoot = await fetchCandidates(curated, end).catch(() => [] as PlannedRoute[]);
+    if (onFoot[0]?.source === "hiking") return { candidates: onFoot, trailhead: curated };
+  }
+
+  let candidates: PlannedRoute[] = [];
+  let refusal: unknown = null;
+  try {
+    candidates = await fetchCandidates(start, end);
+  } catch (error) {
+    // Kept: if the trailhead doesn't help either, this is the honest reason.
+    refusal = error;
+  }
+
+  const roadOnly = candidates[0]?.source === "driving";
+  if (kind !== "trek" || (candidates.length > 0 && !roadOnly)) {
+    if (refusal) throw refusal;
+    return { candidates, trailhead: null };
+  }
+
+  // The engine walks nothing and drives nothing useful: find where the road
+  // ends near the destination and walk from there. Costs a few requests, so it
+  // is the last thing tried.
+  const found = await roadhead(start, end);
+  const onFoot = found ? await fetchCandidates(found, end).catch(() => [] as PlannedRoute[]) : [];
+  if (found && onFoot[0]?.source === "hiking") return { candidates: onFoot, trailhead: found };
+  // No better than what we had: the road line, or the refusal it came with.
+  if (refusal) throw refusal;
+  return { candidates, trailhead: null };
 }
 
 /** Somewhere to sleep: a teahouse if there is one, else any named settlement. */
@@ -177,6 +231,11 @@ function staysIn(pois: Poi[]): Poi[] {
 export function stopsAlong(pois: Poi[], coordinates: number[][], limit = MAX_LINE_STOPS): Poi[] {
   const best = [...pois].sort((a, b) => Number(b.notable) - Number(a.notable)).slice(0, limit);
   return orderAlong(best, coordinates);
+}
+
+/** The card only needs where it is and what it is called. */
+function toStartPoint(trailhead: Trailhead | null): PlannedRoute["trailhead"] {
+  return trailhead ? { name: trailhead.name, lat: trailhead.lat, lng: trailhead.lng } : null;
 }
 
 /**
@@ -203,10 +262,18 @@ export function topInterest(pois: Poi[], wanted: InterestId[], taken: Set<Intere
   return ranked.find(([id]) => !taken.has(id))?.[0] ?? null;
 }
 
-function withDays(route: PlannedRoute, days: number, pois: Poi[], stays: Poi[], kind: PlanKind): PlannedRoute {
+function withDays(
+  route: PlannedRoute,
+  days: number,
+  pois: Poi[],
+  stays: Poi[],
+  kind: PlanKind,
+  trailhead: Trailhead | null,
+): PlannedRoute {
   return {
     ...route,
     kind,
+    trailhead: toStartPoint(trailhead),
     stops: stopsAlong(pois, route.geometry.coordinates),
     days: toDayLegs(route.geometry.coordinates, days, pois, stays),
   };
@@ -216,7 +283,13 @@ function withDays(route: PlannedRoute, days: number, pois: Poi[], stays: Poi[], 
  * One line, three paces. Fewer days means longer days on the trail; more days
  * means shorter ones with an extra night. The asked-for number always leads.
  */
-function paceVariants(route: PlannedRoute, days: number, pois: Poi[], kind: PlanKind): PlannedRoute[] {
+function paceVariants(
+  route: PlannedRoute,
+  days: number,
+  pois: Poi[],
+  kind: PlanKind,
+  trailhead: Trailhead | null,
+): PlannedRoute[] {
   const stays = staysIn(pois);
   const stops = stopsAlong(pois, route.geometry.coordinates);
   const paces: { id: string; label: string; days: number }[] = [
@@ -231,6 +304,7 @@ function paceVariants(route: PlannedRoute, days: number, pois: Poi[], kind: Plan
       id: `${route.id}-${pace.id}`,
       label: pace.label,
       kind,
+      trailhead: toStartPoint(trailhead),
       stops,
       days: toDayLegs(route.geometry.coordinates, pace.days, pois, stays),
     }));

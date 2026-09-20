@@ -82,6 +82,15 @@ export function RouteCards({ routes, selectedId, onSelect }: RouteCardsProps) {
                   </p>
                 )}
 
+                {route.trailhead && (
+                  <p className="text-small text-text-muted">
+                    The walk starts at {route.trailhead.name}
+                    {route.carDurationS !== null
+                      ? " — the road time is how long it takes to get there."
+                      : " — no road reaches it."}
+                  </p>
+                )}
+
                 {route.source === "driving" && (
                   <p className="text-small text-text-muted">
                     Road route — too far to walk end to end. The walking time is for that same road.
