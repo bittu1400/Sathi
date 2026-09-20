@@ -1,11 +1,8 @@
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import type { StyleSpecification } from "maplibre-gl";
 
-export function getMapStyle(
-  theme: "dark" | "sunlight",
-  tilesUrl?: string
-): StyleSpecification {
-  const flavor = theme === "sunlight" ? "light" : "dark";
+export function getMapStyle(tilesUrl?: string): StyleSpecification {
+  const flavor = "dark";
   const sourceUrl = tilesUrl ? `pmtiles://${tilesUrl}` : undefined;
 
   const styleLayers = layers("protomaps", namedFlavor(flavor), { lang: "en" });

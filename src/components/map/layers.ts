@@ -1,7 +1,7 @@
 import type { GeoJSONSource, Map as MapLibreMap } from "maplibre-gl";
 import type { RouteDetail, Resource } from "@/lib/types";
 
-/** Map paint colours come from the design tokens, so both themes match the app. */
+/** Map paint colours come from the design tokens, so they match the app. */
 function token(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
 }
