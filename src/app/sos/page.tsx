@@ -30,7 +30,10 @@ export default function SosPage() {
       ) : (
         <>
           <Panel className="space-y-3">
-            <p className="text-body text-text-muted">In an emergency, send an SOS. It works without mobile data.</p>
+            <p className="text-body text-text-muted">
+              In an emergency, send an SOS. Without data — or without an account — your phone
+              prepares the message and you send it by SMS, WhatsApp or a call.
+            </p>
             <Button type="button" variant="sos" size="lg" onClick={() => open()} className="w-full">
               Send SOS
             </Button>

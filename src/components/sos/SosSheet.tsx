@@ -4,7 +4,7 @@ import * as React from "react"
 import { Loader2, X } from "lucide-react"
 import { AlertDialog } from "radix-ui"
 import type { SosCategory } from "@/lib/types"
-import { latestSosStore } from "@/lib/session"
+import { latestSosStore, sessionStore } from "@/lib/session"
 import { sendSos } from "@/lib/sos-actions"
 import { toast } from "@/components/ui/toast"
 import { SosCountdown } from "./SosCountdown"
@@ -18,6 +18,10 @@ interface SosSheetProps {
 /** SOS sheet (SPEC §9.1), always on top. Mounted only while open, so state resets on every open. */
 export function SosSheet({ initialCategory = "altitude_illness", onClose }: SosSheetProps) {
   const latest = latestSosStore.useValue()
+  // Signed out there is no server to reach: the SOS is built on the phone and a
+  // human presses Send in Messages, WhatsApp or the dialler. Saying "sent"
+  // either way would be a promise the app cannot keep.
+  const signedIn = sessionStore.useValue() !== null
   const active = latest && latest.status !== "resolved" ? latest : null
   // An open SOS is shown instead of a new countdown, so reopening never duplicates it.
   const [phase, setPhase] = React.useState<"countdown" | "dispatching" | "view">(() => (active ? "view" : "countdown"))
@@ -53,7 +57,11 @@ export function SosSheet({ initialCategory = "altitude_illness", onClose }: SosS
         >
           <AlertDialog.Title className="sr-only">Emergency SOS</AlertDialog.Title>
           <AlertDialog.Description className="sr-only">
-            {phase === "countdown" ? "Your SOS is sent when the countdown ends. Cancel to stop it." : "Status of your SOS."}
+            {phase === "countdown"
+              ? signedIn
+                ? "Your SOS is sent when the countdown ends. Cancel to stop it."
+                : "Your SOS is prepared when the countdown ends, ready for you to send. Cancel to stop it."
+              : "Status of your SOS."}
           </AlertDialog.Description>
           {phase === "view" && (
             <button
@@ -71,8 +79,10 @@ export function SosSheet({ initialCategory = "altitude_illness", onClose }: SosS
           {phase === "dispatching" && (
             <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 p-8 text-center" aria-live="assertive">
               <Loader2 className="size-10 animate-spin text-sos motion-reduce:animate-none" />
-              <p className="text-h2">Sending SOS…</p>
-              <p className="text-small text-text-muted">Getting your position and contacting coordination.</p>
+              <p className="text-h2">{signedIn ? "Sending SOS…" : "Preparing SOS…"}</p>
+              <p className="text-small text-text-muted">
+                {signedIn ? "Getting your position and contacting coordination." : "Getting your position."}
+              </p>
             </div>
           )}
 

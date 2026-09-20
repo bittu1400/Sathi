@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -51,10 +52,14 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
-      </head>
       <body className="min-h-full flex flex-col bg-bg text-text">
+        {/* beforeInteractive: injected into the HTML and run before any of our
+            code, so the theme is on the element before the first paint. A plain
+            <script> here would be a script tag inside a React tree, which React
+            never runs on a client navigation. */}
+        <Script id="sathi-theme" strategy="beforeInteractive">
+          {THEME_SCRIPT}
+        </Script>
         <Providers>
           <AppShell>{children}</AppShell>
           <SwRegister />

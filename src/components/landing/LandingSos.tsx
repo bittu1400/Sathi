@@ -3,8 +3,8 @@ import { SOS_DISCLAIMER } from "@/lib/ams-copy";
 
 const steps = [
   { n: "1", title: "Tap SOS", body: "A 5-second countdown gives you time to cancel a mistake." },
-  { n: "2", title: "Online: sent at once", body: "Coordination receives your position and your emergency contact. You see when it's acknowledged." },
-  { n: "3", title: "No data: queued, plus SMS", body: "The SOS is saved on your phone and sent when data returns. A prepared SMS with your last position opens in your messages app. You press Send." },
+  { n: "2", title: "Signed in: sent at once", body: "Coordination receives your position and your emergency contact. You see when it's acknowledged." },
+  { n: "3", title: "No data, or no account: you press Send", body: "The SOS is saved on your phone. A message with your position opens in SMS, WhatsApp or the dialler, and you press Send — nothing leaves the phone by itself." },
 ];
 
 export function LandingSos() {
