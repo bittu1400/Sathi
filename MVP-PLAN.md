@@ -1,6 +1,6 @@
 # MVP-PLAN — map-first route recommender
 
-Last updated 2026-09-20, end of the fourth session. Last code commit: `1cf788b`. `origin/main`
+Last updated 2026-09-20, end of the fourth session. Last code commit: `b61fb7f`. `origin/main`
 is at `e06b2ad`, so **the fourth session's three commits are still local** (§13 step 0).
 
 This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the
@@ -15,9 +15,9 @@ rather than re-measuring.
 day out worked: a trip now has a **shape** the trekker picks (Suggest · Day out · **Point to
 point**), a trek is planned **from its trailhead** rather than from the trekker's doorstep, and
 the three options differ by a **toggle** — different ways, different paces, or the treks we hold
-our own data for. Line routes also carry the chosen places they pass, which the map pins. Every
-number in §8's fourth table came from `curl` against the live APIs; **none of it has been
-rendered in a browser** (§12 — this session had no browser pane either).
+our own data for. Line routes also carry the chosen places they pass, which the map pins. The session
+**did** have a browser pane, so §11 steps 13–16 were walked at 375×812 against the live APIs —
+the first UI verification since session 2. It found three bugs, all fixed in `b61fb7f`.
 
 **The third session added two things beside the planner** (community boards, an SOS button on
 the map) and changed three things inside it (both ends of a trip are pickable, "Your location"
@@ -270,7 +270,7 @@ within 5 km (null when there is none — never invented).
 | — | CARTO light basemap, icon controls | **done** (`621c69e`, tokens in `1cf4ad0`) |
 | P7 | Every state reachable | **done**; §11 steps 1–8 verified in the browser pane (step 7 with a stubbed fetch) |
 | P8 | Bug bash on real phones | **not started** — verified at 375×812 in the desktop browser only |
-| P10 | Trip shape, trailhead-anchored treks, the variants toggle | **built, never seen in a browser** (`d355f60`, `0627f32`, `1cf788b`) — every number in §8's fourth table measured by `curl` against the live APIs |
+| P10 | Trip shape, trailhead-anchored treks, the variants toggle | **done and seen in a browser** (`d355f60`, `0627f32`, `1cf788b`, `b61fb7f`) — §11 steps 13–16 walked at 375×812 against the live APIs |
 | P9 | Community boards, SOS on the map, both travel times | **built, never seen in a browser** (`81923db`, `a2ac1e8`) — `pnpm check` green and the planner numbers measured against the live API by `curl`; the UI itself is unverified (§12) |
 
 Commits, oldest first.
@@ -284,9 +284,10 @@ stops and day plans on the results · `8b05bd5`, `60673a4` docs.
 `81923db` community boards + an SOS button on the map · `a2ac1e8` pick both ends, show foot and
 road times, reach the SOS number. `81923db` is pushed; **`a2ac1e8` is not** (§13 step 0).
 
-*Session 4 (the recommender itself — no browser available):* `d355f60` point-to-point routes and
-the places they pass · `0627f32` a trek starts at its trailhead · `1cf788b` three ways to walk it
-and the treks we already hold. **None of the three is pushed** (§13 step 0).
+*Session 4 (the recommender itself, **and the first browser run since session 2**):* `d355f60`
+point-to-point routes and the places they pass · `0627f32` a trek starts at its trailhead ·
+`1cf788b` three ways to walk it and the treks we already hold · `b61fb7f` the three
+bugs the browser run found. **None of the four is pushed** (§13 step 0).
 
 *Session 2 (first browser run, then the fixes it found):* `3eb8277` hydration fix (C1) ·
 `e91dbe7` pick a start when location is off (C2) · `98af32c` country-wide place search (C3, G1) ·
@@ -357,11 +358,11 @@ docs.
   summaries. The same shortage limits the curated trailhead (§5) to Everest. Adding a trek means
   real coordinates for its waypoints and stages — a `⚠ HUMAN NEEDED` to verify each one
   (CLAUDE.md rule 6), not something to invent.
-- **G20 — Overpass sometimes answers a plan with nothing.** One `paces` run for Kathmandu →
-  Gorak Shep came back with `stops: []` and no day highlights; the identical request a minute
-  later had eight. The query is bounded and the failure is swallowed by design (a route with no
-  place names beats no route), but the 1-hour cache then serves that empty answer for an hour.
-  Nothing retries. Worth a single retry before caching if it shows up on stage.
+- ~~**G20 — Overpass sometimes answers a plan with nothing.**~~ **Mostly closed** (`b61fb7f`):
+  seen twice — a `paces` run with `stops: []`, and a browser run whose cards listed no places at
+  all while the log held `Overpass returned 504`. A failed query, or one carrying Overpass's own
+  timeout `remark`, is now retried once after a second; a genuinely empty answer is not retried.
+  Two failures in a row still cache a nameless plan for an hour.
 - **G21 — A detour costs a request and may buy nothing.** "Different ways" tries up to four
   via-routes and keeps the first two that route; on a trail with no parallel path and no walkable
   place off it, the card list can still come back as one line. Measured cost: Kathmandu → Gorak
@@ -470,6 +471,17 @@ handler still caches for an hour, now keyed by mode and variants too.
 | Detours to peaks | refused by ORS ("no routable point within 350 m"), which is why picks prefer a lodge or a village and four are tried for two kept |
 | `/api/plan`, Bhaktapur, **`variants: treks`** | **404** "We don't hold a known trek that reaches there yet." (G19) |
 | One `paces` run, Kathmandu → Gorak Shep, 9 days | `stops: []` and no highlights — Overpass returned nothing that call and the hour-long cache kept it (G20). The same request with a different day count: 8 stops |
+
+Walked in the browser at the end of session 4 (375×812, live APIs, the user's own `pnpm dev`):
+
+| Step | What happened |
+|---|---|
+| Thamel Chowk → Bhaktapur, **Point to point**, 3 days, no interests | **2 lines** (ORS gave two here), 14 km / +194 m / 3.4 h on foot and 20 min by road, both ending on Bhaktapur; eight temples pinned and numbered along the line |
+| The same trip, **Different paces** | 3 cards — 2 / 3 / 4 days over the same 14 km line — in ~15 s |
+| The same trip, **Known treks** | "No routes to Bhaktapur" and the honest 404 text, with the toggle still usable |
+| Thamel Chowk → **Everest Base Camp**, Suggest, 3 days | **3 different lines, all starting at Lukla**: 50.5 km / +4,987 m, 66 km via Thame, 58.1 km via Green Valley Lodge. Each card: "The walk starts at Lukla — no road reaches it." Stops: Phakding · Monjo · नाम्चे बजार · Khumjung · Tengboche · Pangboche · Kala Patthar |
+| Bugs the run found | `onSubmit={findRoutes}` passed the click event where the variant kind goes, so **every** "Find routes" failed with "Couldn't reach the route service" and no request left the page; an empty result read "0 routes"; one plan's cards had no places because Overpass 504'd. All three fixed in `b61fb7f` |
+| Still ugly | a stop can be called "नेपाल" (G13 — OSM names leak into the list) |
 
 ## 9. Files
 
@@ -622,7 +634,8 @@ a real radio off are still unrun (G6). Two caveats a demo driver should know: th
 search needs two letters before it calls the country-wide search, and a card is *tapped*, not
 swiped (G9).
 
-**Steps 13–16 (fourth session, written and unrun — nothing below has been rendered anywhere):**
+**Steps 13–16 (fourth session — walked at 375×812 in the browser pane against the live APIs,
+and they pass; the three bugs they found are fixed in `b61fb7f`):**
 
 13. On the trip sheet, **Shape of the trip** shows three chips (Suggest · Day out · Point to
     point) and the hint under them changes. Pick two places inside the valley, choose **Point to
@@ -683,16 +696,16 @@ browser pane** of the Claude desktop app (`preview_start`, `navigate`, `read_pag
 
 ## 13. Next session, in order
 
-0. **Push what is local.** `origin/main` is at `e06b2ad`; the fourth session's three code commits
-   (`d355f60`, `0627f32`, `1cf788b`) and the docs commit on top of them are not pushed — the
+0. **Push what is local.** `origin/main` is at `e06b2ad`; the fourth session's four code commits
+   (`d355f60`, `0627f32`, `1cf788b`, `b61fb7f`) and the docs commits on top of them are not pushed — the
    sandbox refuses `git push` here. `git status -sb`, then
    `git pull --ff-only && git push origin main`. Check this before anything else — `81923db`
    and `a2ac1e8` are one feature between them, and a teammate with only the first gets a map
    whose SOS panel has no Call or WhatsApp button and cards with one travel time. (The private
    `docs/` repo is already pushed.)
-1. **Render what sessions 3 and 4 built** (§11 steps 9–16, G6). Sessions 3 and 4 both ran without
-   a browser, so the trip-shape chips, the trailhead note, the variants toggle and the pinned
-   stops join the list below as never-seen-anywhere. Nothing from that session has been
+1. **Render what session 3 built** (§11 steps 9–12, G6). Session 4's own work (steps 13–16) was
+   walked in the browser, but session 3's was not: the From/To card, the rail's two new buttons,
+   the community pages, both times on a card. Risks worth looking for, since they are untested: Nothing from that session has been
    seen in a browser: the From/To card, the rail's two new buttons, the community pages, both
    times on a card. Start `pnpm dev`, open `/` at 375×812 and walk steps 9–12, then the whole
    of §11. Specific risks worth looking for, since they are untested:
