@@ -159,3 +159,80 @@ export async function fetchThrough(points: LatLng[], profile: Profile = "foot-wa
   const [route] = toPlannedRoutes(body.features ?? [], profile === "driving-car" ? "driving" : "hiking");
   return route ?? null;
 }
+
+const ORS_GEOCODE = "https://api.openrouteservice.org/geocode/autocomplete";
+
+export interface Place {
+  id: string;
+  name: string;
+  detail: string;
+  lat: number;
+  lng: number;
+}
+
+interface GeocodeFeature {
+  geometry?: { coordinates?: number[] };
+  properties?: {
+    id?: string;
+    gid?: string;
+    name?: string;
+    label?: string;
+    locality?: string;
+    county?: string;
+    region?: string;
+    layer?: string;
+  };
+}
+
+/**
+ * Pelias features → the same shape the curated treks use, so both can sit in
+ * one list. Exported for its test; a feature without a name or a point is
+ * dropped rather than shown as a tappable nothing.
+ */
+export function toPlaces(features: GeocodeFeature[]): Place[] {
+  const seen = new Set<string>();
+  return features.flatMap((feature, index) => {
+    const coordinates = feature.geometry?.coordinates;
+    const properties = feature.properties ?? {};
+    const name = properties.name?.trim();
+    if (!name || !Array.isArray(coordinates) || coordinates.length < 2) return [];
+    const [lng, lat] = coordinates as [number, number];
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return [];
+    const key = `${name}:${lat.toFixed(3)}:${lng.toFixed(3)}`;
+    if (seen.has(key)) return [];
+    seen.add(key);
+    // Whatever tells two places of the same name apart, nearest first.
+    const detail = [properties.locality, properties.county, properties.region]
+      .filter((part): part is string => Boolean(part) && part !== name)
+      .join(" · ");
+    return [
+      {
+        id: properties.gid ?? properties.id ?? `place-${index}`,
+        name,
+        detail: detail || properties.layer || "Nepal",
+        lat,
+        lng,
+      },
+    ];
+  });
+}
+
+/** Place search over Nepal. The key is ORS's, so this runs on the server only. */
+export async function geocode(text: string): Promise<Place[]> {
+  const key = requireKey();
+  const url = new URL(ORS_GEOCODE);
+  url.searchParams.set("api_key", key);
+  url.searchParams.set("text", text);
+  url.searchParams.set("boundary.country", "NPL");
+  url.searchParams.set("size", "8");
+  const response = await fetch(url, { signal: AbortSignal.timeout(8_000) });
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new PlanError(502, "Place search rejected our key.");
+    }
+    throw new PlanError(502, await readError(response));
+  }
+  const body = (await response.json()) as { features?: GeocodeFeature[] };
+  // A point outside our bbox can't be routed, so it is never offered.
+  return toPlaces(body.features ?? []).filter((place) => inNepal(place));
+}

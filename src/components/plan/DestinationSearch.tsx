@@ -13,22 +13,81 @@ export interface Destination {
   routeId?: string;
 }
 
+/** Two letters: enough to mean something, short enough to feel instant. */
+const TYPED_ENOUGH = 2;
+
 export interface DestinationSearchProps {
   destinations: Destination[];
   onPick: (destination: Destination) => void;
 }
 
 /**
- * Searches the curated treks, offline, with no key. Place search over the whole
- * country is merged into this list once the routing key exists.
+ * The curated treks are matched offline, with no key; anywhere else in Nepal
+ * comes from /api/places, which holds the routing key server-side. Curated
+ * matches stay on top: we know their days and their start point.
  */
 export function DestinationSearch({ destinations, onPick }: DestinationSearchProps) {
   const [query, setQuery] = React.useState("");
-  const results = React.useMemo(() => {
+  const [places, setPlaces] = React.useState<Destination[]>([]);
+  const [searching, setSearching] = React.useState(false);
+  const [searchError, setSearchError] = React.useState<string | null>(null);
+
+  const curated = React.useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return destinations;
     return destinations.filter((d) => `${d.name} ${d.detail}`.toLowerCase().includes(q));
   }, [destinations, query]);
+
+  React.useEffect(() => {
+    const q = query.trim();
+    if (q.length < TYPED_ENOUGH) return;
+    let live = true;
+    const controller = new AbortController();
+    // One request per pause in the typing: the free tier is 1,000 a day.
+    const timer = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const response = await fetch(`/api/places?q=${encodeURIComponent(q)}`, { signal: controller.signal });
+        const body = (await response.json().catch(() => null)) as
+          | { places?: Destination[]; error?: string }
+          | null;
+        if (!live) return;
+        if (!response.ok || !Array.isArray(body?.places)) {
+          setPlaces([]);
+          setSearchError(body?.error ?? "Place search is unavailable.");
+          return;
+        }
+        setPlaces(body.places.map((place) => ({ ...place, id: `place:${place.id}` })));
+        setSearchError(null);
+      } catch {
+        if (!live) return;
+        setPlaces([]);
+        setSearchError(
+          typeof navigator !== "undefined" && !navigator.onLine
+            ? "Place search needs a connection. Saved treks still work."
+            : "Place search is unavailable.",
+        );
+      } finally {
+        if (live) setSearching(false);
+      }
+    }, 300);
+
+    return () => {
+      live = false;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
+  // Below that, the only answer is the curated list, and anything the last
+  // search left behind is stale rather than wrong.
+  const searched = query.trim().length >= TYPED_ENOUGH;
+
+  const results = React.useMemo(() => {
+    if (!searched) return curated;
+    const names = new Set(curated.map((d) => d.name.toLowerCase()));
+    return [...curated, ...places.filter((place) => !names.has(place.name.toLowerCase()))];
+  }, [curated, places, searched]);
 
   return (
     <div className="flex min-h-0 flex-col gap-3">
@@ -45,9 +104,17 @@ export function DestinationSearch({ destinations, onPick }: DestinationSearchPro
         />
       </div>
 
+      {searched && searchError && (
+        <p role="alert" className="px-1 text-small text-text-muted">
+          {searchError}
+        </p>
+      )}
+
       {results.length === 0 ? (
         <p className="px-1 py-6 text-center text-small text-text-muted">
-          Nothing matches “{query.trim()}”. Try a trek name, a region, or a start point.
+          {searched && searching
+            ? "Searching…"
+            : `Nothing matches “${query.trim()}”. Try a trek name, a region, or a start point.`}
         </p>
       ) : (
         <ul className="min-h-0 flex-1 divide-y divide-line overflow-y-auto">

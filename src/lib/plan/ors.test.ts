@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { inNepal, toPlannedRoutes } from "./ors";
+import { inNepal, toPlaces, toPlannedRoutes } from "./ors";
 
 describe("inNepal", () => {
   it("accepts a point inside the country", () => {
@@ -81,5 +81,32 @@ describe("toPlannedRoutes", () => {
       "hiking",
     );
     expect(routes[0]?.ascentM).toBeNull();
+  });
+});
+
+describe("toPlaces", () => {
+  const feature = (properties: Record<string, unknown>, coordinates: number[]) => ({
+    geometry: { coordinates },
+    properties,
+  });
+
+  it("keeps a named place and describes it by where it is", () => {
+    const places = toPlaces([
+      feature({ gid: "osm:1", name: "Pokhara", locality: "Pokhara", region: "Gandaki" }, [83.98, 28.2]),
+    ]);
+    expect(places).toEqual([
+      { id: "osm:1", name: "Pokhara", detail: "Gandaki", lat: 28.2, lng: 83.98 },
+    ]);
+  });
+
+  it("drops a feature with no name or no point", () => {
+    expect(
+      toPlaces([feature({ name: "  " }, [83.98, 28.2]), feature({ name: "Nowhere" }, [])]),
+    ).toEqual([]);
+  });
+
+  it("drops the same place sent twice", () => {
+    const twice = feature({ name: "Lukla", region: "Khumbu" }, [86.73, 27.69]);
+    expect(toPlaces([twice, { ...twice, properties: { name: "Lukla", region: "Khumbu" } }])).toHaveLength(1);
   });
 });
