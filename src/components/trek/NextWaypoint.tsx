@@ -1,9 +1,9 @@
 import * as React from "react";
-import { Waypoint } from "@/lib/types";
-import { Badge } from "../ui/badge";
-import { Navigation, Wifi, WifiOff } from "lucide-react";
-import { cn } from "cn";
+import { Wifi, WifiOff } from "lucide-react";
+import type { Waypoint } from "@/lib/types";
 import { formatAltitude, formatGain, formatKm } from "@/lib/format";
+import { Panel } from "../ui/panel";
+import { Status } from "../ui/status";
 
 export interface NextWaypointProps {
   waypoint: Waypoint;
@@ -13,62 +13,23 @@ export interface NextWaypointProps {
   className?: string;
 }
 
-export function NextWaypoint({
-  waypoint,
-  distanceKm,
-  altitudeDeltaM,
-  className,
-}: NextWaypointProps) {
-  return (
-    <div
-      className={cn(
-        "bg-surface border border-border rounded-[var(--radius)] p-4 flex items-center justify-between gap-4 shadow-sm",
-        className
-      )}
-    >
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent/15 border border-accent/30 flex items-center justify-center shrink-0">
-          <Navigation className="w-5 h-5 text-accent" />
-        </div>
-        <div className="space-y-0.5">
-          <span className="text-xs font-mono uppercase tracking-wider text-text-muted">
-            Next Waypoint
-          </span>
-          <h4 className="font-semibold text-base text-text">{waypoint.name}</h4>
-          <div className="flex items-center gap-2 text-xs font-mono text-text-muted">
-            <span>{formatAltitude(waypoint.altM)}</span>
-            {altitudeDeltaM !== null && (
-              <>
-                <span>·</span>
-                <span>{formatGain(altitudeDeltaM)}</span>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+const signal = { good: "ok", weak: "caution", none: "neutral", unknown: "neutral" } as const;
 
-      <div className="flex flex-col items-end gap-1.5 shrink-0">
-        <span className="text-lg font-mono font-bold text-accent">
-          {distanceKm === null ? "—" : formatKm(distanceKm)}
-        </span>
-        <Badge
-          variant={
-            waypoint.signal === "good"
-              ? "ok"
-              : waypoint.signal === "weak"
-              ? "caution"
-              : "unverified"
-          }
-          className="text-[10px] py-0 px-2"
-        >
-          {waypoint.signal === "none" ? (
-            <WifiOff className="w-3 h-3 mr-1" />
-          ) : (
-            <Wifi className="w-3 h-3 mr-1" />
-          )}
-          {waypoint.signal.toUpperCase()} SIGNAL
-        </Badge>
+export function NextWaypoint({ waypoint, distanceKm, altitudeDeltaM, className }: NextWaypointProps) {
+  return (
+    <Panel title={waypoint.name} meta="Next waypoint" className={className}>
+      <div className="flex items-end justify-between gap-4">
+        <div className="space-y-1 font-mono tabular-nums">
+          <p className="text-readout">{distanceKm === null ? "—" : formatKm(distanceKm)}</p>
+          <p className="text-small text-text-muted">
+            {formatAltitude(waypoint.altM)}
+            {altitudeDeltaM !== null && ` · ${formatGain(altitudeDeltaM)}`}
+          </p>
+        </div>
+        <Status tone={signal[waypoint.signal]} unverified={waypoint.signal === "unknown"} icon={waypoint.signal === "none" ? <WifiOff aria-hidden /> : <Wifi aria-hidden />}>
+          {waypoint.signal === "unknown" ? "Signal unknown" : `${waypoint.signal} signal`}
+        </Status>
       </div>
-    </div>
+    </Panel>
   );
 }

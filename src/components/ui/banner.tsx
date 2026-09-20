@@ -1,8 +1,8 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { AlertTriangle, AlertCircle, Info, ShieldAlert } from "lucide-react";
+import { AlertTriangle, AlertCircle, CheckCircle2, Info, ShieldAlert } from "lucide-react";
 
-export type SeverityLevel = "info" | "caution" | "warning" | "danger" | "sos";
+export type SeverityLevel = "ok" | "info" | "caution" | "warning" | "danger" | "sos";
 
 export interface BannerProps extends React.HTMLAttributes<HTMLDivElement> {
   severity: SeverityLevel;
@@ -13,6 +13,7 @@ export interface BannerProps extends React.HTMLAttributes<HTMLDivElement> {
 }
 
 const styles: Record<SeverityLevel, { box: string; text: string; Icon: typeof Info }> = {
+  ok: { box: "bg-ok-bg border-l-ok", text: "text-ok", Icon: CheckCircle2 },
   info: { box: "bg-accent-bg border-l-accent", text: "text-accent", Icon: Info },
   caution: { box: "bg-caution-bg border-l-caution", text: "text-caution", Icon: AlertCircle },
   warning: { box: "bg-warning-bg border-l-warning", text: "text-warning", Icon: AlertTriangle },

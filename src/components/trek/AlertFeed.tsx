@@ -1,41 +1,37 @@
 import * as React from "react";
-import { Alert } from "@/lib/types";
-import { SeverityBanner } from "../ui/severity-banner";
-import { Button } from "../ui/button";
 import { Check } from "lucide-react";
-import { cn } from "cn";
+import type { Alert } from "@/lib/types";
+import { Banner } from "../ui/banner";
+import { Button } from "../ui/button";
 
 export interface AlertFeedProps {
   alerts: Alert[];
-  onAcknowledge?: (alertId: string) => void;
+  /** Dismissing is reversible: the page wraps this in `runWithUndo`. */
+  onDismiss?: (alert: Alert) => void;
   className?: string;
 }
 
-export function AlertFeed({ alerts, onAcknowledge, className }: AlertFeedProps) {
-  if (!alerts || alerts.length === 0) return null;
-
+export function AlertFeed({ alerts, onDismiss, className }: AlertFeedProps) {
+  if (alerts.length === 0) return null;
+  const newest = [...alerts].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   return (
-    <div className={cn("space-y-3", className)}>
-      <h3 className="text-xs font-mono uppercase tracking-wider text-text-muted">
-        Active Safety Alerts ({alerts.length})
-      </h3>
-      {alerts.map((alert) => (
-        <SeverityBanner
-          key={alert.id}
-          severity={alert.severity}
-          headline={alert.title}
-          reasons={[alert.body, ...alert.actions].filter(Boolean)}
-          actions={
-            <Button
-              variant="secondary"
-              onClick={() => onAcknowledge?.(alert.id)}
-            >
-              <Check className="w-3.5 h-3.5 mr-1" />
-              Acknowledge
-            </Button>
-          }
-        />
-      ))}
-    </div>
+    <section className={className} aria-label="Safety alerts">
+      <h2 className="mb-2 text-label text-text-muted">Alerts · {alerts.length}</h2>
+      <div className="space-y-3">
+        {newest.map((alert) => (
+          <Banner
+            key={alert.id}
+            severity={alert.severity}
+            headline={alert.title}
+            reasons={[alert.body, ...alert.actions].filter(Boolean)}
+            actions={
+              <Button variant="secondary" onClick={() => onDismiss?.(alert)}>
+                <Check className="size-4" aria-hidden /> Got it
+              </Button>
+            }
+          />
+        ))}
+      </div>
+    </section>
   );
 }

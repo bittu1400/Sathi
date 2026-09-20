@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAltitude, formatGain, formatKm, formatNepalTime } from "./format";
+import { formatAgo, formatAltitude, formatGain, formatKm, formatNepalTime } from "./format";
 
 describe("format", () => {
   it("formats altitude with a thousands separator", () => {
@@ -16,5 +16,19 @@ describe("format", () => {
   });
   it("shows Nepal time (UTC+5:45)", () => {
     expect(formatNepalTime("2026-10-12T08:47:00Z")).toBe("14:32");
+  });
+});
+
+const now = Date.parse("2026-10-01T12:00:00Z");
+
+describe("formatAgo", () => {
+  it("reads naturally at each scale", () => {
+    expect(formatAgo("2026-10-01T11:59:40Z", now)).toBe("just now");
+    expect(formatAgo("2026-10-01T11:57:00Z", now)).toBe("3 min ago");
+    expect(formatAgo("2026-10-01T09:30:00Z", now)).toBe("2 h ago");
+    expect(formatAgo("2026-09-29T12:00:00Z", now)).toBe("2 d ago");
+  });
+  it("never goes negative when the clock is behind", () => {
+    expect(formatAgo("2026-10-01T12:05:00Z", now)).toBe("just now");
   });
 });

@@ -18,3 +18,12 @@ export const formatNepalTime = (iso: string) =>
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(iso));
+
+/** "just now", "3 min ago", "2 h ago", "1 d ago" (for freshness labels). */
+export const formatAgo = (iso: string, nowMs: number) => {
+  const min = Math.max(0, Math.floor((nowMs - Date.parse(iso)) / 60_000));
+  if (min < 1) return "just now";
+  if (min < 60) return `${min} min ago`;
+  if (min < 1440) return `${Math.floor(min / 60)} h ago`;
+  return `${Math.floor(min / 1440)} d ago`;
+};

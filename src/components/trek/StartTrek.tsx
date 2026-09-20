@@ -1,88 +1,100 @@
 "use client";
 
 import * as React from "react";
-import { RouteSummary } from "@/lib/types";
+import Link from "next/link";
+import { ArrowRight, Check, TriangleAlert } from "lucide-react";
+import { RadioGroup } from "radix-ui";
+import type { RouteSummary } from "@/lib/types";
+import { formatAltitude } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
-import { Card, CardHeader, CardBody } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Mountain, ArrowRight, ShieldCheck } from "lucide-react";
+import { Panel } from "../ui/panel";
 
 export interface StartTrekProps {
   routes: RouteSummary[];
   initialRouteId?: string;
   disabled?: boolean;
+  /** Shown above the button and tied to it, e.g. "Starting a trek needs signal once." */
+  disabledReason?: string;
+  contactName?: string | null;
+  contactPhone?: string | null;
   onStart: (routeId: string) => void;
 }
 
-export function StartTrek({ routes, initialRouteId, disabled, onStart }: StartTrekProps) {
+export function StartTrek({ routes, initialRouteId, disabled, disabledReason, contactName, contactPhone, onStart }: StartTrekProps) {
   const startable = routes.filter((r) => r.hasFullData);
-  const [selectedRouteId, setSelectedRouteId] = React.useState<string>(
-    startable.find((r) => r.id === initialRouteId)?.id ?? startable[0]?.id ?? ""
-  );
+  const [selected, setSelected] = React.useState(startable.find((r) => r.id === initialRouteId)?.id ?? startable[0]?.id ?? "");
+  const reasonId = React.useId();
 
   return (
-    <div className="max-w-xl mx-auto space-y-6 py-6">
-      <div className="text-center space-y-2">
-        <div className="w-12 h-12 rounded-2xl bg-accent/20 border border-accent/40 flex items-center justify-center mx-auto">
-          <Mountain className="w-6 h-6 text-accent" />
-        </div>
-        <h1 className="text-2xl font-bold tracking-tight">Start New Trek Session</h1>
-        <p className="text-sm text-text-muted">
-          Select a route to activate offline position logging, altitude monitor, and emergency SOS tracking.
-        </p>
+    <div className="mx-auto max-w-xl space-y-4">
+      <div className="space-y-1">
+        <h1 className="text-h1">Start a trek</h1>
+        <p className="text-text-muted">Turns on position logging, the altitude monitor and SOS tracking for this route.</p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <h3 className="font-semibold text-sm">1. Select Trekking Route</h3>
-        </CardHeader>
-        <CardBody className="space-y-3">
-          {startable.map((route) => (
-              <button
-                key={route.id}
-                type="button"
-                onClick={() => setSelectedRouteId(route.id)}
-                className={`w-full p-3.5 rounded-[var(--radius-sm)] border text-left flex items-center justify-between transition-all cursor-pointer ${
-                  selectedRouteId === route.id
-                    ? "bg-accent/15 border-accent text-text shadow-sm"
-                    : "bg-surface-2 border-border text-text-muted hover:bg-surface-3 hover:text-text"
-                }`}
+      {startable.length > 1 && (
+        <Panel title="Route">
+          <RadioGroup.Root value={selected} onValueChange={setSelected} aria-label="Route" className="space-y-2">
+            {startable.map((r) => (
+              <RadioGroup.Item
+                key={r.id}
+                value={r.id}
+                className={cn(
+                  "flex min-h-14 w-full cursor-pointer items-center justify-between gap-3 rounded-[var(--radius)] border px-3 py-2 text-left",
+                  selected === r.id ? "border-accent bg-accent-bg" : "border-control-border bg-surface-2 hover:bg-surface-3"
+                )}
               >
-                <div>
-                  <h4 className="font-semibold text-sm text-text">{route.name}</h4>
-                  <p className="text-xs text-text-muted">
-                    {route.region} · {route.days[0]}–{route.days[1]} Days · Max {route.maxAltitudeM.toLocaleString()} m
-                  </p>
-                </div>
-                <Badge variant="ok">Full Offline Data</Badge>
-              </button>
+                <span>
+                  <span className="block text-body font-medium">{r.name}</span>
+                  <span className="block text-small text-text-muted">
+                    {r.region} · {r.days[0]}–{r.days[1]} days · max {formatAltitude(r.maxAltitudeM)}
+                  </span>
+                </span>
+                {selected === r.id && <Check className="size-5 shrink-0 text-accent" aria-hidden />}
+              </RadioGroup.Item>
             ))}
-        </CardBody>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <h3 className="font-semibold text-sm flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-ok" />
-            2. Safety & Emergency Contact Verification
-          </h3>
-        </CardHeader>
-        <CardBody>
-          <p className="text-xs text-text-muted leading-relaxed">
-            In case of emergency SOS triggering, SMS notifications and GPS coordinates will be queued for transmission to rescue dispatchers and your registered emergency contact.
+          </RadioGroup.Root>
+        </Panel>
+      )}
+      {startable.length === 1 && startable[0] && (
+        <Panel title="Route">
+          <p className="text-body font-medium">{startable[0].name}</p>
+          <p className="text-small text-text-muted">
+            {startable[0].region} · {startable[0].days[0]}–{startable[0].days[1]} days · max {formatAltitude(startable[0].maxAltitudeM)}
           </p>
-        </CardBody>
-      </Card>
+        </Panel>
+      )}
 
-      <Button
-        variant="primary"
-        size="lg"
-        className="w-full"
-        disabled={disabled || !selectedRouteId}
-        onClick={() => onStart(selectedRouteId)}
-      >
-        Start Active Trek
-        <ArrowRight className="w-5 h-5 ml-2" />
+      <Panel title="Emergency contact">
+        {contactPhone ? (
+          <p className="flex items-center gap-2 text-body">
+            <Check className="size-5 shrink-0 text-ok" aria-hidden />
+            <span>
+              {contactName ? `${contactName} ` : ""}
+              <span className="font-mono tabular-nums">{contactPhone}</span>
+            </span>
+          </p>
+        ) : (
+          <div className="space-y-2">
+            <p className="flex items-center gap-2 text-body text-caution">
+              <TriangleAlert className="size-5 shrink-0" aria-hidden /> No emergency contact yet.
+            </p>
+            <p className="text-small text-text-muted">The SOS text message goes to this contact first, so add one before you set out.</p>
+            <Button asChild variant="secondary">
+              <Link href="/settings">Add one in Settings</Link>
+            </Button>
+          </div>
+        )}
+      </Panel>
+
+      {disabledReason && (
+        <p id={reasonId} className="text-small text-caution">
+          {disabledReason}
+        </p>
+      )}
+      <Button size="lg" className="w-full" disabled={disabled || !selected} aria-describedby={disabledReason ? reasonId : undefined} onClick={() => onStart(selected)}>
+        Start trek <ArrowRight className="size-5" aria-hidden />
       </Button>
     </div>
   );
