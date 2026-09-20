@@ -304,7 +304,9 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
               onInterestsChange={setInterests}
               onChangeDestination={() => setSheet("search")}
               onChangeStart={() => setSheet("start")}
-              onSubmit={findRoutes}
+              // Called, not handed over: as a handler it would be given the
+              // click event where the variant kind goes.
+              onSubmit={() => void findRoutes()}
             />
           </div>
         )}
@@ -313,7 +315,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
           <div className="flex flex-col gap-3 p-4">
             <div className="flex items-baseline justify-between gap-2">
               <h2 className="text-h2 text-text">
-                {routes.length === 1 ? "1 route" : `${routes.length} routes`}
+                {routes.length === 0 ? "No routes" : routes.length === 1 ? "1 route" : `${routes.length} routes`}
                 {destination ? ` to ${destination.name}` : ""}
               </h2>
               <button

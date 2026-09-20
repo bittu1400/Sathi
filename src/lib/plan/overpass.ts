@@ -107,8 +107,26 @@ function buildQuery(bbox: Bbox, interests: InterestId[], limit: number): string 
   return `[out:json][timeout:25][bbox:${box}];(${clauses});out center ${limit};`;
 }
 
+/**
+ * Overpass is a shared public service and answers a plan with a 504 — or a
+ * 200 carrying its own timeout in `remark` — often enough to matter: the plan
+ * is then cached for an hour with no place names on it, which is the whole
+ * point of the card. One retry, only after a failure, never after a genuinely
+ * empty answer.
+ */
 async function runQuery(bbox: Bbox, interests: InterestId[], limit: number): Promise<Poi[]> {
-  if (interests.length === 0) return [];
+  const first = await tryQuery(bbox, interests, limit);
+  if (first.ok) return first.pois;
+  await new Promise((resolve) => setTimeout(resolve, 1_000));
+  return (await tryQuery(bbox, interests, limit)).pois;
+}
+
+async function tryQuery(
+  bbox: Bbox,
+  interests: InterestId[],
+  limit: number,
+): Promise<{ ok: boolean; pois: Poi[] }> {
+  if (interests.length === 0) return { ok: true, pois: [] };
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
   try {
@@ -120,16 +138,16 @@ async function runQuery(bbox: Bbox, interests: InterestId[], limit: number): Pro
     });
     if (!response.ok) {
       console.error("Overpass returned", response.status);
-      return [];
+      return { ok: false, pois: [] };
     }
     const body = (await response.json()) as { elements?: OverpassElement[]; remark?: string };
     // Overpass reports its own timeouts in `remark` with a 200 and no elements.
     if (body.remark) console.error("Overpass remark:", body.remark);
-    return toPois(body.elements ?? [], interests);
+    return { ok: !body.remark, pois: toPois(body.elements ?? [], interests) };
   } catch (error) {
     // Not fatal: the planner still has routes, it just can't say what is on them.
     console.error("Overpass query failed:", error);
-    return [];
+    return { ok: false, pois: [] };
   } finally {
     clearTimeout(timer);
   }
