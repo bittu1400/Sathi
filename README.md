@@ -15,6 +15,13 @@ Trekkers in Nepal's high mountains are exposed to Acute Mountain Sickness (AMS),
 
 ## Core Features
 
+- **Route Recommender (`/`, the MVP core):** The app opens on a full-screen map. Say where you
+  want to go, for how many days, and what you want to see — temples, mountains, villages,
+  lakes — and Sathi draws the options with a day-by-day plan: distance, climb, walking hours,
+  what each day passes and where it ends. A destination in a city becomes a **day out**, a
+  walking loop through a set of places; anywhere else becomes a **trek**, a line split into
+  days. No sign-in anywhere on that path. Routing by OpenRouteService, places from
+  OpenStreetMap, basemap by CARTO.
 - **Route & Topo Intelligence:** Curated Himalayan routes (full data for Everest Base Camp today; more routes as their data is verified) with maps, elevation profiles, acclimatization stages, and an emergency directory that marks unverified entries.
 - **Deterministic Altitude Watch:** Pure TypeScript rules engine implementing the 2018 Lake Louise Score (LLS) and Wilderness Medical Society ascent guidelines. **Zero AI in the critical safety loop**—all advice is deterministic and unit-tested.
 - **Offline Packs (PMTiles):** Single-file vector map packs and emergency directories downloaded in Kathmandu, accessible anywhere on the trail without cell reception.
@@ -66,7 +73,8 @@ Trekkers in Nepal's high mountains are exposed to Acute Mountain Sickness (AMS),
 - **UI Primitives:** Radix UI (`shadcn/ui` base), `lucide-react` icons
 - **Database & Auth:** Supabase (Postgres, Row Level Security, Realtime websockets, SSR auth)
 - **Offline Storage:** `idb-keyval` (IndexedDB)
-- **Mapping:** MapLibre GL JS + PMTiles + `@protomaps/basemaps`
+- **Mapping:** MapLibre GL JS + PMTiles + `@protomaps/basemaps`; CARTO vector basemaps on the planner
+- **Route planning:** OpenRouteService (routing + geocoding) and Overpass / OpenStreetMap for places, both on free tiers
 - **Validation:** Zod schemas
 - **Testing:** Vitest with strict TypeScript compilation
 - **Hosting:** Vercel (Production edge runtime)
@@ -113,7 +121,8 @@ pnpm check   # Executes: typecheck + eslint + vitest + next build
 
 | Route | Role / Access | Purpose |
 |---|---|---|
-| `/` | Public | Product introduction, feature overview, and offline architecture |
+| `/` | Public | **Route recommender** — the map-first planner, no sign-in |
+| `/about` | Public | Product introduction, feature overview, and offline architecture |
 | `/login` | Public | Authentication with one-click demo logins |
 | `/trek` | Trekker (`trekker`) | Live trail companion: altitude HUD, next waypoint, symptom check-in, alerts |
 | `/sos` | Trekker (`trekker`) | Emergency SOS activation, countdown cancel ring, and offline SMS fallback |
