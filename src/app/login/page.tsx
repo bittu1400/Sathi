@@ -23,6 +23,7 @@ function LoginForm() {
   const [password, setPassword] = React.useState("")
   const [displayName, setDisplayName] = React.useState("")
   const [loading, setLoading] = React.useState(false)
+  const [notice, setNotice] = React.useState<string | null>(null)
   const [error, setError] = React.useState<string | null>(
     authError === "unauthorized" ? "You do not have permission to access that page." : null
   )
@@ -32,12 +33,13 @@ function LoginForm() {
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    setNotice(null)
     setLoading(true)
 
     try {
       const supabase = createClient()
       if (isSignUp) {
-        const { error: signUpError } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -47,6 +49,12 @@ function LoginForm() {
           },
         })
         if (signUpError) throw signUpError
+        // "Confirm email" is on for this project: no session until the link is clicked.
+        if (!signUpData.session) {
+          setNotice("Account created. Check your email for the confirmation link, then sign in.")
+          setIsSignUp(false)
+          return
+        }
         router.push(next)
         router.refresh()
       } else {
@@ -108,6 +116,12 @@ function LoginForm() {
           className="p-3 text-sm rounded-lg bg-danger/10 border border-danger text-danger"
         >
           {error}
+        </div>
+      )}
+
+      {notice && (
+        <div role="status" className="p-3 text-sm rounded-lg bg-surface-2 border border-border text-text">
+          {notice}
         </div>
       )}
 
