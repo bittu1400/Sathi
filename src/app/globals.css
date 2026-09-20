@@ -91,6 +91,8 @@
   --map-route: #1f6feb;
   --map-route-dim: #6b7787;
   --map-stop: #e8590c;
+  /* Stop names, written straight onto the pale tiles with a white halo. */
+  --map-label: #1b2430;
 
   --r-sm: 4px;
   --r: 6px;
