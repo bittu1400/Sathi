@@ -1,4 +1,5 @@
 import { haversineKm } from "@/lib/geo";
+import bandipur from "@/data/pois/bandipur.json";
 import chitwan from "@/data/pois/chitwan.json";
 import kathmandu from "@/data/pois/kathmandu.json";
 import lumbini from "@/data/pois/lumbini.json";
@@ -22,7 +23,7 @@ interface Region {
  * This list is also what `planKind` treats as a city worth spending days in,
  * so adding a region changes how trips to it are planned.
  */
-const REGIONS = [kathmandu, pokhara, chitwan, lumbini] as unknown as Region[];
+const REGIONS = [kathmandu, pokhara, chitwan, lumbini, bandipur] as unknown as Region[];
 
 export function regionFor(point: LatLng): Region | null {
   return (
