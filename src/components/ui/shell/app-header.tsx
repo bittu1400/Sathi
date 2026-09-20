@@ -7,6 +7,7 @@ import { OPEN_PALETTE_EVENT } from "../command-palette";
 import { Kbd } from "../kbd";
 import { LiveConnectivityPill } from "@/components/live-connectivity";
 import { Logo } from "../logo";
+import { ThemeToggle } from "../theme-toggle";
 import { AccountMenu } from "./account-menu";
 import { HeaderSos } from "./header-sos";
 import { navItems } from "./nav";
@@ -48,6 +49,7 @@ export function AppHeader({ showSos }: { showSos: boolean }) {
             Search <Kbd>⌘K</Kbd>
           </button>
           <LiveConnectivityPill />
+          <ThemeToggle className="size-10" />
           {showSos && <HeaderSos />}
           <AccountMenu />
         </div>

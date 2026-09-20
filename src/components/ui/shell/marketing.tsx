@@ -2,6 +2,7 @@ import Link from "next/link";
 import { STANDARD_DISCLAIMER } from "@/lib/ams-copy";
 import { Button } from "../button";
 import { Logo } from "../logo";
+import { ThemeToggle } from "../theme-toggle";
 
 /** Public landing chrome: no tab bar, no trekker controls. */
 export function MarketingHeader() {
@@ -23,6 +24,7 @@ export function MarketingHeader() {
           </a>
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle className="size-10" />
           <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
             <Link href="/login">Sign in</Link>
           </Button>

@@ -7,6 +7,7 @@ import { ArrowRight, Circle, Crosshair, MapPin, Menu, SlidersHorizontal, Users, 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
 import { SosButton } from "@/components/sos/SosButton";
 import { usePosition, type PositionStatus } from "@/lib/plan/position";
 import type { InterestId } from "@/lib/plan/interests";
@@ -214,6 +215,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
           expanded ? "bottom-[calc(70dvh+0.75rem)]" : "bottom-[calc(9rem+env(safe-area-inset-bottom))]"
         }`}
       >
+        <ThemeToggle className="rounded-full border border-line bg-surface shadow-lg" />
         <Link
           href="/community"
           aria-label="Community boards"
