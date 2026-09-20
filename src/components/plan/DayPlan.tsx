@@ -28,7 +28,7 @@ export function DayPlan({ days, kind }: { days: DayLeg[]; kind: PlanKind }) {
             {leg.endName && (
               <p className="mt-0.5 flex items-center gap-1 text-small text-text-muted">
                 <Bed className="size-3.5 shrink-0" aria-hidden />
-                {kind === "tour" ? "Ends near" : "Night"} {leg.endName}
+                {kind === "trek" ? "Night" : "Ends near"} {leg.endName}
               </p>
             )}
           </div>

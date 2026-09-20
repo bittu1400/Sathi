@@ -2,13 +2,16 @@
 
 import * as React from "react";
 import {
+  ArrowRight,
   Bird,
   Landmark,
   Minus,
   Mountain,
   Plus,
   Route,
+  RotateCcw,
   Search,
+  Sparkles,
   Sunrise,
   Trees,
   Waves,
@@ -19,6 +22,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Chip, ChipGroup } from "@/components/ui/chip";
 import { INTERESTS, type InterestId } from "@/lib/plan/interests";
+import type { PlanMode } from "@/lib/plan/types";
 
 import type { Destination } from "./DestinationSearch";
 
@@ -36,6 +40,17 @@ const INTEREST_ICON: Record<InterestId, typeof Mountain> = {
   wildlife: Bird,
 };
 
+/**
+ * The three shapes a trip can take. A visitor leaves it on "Suggest"; someone
+ * who knows the place picks, and the planner obeys — "Point to point" is the
+ * exact line from the one place to the other, with no loop back.
+ */
+const MODES: { id: PlanMode; label: string; icon: typeof Sparkles }[] = [
+  { id: "auto", label: "Suggest", icon: Sparkles },
+  { id: "tour", label: "Day out", icon: RotateCcw },
+  { id: "direct", label: "Point to point", icon: ArrowRight },
+];
+
 export const MIN_DAYS = 1;
 export const MAX_DAYS = 21;
 
@@ -48,10 +63,12 @@ export interface TripFormProps {
   /** False until there is a start to plan from. */
   hasStart: boolean;
   days: number;
+  mode: PlanMode;
   interests: InterestId[];
   busy: boolean;
   error: string | null;
   onDaysChange: (days: number) => void;
+  onModeChange: (mode: PlanMode) => void;
   onInterestsChange: (interests: InterestId[]) => void;
   onChangeDestination: () => void;
   onChangeStart: () => void;
@@ -64,10 +81,12 @@ export function TripForm({
   startHint,
   hasStart,
   days,
+  mode,
   interests,
   busy,
   error,
   onDaysChange,
+  onModeChange,
   onInterestsChange,
   onChangeDestination,
   onChangeStart,
@@ -107,6 +126,27 @@ export function TripForm({
             </span>
             <Search className="size-5 shrink-0 text-text-muted" aria-hidden />
           </button>
+        </div>
+
+        <div>
+          <p className="mb-2 text-small text-text-muted">Shape of the trip</p>
+          <ChipGroup>
+            {MODES.map((option) => {
+              const Icon = option.icon;
+              return (
+                <Chip key={option.id} selected={mode === option.id} onClick={() => onModeChange(option.id)}>
+                  <Icon className="size-4" aria-hidden />
+                  {option.label}
+                </Chip>
+              );
+            })}
+          </ChipGroup>
+          {mode === "direct" && (
+            <p className="mt-1 text-small text-text-muted">Straight from where you start to where you end.</p>
+          )}
+          {mode === "tour" && (
+            <p className="mt-1 text-small text-text-muted">A loop through places, back where it began.</p>
+          )}
         </div>
 
         <div>

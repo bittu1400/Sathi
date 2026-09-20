@@ -176,6 +176,31 @@ export function poisNear(pois: Poi[], coordinates: number[][], radiusM: number):
   return pois.filter((poi) => line.some((point) => haversineKm(point, poi) * 1000 <= radiusM));
 }
 
+/**
+ * Places sorted by how far along the line they are reached, so the map can
+ * number the pins in walking order. Exported for its test.
+ */
+export function orderAlong(pois: Poi[], coordinates: number[][]): Poi[] {
+  const line = decimate(coordinates, 400);
+  if (line.length < 2) return pois;
+  const position = (poi: Poi) => {
+    let bestIndex = 0;
+    let bestKm = Infinity;
+    line.forEach((point, index) => {
+      const km = haversineKm(point, poi);
+      if (km < bestKm) {
+        bestKm = km;
+        bestIndex = index;
+      }
+    });
+    return bestIndex;
+  };
+  return [...pois]
+    .map((poi) => ({ poi, at: position(poi) }))
+    .sort((a, b) => a.at - b.at)
+    .map(({ poi }) => poi);
+}
+
 /** Which interest an element's tags satisfy. Exported for its test. */
 export function matches(tags: Record<string, string>, interest: InterestId): boolean {
   switch (interest) {

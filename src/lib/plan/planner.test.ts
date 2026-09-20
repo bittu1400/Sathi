@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { poisNear } from "./overpass";
-import { planKind, scorePois, topInterest } from "./planner";
+import { planKind, scorePois, stopsAlong, topInterest } from "./planner";
 import type { InterestId, Poi } from "./types";
 
 const kathmandu = { lat: 27.7172, lng: 85.324 };
@@ -18,6 +18,16 @@ describe("planKind", () => {
 
   it("plans a trek to somewhere that is not a city", () => {
     expect(planKind(kathmandu, everest)).toBe("trek");
+  });
+
+  it("obeys a trekker who asked for the line between their two points", () => {
+    // Both inside the valley: the rule would loop, the trekker said not to.
+    expect(planKind(kathmandu, { lat: 27.67, lng: 85.43 }, "direct")).toBe("direct");
+    expect(planKind(kathmandu, everest, "direct")).toBe("direct");
+  });
+
+  it("obeys a trekker who asked for a day out", () => {
+    expect(planKind(kathmandu, everest, "tour")).toBe("tour");
   });
 });
 
@@ -77,5 +87,24 @@ describe("poisNear", () => {
     const beside = poi("Beside the east line", "villages", 27.712, 85.45);
     expect(poisNear([beside], east, 2_000)).toHaveLength(1);
     expect(poisNear([beside], north, 2_000)).toHaveLength(0);
+  });
+});
+
+describe("stopsAlong", () => {
+  // A line running east out of Kathmandu, a point every kilometre or so.
+  const east = Array.from({ length: 20 }, (_, i) => [85.32 + i * 0.01, 27.71]);
+
+  it("pins the places in the order the line reaches them", () => {
+    const far = poi("Far", "culture", 27.71, 85.48);
+    const near = poi("Near", "culture", 27.71, 85.34);
+    expect(stopsAlong([far, near], east).map((p) => p.name)).toEqual(["Near", "Far"]);
+  });
+
+  it("keeps the notable ones when there are more than fit", () => {
+    const plain = Array.from({ length: 5 }, (_, i) => poi(`Plain ${i}`, "culture", 27.71, 85.33 + i * 0.01));
+    const notable = poi("Boudhanath", "culture", 27.71, 85.45, true);
+    const stops = stopsAlong([...plain, notable], east, 2);
+    expect(stops).toHaveLength(2);
+    expect(stops.map((p) => p.name)).toContain("Boudhanath");
   });
 });

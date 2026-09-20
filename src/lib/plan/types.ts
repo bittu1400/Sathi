@@ -6,11 +6,19 @@ export interface LatLng {
   lng: number;
 }
 
+/**
+ * What shape of trip the trekker asked for. `auto` lets the planner decide,
+ * which is right for a visitor; a local who knows the place picks `direct` and
+ * gets exactly the line between their two points, no loop and no detour.
+ */
+export type PlanMode = "auto" | "direct" | "tour";
+
 export interface PlanRequest {
   start: LatLng;
   end: LatLng;
   days: number;
   interests: InterestId[];
+  mode: PlanMode;
 }
 
 /** A named place worth walking past, from OpenStreetMap. */
@@ -28,10 +36,11 @@ export type RouteSource = "hiking" | "driving" | "curated";
 
 /**
  * A city day out visits several places and comes back; a trek covers ground
- * between two points over several days. The two need different plans, so the
+ * between two points over several days; a direct trip is the line between two
+ * points the trekker named, exactly. The three need different plans, so the
  * planner says which one it made.
  */
-export type PlanKind = "tour" | "trek";
+export type PlanKind = "tour" | "trek" | "direct";
 
 export interface DayLeg {
   day: number;
@@ -60,7 +69,11 @@ export interface PlannedRoute {
   carDurationS: number | null;
   ascentM: number | null;
   geometry: GeoJSON.LineString;
-  /** The places this route was built to pass, in order. */
+  /**
+   * The places the trekker asked to see on this route, in the order they are
+   * reached: the stops a day out was built around, and for a line route the
+   * matching places it turned out to pass. The map pins them.
+   */
   stops: Poi[];
   days: DayLeg[];
 }

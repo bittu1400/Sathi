@@ -2,11 +2,19 @@ import { haversineKm } from "@/lib/geo";
 import { toDayLegs, walkingHours } from "./daysplit";
 import { interestLabel, type InterestId } from "./interests";
 import { fetchCandidates, fetchDuration, fetchThrough } from "./ors";
-import { fetchPoisAlong, poisNear } from "./overpass";
+import { fetchPoisAlong, orderAlong, poisNear } from "./overpass";
 import { poisAround, regionFor } from "./pois";
 import { simplifyLine } from "./simplify";
 import { buildTourVariants } from "./tour";
-import type { LatLng, PlanKind, PlannedRoute, PlanRequest, PlanResult, Poi } from "./types";
+import type {
+  LatLng,
+  PlanKind,
+  PlanMode,
+  PlannedRoute,
+  PlanRequest,
+  PlanResult,
+  Poi,
+} from "./types";
 
 /**
  * Under this, the trip is a day out among places rather than a line between two
@@ -18,7 +26,18 @@ const TOUR_RADIUS_KM = 25;
 const DEFAULT_TOUR_INTERESTS: InterestId[] = ["culture", "villages", "forests", "sunrise"];
 const DEFAULT_TREK_INTERESTS: InterestId[] = ["mountains", "villages", "rivers", "teahouses"];
 
-export function planKind(start: LatLng, end: LatLng): PlanKind {
+/** How many places a line route pins: enough to see what you came for, few enough to read. */
+const MAX_LINE_STOPS = 8;
+
+/**
+ * Which shape of trip to plan. `direct` and `tour` are the trekker's own
+ * choice and are obeyed as given — someone who lives here knows whether they
+ * want a loop or the way to the next town — and `auto` falls back to the rule:
+ * close by, or a city we hold the places of, is a day out.
+ */
+export function planKind(start: LatLng, end: LatLng, mode: PlanMode = "auto"): PlanKind {
+  if (mode === "direct") return "direct";
+  if (mode === "tour") return "tour";
   if (haversineKm(start, end) <= TOUR_RADIUS_KM) return "tour";
   // Asking for a city we hold the places of is a day out *in* that city: you
   // fly or take the bus to Pokhara, you don't walk 200 km to it.
@@ -26,12 +45,12 @@ export function planKind(start: LatLng, end: LatLng): PlanKind {
 }
 
 export async function plan(request: PlanRequest): Promise<PlanResult> {
-  const kind = planKind(request.start, request.end);
-  const routes = kind === "tour" ? await planTour(request) : await planTrek(request);
+  const kind = planKind(request.start, request.end, request.mode);
+  const routes = kind === "tour" ? await planTour(request) : await planLine(request, kind);
   // Every route between these two points shares the road time, so it is asked
   // for once. A tour is a walking loop through its stops: a road time between
   // its two (nearly identical) ends would mean nothing, so it isn't asked for.
-  const carS = kind === "trek" ? await drivingSeconds(request.start, request.end, routes) : null;
+  const carS = kind === "tour" ? null : await drivingSeconds(request.start, request.end, routes);
   // Last step: the days are measured on every point ORS sent, the phone only
   // has to draw the line.
   return {
@@ -60,6 +79,11 @@ async function drivingSeconds(start: LatLng, end: LatLng, routes: PlannedRoute[]
     // A missing second estimate must never lose the routes we already have.
     return null;
   }
+}
+
+/** A city day out looks for city things; a line across the country does not. */
+function defaultInterests(start: LatLng, end: LatLng): InterestId[] {
+  return haversineKm(start, end) <= TOUR_RADIUS_KM ? DEFAULT_TOUR_INTERESTS : DEFAULT_TREK_INTERESTS;
 }
 
 /**
@@ -96,12 +120,17 @@ async function planTour({ start, end, days, interests }: PlanRequest): Promise<P
 }
 
 /**
- * A trek: the engine gives the line. Where it offers real alternatives we keep
- * them; where it offers one — which is most of the high mountains — the three
- * options are three ways to walk the same line, which is the honest difference.
+ * A line between the two points, which is both a trek and a trekker's own
+ * point-to-point request: the engine gives the line. Where it offers real
+ * alternatives we keep them; where it offers one — which is most of the high
+ * mountains — the three options are three ways to walk the same line, which is
+ * the honest difference.
  */
-async function planTrek({ start, end, days, interests }: PlanRequest): Promise<PlannedRoute[]> {
-  const wanted = interests.length > 0 ? interests : DEFAULT_TREK_INTERESTS;
+async function planLine(
+  { start, end, days, interests }: PlanRequest,
+  kind: PlanKind,
+): Promise<PlannedRoute[]> {
+  const wanted = interests.length > 0 ? interests : defaultInterests(start, end);
   const candidates = await fetchCandidates(start, end);
   const first = candidates[0];
   if (!first) return [];
@@ -127,17 +156,27 @@ async function planTrek({ start, end, days, interests }: PlanRequest): Promise<P
         const top = topInterest(near, wanted, taken);
         if (top) taken.add(top);
         return {
-          ...withDays(route, days, near, staysIn(near)),
+          ...withDays(route, days, near, staysIn(near), kind),
           label: top ? `Most ${interestLabel(top).toLowerCase()}` : index === 0 ? "Fastest" : `Alternative ${index}`,
         };
       });
   }
-  return paceVariants(first, days, pois, staysIn(pois));
+  return paceVariants(first, days, poisNear(pois, first.geometry.coordinates, 2_000), kind);
 }
 
 /** Somewhere to sleep: a teahouse if there is one, else any named settlement. */
 function staysIn(pois: Poi[]): Poi[] {
   return pois.filter((poi) => poi.interest === "teahouses" || poi.interest === "villages");
+}
+
+/**
+ * The places this line passes that the trekker asked for, in the order they
+ * are reached, so the map pins what they came to see rather than leaving a
+ * trek as a bare line. Notable places win the few slots there are.
+ */
+export function stopsAlong(pois: Poi[], coordinates: number[][], limit = MAX_LINE_STOPS): Poi[] {
+  const best = [...pois].sort((a, b) => Number(b.notable) - Number(a.notable)).slice(0, limit);
+  return orderAlong(best, coordinates);
 }
 
 /**
@@ -164,15 +203,22 @@ export function topInterest(pois: Poi[], wanted: InterestId[], taken: Set<Intere
   return ranked.find(([id]) => !taken.has(id))?.[0] ?? null;
 }
 
-function withDays(route: PlannedRoute, days: number, pois: Poi[], stays: Poi[]): PlannedRoute {
-  return { ...route, days: toDayLegs(route.geometry.coordinates, days, pois, stays) };
+function withDays(route: PlannedRoute, days: number, pois: Poi[], stays: Poi[], kind: PlanKind): PlannedRoute {
+  return {
+    ...route,
+    kind,
+    stops: stopsAlong(pois, route.geometry.coordinates),
+    days: toDayLegs(route.geometry.coordinates, days, pois, stays),
+  };
 }
 
 /**
  * One line, three paces. Fewer days means longer days on the trail; more days
  * means shorter ones with an extra night. The asked-for number always leads.
  */
-function paceVariants(route: PlannedRoute, days: number, pois: Poi[], stays: Poi[]): PlannedRoute[] {
+function paceVariants(route: PlannedRoute, days: number, pois: Poi[], kind: PlanKind): PlannedRoute[] {
+  const stays = staysIn(pois);
+  const stops = stopsAlong(pois, route.geometry.coordinates);
   const paces: { id: string; label: string; days: number }[] = [
     { id: "balanced", label: `${days} days · as asked`, days },
     { id: "fast", label: `${days - 1} days · faster`, days: days - 1 },
@@ -184,6 +230,8 @@ function paceVariants(route: PlannedRoute, days: number, pois: Poi[], stays: Poi
       ...route,
       id: `${route.id}-${pace.id}`,
       label: pace.label,
+      kind,
+      stops,
       days: toDayLegs(route.geometry.coordinates, pace.days, pois, stays),
     }));
 }

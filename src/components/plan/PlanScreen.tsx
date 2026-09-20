@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SosButton } from "@/components/sos/SosButton";
 import { usePosition, type PositionStatus } from "@/lib/plan/position";
 import type { InterestId } from "@/lib/plan/interests";
-import type { PlannedRoute, PlanResult } from "@/lib/plan/types";
+import type { PlanMode, PlannedRoute, PlanResult } from "@/lib/plan/types";
 import { DestinationSearch, type Destination } from "./DestinationSearch";
 import { RouteCards } from "./RouteCards";
 import { TripForm } from "./TripForm";
@@ -51,6 +51,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
   /** Set only when the trekker picks a start by hand, e.g. location is off. */
   const [manualStart, setManualStart] = React.useState<Destination | null>(null);
   const [days, setDays] = React.useState(3);
+  const [mode, setMode] = React.useState<PlanMode>("auto");
   const [interests, setInterests] = React.useState<InterestId[]>([]);
   const [routes, setRoutes] = React.useState<PlannedRoute[]>([]);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -112,6 +113,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
           end: { lat: destination.lat, lng: destination.lng },
           days,
           interests,
+          mode,
         }),
       });
       const body = (await response.json().catch(() => null)) as (PlanResult & { error?: string }) | null;
@@ -277,10 +279,12 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
               startHint={manualStart ? manualStart.detail : startPoint ? null : "Tap to pick a starting point."}
               hasStart={startPoint !== null}
               days={days}
+              mode={mode}
               interests={interests}
               busy={busy}
               error={error}
               onDaysChange={setDays}
+              onModeChange={setMode}
               onInterestsChange={setInterests}
               onChangeDestination={() => setSheet("search")}
               onChangeStart={() => setSheet("start")}
