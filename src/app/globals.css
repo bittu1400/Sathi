@@ -86,6 +86,11 @@
   --danger-bg: #2e1f21;
   --sos-bg: #2e201c;
   --scrim: rgb(0 0 0 / 0.64);
+  /* Drawn on the planner's light basemap, so these are darker than --accent,
+     which is tuned for the app's dark surfaces and disappears over pale tiles. */
+  --map-route: #1f6feb;
+  --map-route-dim: #6b7787;
+  --map-stop: #e8590c;
 
   --r-sm: 4px;
   --r: 6px;
