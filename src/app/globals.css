@@ -27,16 +27,9 @@
   --color-danger-bg: var(--danger-bg);
   --color-sos-bg: var(--sos-bg);
 
-  /* Aliases so existing class names keep working; removed in RD-12. */
-  --color-border: var(--line);
-  --color-accent-ink: var(--ink);
-  --color-sos-ink: var(--ink);
-  --color-info: var(--accent);
-
   --radius-sm: var(--r-sm);
   --radius: var(--r);
   --radius-lg: var(--r-lg);
-  --shadow-custom: none;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 
   /* shadcn compatibility mappings */
