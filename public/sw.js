@@ -2,8 +2,11 @@
 // Offline model: HTML pages network-first with cache fallback; static assets cache-first.
 // Client-side (RSC) navigations that fail offline fall back to a full page load in
 // Next.js, which then hits the cached HTML below.
-const CACHE_NAME = "sathi-v3";
-const PAGES = ["/", "/trek", "/sos", "/routes", "/routes/ebc", "/plan", "/settings", "/offline"];
+const CACHE_NAME = "sathi-v4";
+// The pre-pivot /plan is no longer linked from anywhere, so it is no longer
+// worth a trekker's bytes. Community is left out on purpose: the landing page
+// says it needs a connection, and precaching it would quietly make that a lie.
+const PAGES = ["/", "/trek", "/sos", "/routes", "/routes/ebc", "/settings", "/offline"];
 const STATIC = ["/manifest.webmanifest", "/favicon.ico", "/icons/icon-192.png", "/icons/icon-512.png"];
 
 // Precache the pages trekkers need offline and every script/style they reference.
