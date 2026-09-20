@@ -1,11 +1,15 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import { Protocol } from "pmtiles";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { Phone } from "lucide-react";
 import type { RouteDetail, Resource } from "@/lib/types";
 import { getMapStyle } from "./style";
+import { Button } from "../ui/button";
+import { Sheet, SheetContent } from "../ui/sheet";
+import { Status } from "../ui/status";
 import { addRouteLayers, addResourceLayers, setPositionLayer } from "./layers";
 
 let protocolAdded = false;
@@ -40,6 +44,7 @@ export default function MapInner({
   const container = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState<maplibregl.Map | null>(null);
   const [basemapMissing, setBasemapMissing] = useState(false);
+  const [selected, setSelected] = useState<Resource | null>(null);
   const routeId = route?.id;
   const firstCenter = useRef(position ?? null);
 
@@ -55,7 +60,13 @@ export default function MapInner({
       zoom: start ? 13 : 10,
       interactive,
       attributionControl: false,
+      // A page scroll over the map shouldn't zoom it.
+      cooperativeGestures: interactive,
     });
+    if (interactive) {
+      map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+      map.addControl(new maplibregl.GeolocateControl({ positionOptions: { enableHighAccuracy: true } }), "top-right");
+    }
     map.addControl(new maplibregl.AttributionControl({ customAttribution: "© OpenStreetMap contributors, Protomaps" }));
     map.on("load", () => {
       if (route?.bbox) {
@@ -76,13 +87,21 @@ export default function MapInner({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- route object identity is irrelevant, routeId is the key
   }, [routeId, interactive]);
 
+  const handleResourceClick = useCallback(
+    (r: Resource) => {
+      setSelected(r);
+      onResourceClick?.(r);
+    },
+    [onResourceClick]
+  );
+
   useEffect(() => {
     if (loaded && route) addRouteLayers(loaded, route);
   }, [loaded, route]);
 
   useEffect(() => {
-    if (loaded && resources.length > 0) addResourceLayers(loaded, resources, onResourceClick);
-  }, [loaded, resources, onResourceClick]);
+    if (loaded && resources.length > 0) addResourceLayers(loaded, resources, handleResourceClick);
+  }, [loaded, resources, handleResourceClick]);
 
   const lat = position?.lat;
   const lng = position?.lng;
@@ -91,15 +110,24 @@ export default function MapInner({
   }, [loaded, lat, lng]);
 
   return (
-    <div
-      className={`relative h-[350px] w-full overflow-hidden rounded-[var(--radius)] border border-border bg-surface ${className}`}
-    >
-      <div ref={container} className="h-full w-full" />
+    <div className={`relative aspect-[4/3] w-full overflow-hidden rounded-[var(--radius-lg)] border border-line bg-surface lg:aspect-auto lg:h-[420px] ${className}`}>
+      <div ref={container} role="region" aria-label={route ? `Map of ${route.name}` : "Map"} className="h-full w-full" />
       {basemapMissing && (
-        <p className="absolute left-2 top-2 rounded-[var(--radius-sm)] bg-surface/90 px-2 py-1 text-xs text-text-muted">
-          Base map not available offline. Route, waypoints and help points are shown.
-        </p>
+        <Status className="absolute bottom-2 left-2 bg-surface">Trail diagram · base map not downloaded</Status>
       )}
+      <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelected(null)}>
+        <SheetContent title={selected?.name ?? "Details"} description={selected?.notes}>
+          {selected?.phone ? (
+            <Button asChild>
+              <a href={`tel:${selected.phone}`}>
+                <Phone className="size-4" aria-hidden /> Call {selected.phone}
+              </a>
+            </Button>
+          ) : (
+            <p className="text-text-muted">No number listed.</p>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
