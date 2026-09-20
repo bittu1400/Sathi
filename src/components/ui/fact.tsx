@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 export function FactList({ className, ...props }: React.HTMLAttributes<HTMLDListElement>) {
   return <dl className={cn("divide-y divide-line", className)} {...props} />;

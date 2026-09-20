@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 
 const shapes = { line: "h-4 w-full", readout: "h-14 w-40", panel: "h-40 w-full", row: "h-11 w-full" };
 

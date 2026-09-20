@@ -1,5 +1,5 @@
 import * as React from "react";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { AlertTriangle, AlertCircle, Info, ShieldAlert } from "lucide-react";
 
 export type SeverityLevel = "info" | "caution" | "warning" | "danger" | "sos";

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
 import { Loader2 } from "lucide-react";
 import { Progress as RadixProgress } from "radix-ui";
 
