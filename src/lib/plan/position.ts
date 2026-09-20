@@ -24,13 +24,18 @@ export const NEPAL_CENTER = { lat: 28.3949, lng: 84.124 };
  * Watches the device position. A refused or missing permission is a normal
  * state, not an error: the map stays on Nepal and the button says so.
  */
+/** Geolocation is either there for the whole page's life or it never was. */
+const subscribeNever = () => () => {};
+const hasGeolocation = () => typeof navigator !== "undefined" && "geolocation" in navigator;
+
 export function usePosition(): PositionState {
   const [status, setStatus] = React.useState<PositionStatus>("locating");
   const [coords, setCoords] = React.useState<Coords | null>(null);
   const watchId = React.useRef<number | null>(null);
-  // Derived, not state: a browser without geolocation never changes its mind,
-  // and computing it here keeps the mount effect free of setState.
-  const supported = typeof navigator !== "undefined" && "geolocation" in navigator;
+  // Read through useSyncExternalStore, not at render time: the server has no
+  // navigator, and a plain check there makes the first client render differ
+  // from the HTML, which React reports as a hydration mismatch.
+  const supported = React.useSyncExternalStore(subscribeNever, hasGeolocation, () => true);
 
   const locate = React.useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) return;
