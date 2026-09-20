@@ -1,16 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { LakeLouiseForm, LakeLouiseScores } from "./LakeLouiseForm";
+import { ArrowLeft, ArrowRight, Check } from "lucide-react";
+import { LakeLouiseForm, type LakeLouiseScores } from "./LakeLouiseForm";
 import { RedFlagList } from "./RedFlagList";
 import { SleepPicker } from "./SleepPicker";
 import { AmsResultCard } from "./AmsResultCard";
 import { Button } from "../ui/button";
+import { useDiscardGuard } from "../ui/discard-guard";
+import { Progress } from "../ui/spinner";
+import { SaveState } from "../ui/save-state";
+import { Sheet, SheetContent } from "../ui/sheet";
 import { useSos } from "../sos/SosProvider";
 import { recordCheckin } from "@/lib/trek-log";
+import { isOnline } from "@/lib/offline/status";
 import { newId } from "@/lib/id";
 import type { AmsResult, RedFlag, RouteDetail } from "@/lib/types";
-import { X, ArrowRight, ArrowLeft, Check } from "lucide-react";
 
 export interface CheckinSheetProps {
   route: RouteDetail;
@@ -21,7 +26,7 @@ export interface CheckinSheetProps {
 }
 
 type Step = "form" | "redflags" | "sleep" | "result";
-const STEP_LABEL: Record<Exclude<Step, "result">, string> = { form: "1/3", redflags: "2/3", sleep: "3/3" };
+const STEP_NUMBER = { form: 1, redflags: 2, sleep: 3 } as const;
 
 /** Evening check-in (SPEC A-07). The verdict comes only from evaluateAms(). Mounted while open. */
 export function CheckinSheet({ route, trekId, defaultSleepWaypointId, onClose }: CheckinSheetProps) {
@@ -33,14 +38,15 @@ export function CheckinSheet({ route, trekId, defaultSleepWaypointId, onClose }:
   const [result, setResult] = React.useState<AmsResult | null>(null);
   const [saving, setSaving] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [queued, setQueued] = React.useState(false);
 
-  React.useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  const dirty = step !== "result" && (Object.values(scores).some(Boolean) || redFlags.length > 0 || sleepId !== defaultSleepWaypointId);
+  const { guard, dialog } = useDiscardGuard(dirty);
+
+  const sendSos = () => {
+    onClose();
+    sos.open("altitude_illness");
+  };
 
   const submit = async () => {
     const sleep = route.waypoints.find((w) => w.id === sleepId) ?? null;
@@ -57,6 +63,7 @@ export function CheckinSheet({ route, trekId, defaultSleepWaypointId, onClose }:
         sleepAltM: sleep?.altM ?? null,
         lls: scores.headache + scores.gi + scores.fatigue + scores.dizziness,
       });
+      setQueued(!isOnline());
       setResult(saved);
       setStep("result");
     } catch {
@@ -66,85 +73,60 @@ export function CheckinSheet({ route, trekId, defaultSleepWaypointId, onClose }:
     }
   };
 
+  const number = step === "result" ? 3 : STEP_NUMBER[step];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-end justify-center bg-bg/80 p-0 backdrop-blur-md sm:items-center sm:p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="checkin-title"
-        className="flex h-[90vh] max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-t-[var(--radius-lg)] border border-border bg-surface shadow-2xl sm:h-auto sm:rounded-[var(--radius-lg)]"
-      >
-        <div className="flex items-center justify-between border-b border-border bg-surface-2/60 p-3">
-          <div className="flex items-center gap-1">
-            {(step === "redflags" || step === "sleep") && (
-              <button
-                type="button"
-                aria-label="Back"
-                onClick={() => setStep(step === "sleep" ? "redflags" : "form")}
-                className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:text-text"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </button>
+    <>
+      <Sheet open onOpenChange={(open) => !open && guard(onClose)}>
+        <SheetContent title={step === "result" ? "Your check-in result" : "Evening check-in"} description={step === "result" ? undefined : `Step ${number} of 3`}>
+          {step !== "result" && <Progress value={(number / 3) * 100} valueText={`Step ${number} of 3`} className="mb-5" />}
+
+          <div className="flex-1 space-y-6">
+            {step === "form" && <LakeLouiseForm scores={scores} onChange={setScores} />}
+            {step === "redflags" && <RedFlagList selectedFlags={redFlags} onChange={setRedFlags} onSendSos={sendSos} />}
+            {step === "sleep" && <SleepPicker waypoints={route.waypoints} selectedWaypointId={sleepId} onChange={setSleepId} />}
+            {step === "result" && result && (
+              <div aria-live="polite" className="space-y-3">
+                <AmsResultCard result={result} onTriggerSos={sendSos} />
+                <SaveState state={queued ? "queued" : "saved"} />
+              </div>
             )}
-            <h2 id="checkin-title" className="px-2 text-base font-bold text-text">
-              {step === "result" ? "Your check-in result" : "Evening check-in"}
-            </h2>
+            {error && (
+              <p role="alert" className="text-body text-danger">
+                {error}
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            aria-label="Close check-in"
-            onClick={onClose}
-            className="flex h-12 w-12 items-center justify-center rounded-[var(--radius-sm)] border border-border text-text-muted hover:text-text"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
 
-        <div className="flex-1 space-y-6 overflow-y-auto p-4 sm:p-6" aria-live="polite">
-          {step === "form" && <LakeLouiseForm scores={scores} onChange={setScores} />}
-          {step === "redflags" && <RedFlagList selectedFlags={redFlags} onChange={setRedFlags} />}
-          {step === "sleep" && (
-            <SleepPicker waypoints={route.waypoints} selectedWaypointId={sleepId} onChange={(id) => setSleepId(id)} />
-          )}
-          {step === "result" && result && (
-            <AmsResultCard
-              result={result}
-              onTriggerSos={() => {
-                onClose();
-                sos.open("altitude_illness");
-              }}
-            />
-          )}
-          {error && (
-            <p role="alert" className="text-sm text-danger">
-              {error}
-            </p>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between border-t border-border bg-surface-2/60 p-4">
-          {step === "result" ? (
-            <Button variant="primary" className="w-full" onClick={onClose}>
-              Done
-            </Button>
-          ) : (
-            <>
-              <span className="font-mono text-xs text-text-muted">Step {STEP_LABEL[step]}</span>
-              {step === "sleep" ? (
-                <Button variant="primary" onClick={submit} loading={saving}>
-                  <Check className="mr-1.5 h-4 w-4" />
-                  Save check-in
-                </Button>
-              ) : (
-                <Button variant="primary" onClick={() => setStep(step === "form" ? "redflags" : "sleep")}>
-                  Next
-                  <ArrowRight className="ml-1.5 h-4 w-4" />
-                </Button>
-              )}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+          <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-4">
+            {step === "result" ? (
+              <Button className="w-full" onClick={onClose}>
+                Back to trek
+              </Button>
+            ) : (
+              <>
+                {step === "form" ? (
+                  <span />
+                ) : (
+                  <Button variant="ghost" onClick={() => setStep(step === "sleep" ? "redflags" : "form")}>
+                    <ArrowLeft className="size-4" aria-hidden /> Back
+                  </Button>
+                )}
+                {step === "sleep" ? (
+                  <Button state={saving ? "busy" : "idle"} onClick={submit}>
+                    <Check className="size-4" aria-hidden /> Save check-in
+                  </Button>
+                ) : (
+                  <Button onClick={() => setStep(step === "form" ? "redflags" : "sleep")}>
+                    Next <ArrowRight className="size-4" aria-hidden />
+                  </Button>
+                )}
+              </>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+      {dialog}
+    </>
   );
 }
