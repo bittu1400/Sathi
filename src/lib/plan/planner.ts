@@ -4,6 +4,7 @@ import { interestLabel, type InterestId } from "./interests";
 import { fetchCandidates, fetchThrough } from "./ors";
 import { fetchPoisAlong, poisNear } from "./overpass";
 import { poisAround, regionFor } from "./pois";
+import { simplifyLine } from "./simplify";
 import { buildTourVariants } from "./tour";
 import type { LatLng, PlanKind, PlannedRoute, PlanRequest, PlanResult, Poi } from "./types";
 
@@ -27,7 +28,15 @@ export function planKind(start: LatLng, end: LatLng): PlanKind {
 export async function plan(request: PlanRequest): Promise<PlanResult> {
   const kind = planKind(request.start, request.end);
   const routes = kind === "tour" ? await planTour(request) : await planTrek(request);
-  return { kind, routes };
+  // Last step: the days are measured on every point ORS sent, the phone only
+  // has to draw the line.
+  return {
+    kind,
+    routes: routes.map((route) => ({
+      ...route,
+      geometry: { ...route.geometry, coordinates: simplifyLine(route.geometry.coordinates) },
+    })),
+  };
 }
 
 /**
