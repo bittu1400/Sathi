@@ -116,45 +116,47 @@
   --tabbar-h: 64px;
 }
 
-/* Light. Same roles, same meanings; every pair below clears 4.5:1 for text and
-   3:1 for controls, and --ink is what sits on a filled accent/status/SOS. */
+/* Light: premium green. Same roles and meanings as dark; every text pair below
+   clears 4.5:1, every control 3:1, and --ink is what sits on a filled
+   accent/status/SOS surface. */
 :root[data-theme="light"] {
   color-scheme: light;
-  /* Surfaces: paper, not pure white, so cards can still be white */
-  --bg: #f5f6f8;
+  /* Paper with a green whisper in it, so white cards still read as cards */
+  --bg: #f4f7f4;
   --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --surface-3: #e2e7ee;
-  --line: #d5dae1;
-  --line-strong: #b3bac4;
-  --control-border: #737b85;
+  --surface-2: #eaf0ea;
+  --surface-3: #dde6de;
+  --line: #ccd8ce;
+  --line-strong: #a8b8aa;
+  --control-border: #6d7a6f;
   /* Text */
-  --text: #12161b;
-  --text-muted: #4f5862;
-  --text-faint: #838b95;
-  /* Accent + status: darker than the dark theme's, which wash out on paper */
-  --accent: #0b57c9;
-  --ok: #0f7a43;
+  --text: #0f1713;
+  --text-muted: #46544b;
+  --text-faint: #7c8a81;
+  /* Deep emerald carries the brand; the leaf green below carries "fine",
+     which is why they are not the same green. */
+  --accent: #0a6b4d;
+  --ok: #2e7d32;
   --caution: #8a6100;
   --warning: #b1480c;
   --danger: #b3261e;
   --sos: #d4480a;
   --ink: #ffffff;
   /* Tints */
-  --accent-bg: #e7f0fe;
-  --ok-bg: #e6f5ec;
+  --accent-bg: #e1f1ea;
+  --ok-bg: #e8f4e9;
   --caution-bg: #fbf1d8;
   --warning-bg: #fdeee4;
   --danger-bg: #fdeaea;
   --sos-bg: #fdece2;
-  --scrim: rgb(15 20 26 / 0.44);
-  /* The basemap is light in both themes, so these do not change. */
-  --map-route: #1f6feb;
-  --map-route-dim: #6b7787;
+  --scrim: rgb(10 20 15 / 0.44);
+  /* The basemap is pale in both themes; in light the route joins the palette. */
+  --map-route: #0a6b4d;
+  --map-route-dim: #8fa398;
   --map-stop: #e8590c;
-  --map-label: #1b2430;
+  --map-label: #13201a;
 
-  --shadow-overlay: 0 0 0 1px var(--line-strong), 0 16px 48px rgb(15 20 26 / 0.18);
+  --shadow-overlay: 0 0 0 1px var(--line-strong), 0 16px 48px rgb(10 20 15 / 0.16);
 }
 
 @layer base {
