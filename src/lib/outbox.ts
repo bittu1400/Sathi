@@ -68,7 +68,6 @@ export async function clearOutbox(): Promise<void> {
       // memory already cleared
     }
   }
-  isFlushing = false
   notifyListeners()
 }
 
@@ -100,8 +99,6 @@ export function subscribeOutboxStatus(fn: Listener) {
     listeners.delete(fn)
   }
 }
-
-let isFlushing = false
 
 export async function enqueue(
   table: OutboxTable,
@@ -140,12 +137,30 @@ export async function patchQueued(id: string, patch: Record<string, unknown>): P
   return found
 }
 
+let running: Promise<unknown> | null = null
+
+/**
+ * Send everything queued. A call made while another flush runs waits for it and
+ * then sends again, so callers can trust that rows queued before the call were tried.
+ */
 export async function flush(
   supabaseClient?: ReturnType<typeof createClient>
 ): Promise<{ sent: number; failed: number }> {
-  if (isFlushing || !isOnline()) return { sent: 0, failed: 0 }
+  while (running) await running.catch(() => {})
+  const current = flushOnce(supabaseClient)
+  running = current
+  try {
+    return await current
+  } finally {
+    running = null
+  }
+}
 
-  isFlushing = true
+async function flushOnce(
+  supabaseClient?: ReturnType<typeof createClient>
+): Promise<{ sent: number; failed: number }> {
+  if (!isOnline()) return { sent: 0, failed: 0 }
+
   const sent = new Set<string>()
   const failed = new Set<string>()
 
@@ -181,7 +196,6 @@ export async function flush(
     lastFlushAt = new Date().toISOString()
     return { sent: sent.size, failed: failed.size }
   } finally {
-    isFlushing = false
     notifyListeners()
   }
 }

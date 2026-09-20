@@ -34,6 +34,12 @@ async function session(): Promise<TrekSession> {
   return s
 }
 
+/** Demo steps only report success once every queued row reached the server. */
+async function flushOrThrow() {
+  const { failed } = await flush()
+  if (failed) throw new Error(`${failed} row(s) failed to reach the server; they stay queued and retry.`)
+}
+
 async function activeTrek() {
   const s = await session()
   if (!s.trek) throw new Error("No active trek. Run “Start EBC trek” first.")
@@ -120,7 +126,7 @@ export const demoDriver = {
   async fastForwardDingboche(): Promise<string> {
     const { trek } = await activeTrek()
     for (const day of EBC_ITINERARY.slice(0, 6)) await playDay(trek.id, trek.startedAt!, day)
-    await flush()
+    await flushOrThrow()
     // The trekker saw and acknowledged those days' alerts on the day; today starts clean.
     for (const alert of trekLogStore.get()?.alerts ?? []) {
       if (!alert.acknowledgedAt) await acknowledgeAlert(alert)
@@ -132,7 +138,7 @@ export const demoDriver = {
   async advanceToLobuche(): Promise<string> {
     const { trek } = await activeTrek()
     await playDay(trek.id, trek.startedAt!, EBC_ITINERARY[6]!)
-    await flush()
+    await flushOrThrow()
     return "Day 7 played: Lobuche (4,940 m), +530 m sleeping gain."
   },
 
@@ -151,7 +157,7 @@ export const demoDriver = {
       sleepAltM: lobuche.altM,
       lls: 7,
     })
-    await flush()
+    await flushOrThrow()
     return `Check-in LLS 7${includeAtaxia ? " + ataxia" : ""}: engine says ${result.level.toUpperCase()}.`
   },
 
@@ -163,7 +169,7 @@ export const demoDriver = {
     const target = waypoint("ebc-gorakshep")
     const verdict = evaluateWeather(forecast, target)
     await recordAlerts(trek.id, deriveAlerts({ ams: NO_AMS, weather: { verdict, waypoint: target }, trekId: trek.id, now: new Date() }))
-    await flush()
+    await flushOrThrow()
     return `Storm injected for ${target.name}: verdict ${verdict.verdict.toUpperCase()}.`
   },
 

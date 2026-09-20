@@ -122,13 +122,13 @@ export function RescueConsole({ initialEvents, initialTreks, initialAlerts24h, i
   const act = async (action: () => Promise<void>) => {
     try {
       await action();
-      setError(null);
     } catch (e) {
+      await refresh();
+      // After the refresh, which clears the banner on a successful reload.
       setError(e instanceof Error ? `Update failed: ${e.message}` : "Update failed.");
       throw e;
-    } finally {
-      await refresh();
     }
+    await refresh();
   };
 
   const openCount = events.filter((e) => e.status === "open").length;

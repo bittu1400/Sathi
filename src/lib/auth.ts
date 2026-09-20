@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
+import { getProfile as getProfileById } from "@/lib/db/queries"
 import type { Profile, Role } from "@/lib/types"
 
 export async function getUser() {
@@ -10,32 +11,14 @@ export async function getUser() {
   return user
 }
 
+/** Throws on a database error, so a failed read is never mistaken for "no access". */
 export async function getProfile(): Promise<Profile | null> {
   const supabase = await createClient()
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
   if (!user) return null
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("*")
-    .eq("id", user.id)
-    .single()
-
-  if (!profile) return null
-
-  return {
-    id: profile.id,
-    displayName: profile.display_name,
-    role: profile.role as Role,
-    agencyId: profile.agency_id,
-    emergencyContactName: profile.emergency_contact_name,
-    emergencyContactPhone: profile.emergency_contact_phone,
-    fitness: profile.fitness as Profile["fitness"],
-    preferences: profile.preferences as Profile["preferences"],
-  }
+  return getProfileById(supabase, user.id)
 }
 
 export async function requireUser(nextUrl?: string) {
