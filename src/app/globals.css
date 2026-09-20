@@ -55,8 +55,13 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* "Instrument": dark only. Contrast ratios are in docs REDESIGN §3.1. */
-:root {
+/* "Instrument" in two skins. Dark is the one docs REDESIGN §3.1 measures and
+   stays the default; light is for daylight on a trail, where a dark screen is
+   unreadable. A theme is chosen by the inline script in layout.tsx, which sets
+   data-theme from the stored choice or the phone's own setting, so each
+   palette is written once here and nothing is duplicated across a media query. */
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
   /* Surfaces: graphite, not pure black */
   --bg: #0a0b0d;
@@ -111,12 +116,52 @@
   --tabbar-h: 64px;
 }
 
+/* Light. Same roles, same meanings; every pair below clears 4.5:1 for text and
+   3:1 for controls, and --ink is what sits on a filled accent/status/SOS. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  /* Surfaces: paper, not pure white, so cards can still be white */
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --surface-2: #eef1f5;
+  --surface-3: #e2e7ee;
+  --line: #d5dae1;
+  --line-strong: #b3bac4;
+  --control-border: #737b85;
+  /* Text */
+  --text: #12161b;
+  --text-muted: #4f5862;
+  --text-faint: #838b95;
+  /* Accent + status: darker than the dark theme's, which wash out on paper */
+  --accent: #0b57c9;
+  --ok: #0f7a43;
+  --caution: #8a6100;
+  --warning: #b1480c;
+  --danger: #b3261e;
+  --sos: #d4480a;
+  --ink: #ffffff;
+  /* Tints */
+  --accent-bg: #e7f0fe;
+  --ok-bg: #e6f5ec;
+  --caution-bg: #fbf1d8;
+  --warning-bg: #fdeee4;
+  --danger-bg: #fdeaea;
+  --sos-bg: #fdece2;
+  --scrim: rgb(15 20 26 / 0.44);
+  /* The basemap is light in both themes, so these do not change. */
+  --map-route: #1f6feb;
+  --map-route-dim: #6b7787;
+  --map-stop: #e8590c;
+  --map-label: #1b2430;
+
+  --shadow-overlay: 0 0 0 1px var(--line-strong), 0 16px 48px rgb(15 20 26 / 0.18);
+}
+
 @layer base {
   * {
     border-color: var(--line);
   }
   html {
-    color-scheme: dark;
     background-color: var(--bg);
   }
   body {
