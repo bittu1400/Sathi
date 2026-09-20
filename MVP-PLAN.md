@@ -1,6 +1,6 @@
 # MVP-PLAN — map-first route recommender
 
-Last updated 2026-09-20, after the first browser session. `main` = `e2ac4f0`.
+Last updated 2026-09-20, after the second browser session. `main` = `11be788`.
 
 This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the
 flow) is what we agreed to build and §6 says exactly how much of it exists. Nothing below
@@ -85,8 +85,10 @@ Guards, in order: zod → a 1-hour in-process cache keyed by start/end rounded t
 days + interests → Nepal bbox (a point outside gets 400 before any request is spent).
 
 **`planKind`** (`src/lib/plan/planner.ts`): haversine start↔end ≤ 25 km → `tour`; otherwise a
-destination inside a baked POI region (Kathmandu, Pokhara) is still a `tour`, walked from that
-city, because nobody walks 200 km to Pokhara; anything else → `trek`.
+destination inside a baked POI region (Kathmandu, Pokhara, Chitwan, Lumbini, Bandipur) is still
+a `tour`, walked from that city, because nobody walks 200 km to Pokhara; anything else → `trek`.
+The region list in `pois.ts` therefore decides what counts as a city — adding one changes how
+trips to it are planned.
 
 ### Tour (a city day out)
 1. Places first: `poisAround(end, radius, interests)` — the baked extract when the destination is
@@ -109,16 +111,22 @@ city, because nobody walks 200 km to Pokhara; anything else → `trek`.
    then `driving-car` the same way. A 401/403 fails fast (that's our key, not the request).
    `source` records which profile answered, and the card says so when it's a road route.
 2. `fetchPoisAlong(line, 2 km, interests)` for the day highlights and overnight names.
-3. If ORS returned more than one geometry, each becomes an option. If it returned one — which is
-   most of the high mountains — the options are three **paces** of the same line: as asked,
-   one day faster, one day easier.
+3. If ORS returned more than one geometry, each becomes an option, **scored** by how many of the
+   chosen places it passes (notable ones count double). The best match leads the carousel and
+   each card is named after what that line has most of ("Most temples & culture"); a line with
+   nothing distinctive left falls back to "Fastest" / "Alternative n". The alternatives share a
+   corridor, so one Overpass query covers them all and `poisNear()` splits the result per line.
+4. If it returned one — which is most of the high mountains — the options are three **paces** of
+   the same line: as asked, one day faster, one day easier.
+5. Last of all, every geometry is run through Douglas–Peucker at 10 m (`simplify.ts`), after the
+   day split has measured climb on the full line.
 
 ### Day plan (both shapes) — `src/lib/plan/daysplit.ts`
 Naismith: 4.5 km/h plus one hour per 600 m of climb, descent ignored. The line is cut into legs
 of roughly equal *effort*, not equal distance, so a climbing day is shorter on the ground. Each
-day gets its distance, climb, hours, up to four highlights within 2 km of that day's stretch, and
-an overnight name from the nearest teahouse/village within 5 km (null when there is none — never
-invented).
+day gets its distance, climb, hours, up to four highlights within 2 km of that day's stretch —
+the places OSM marks notable first — and an overnight name from the nearest teahouse/village
+within 5 km (null when there is none — never invented).
 
 ## 6. Status of every phase
 
@@ -129,11 +137,11 @@ invented).
 | P2 | Destination search | **done** (`98af32c`) — curated treks + ORS place search |
 | P3 | Trip form: from / days / interests | **done** (`8b3e0bc`) |
 | P4 | `/api/plan`, routes drawn | **done** (`8b3e0bc`) |
-| P5 | POIs + scoring + labels | **partly done** — POIs and labels yes, interest **scoring** no (G2) |
+| P5 | POIs + scoring + labels | **done** (`bc7c4bd`) — trek options scored and named by interest |
 | P6 | Day plans, overnight stops, stop pins | **done** (`c47082b`, `26762c5`) |
 | — | City day-outs (added mid-session by the lead) | **done** (`c47082b`) |
 | — | CARTO light basemap, icon controls | **done** (`621c69e`, tokens in `1cf4ad0`) |
-| P7 | Every state reachable | **done**; §11 steps 1–6 verified in a browser, 7 not |
+| P7 | Every state reachable | **done**; §11 steps 1–7 verified in a browser (7 with a stubbed fetch) |
 | P8 | Bug bash on real phones | **not started** — verified at 375×812 in the desktop browser only |
 
 Commits, oldest first: `5b0cb18` · `8b3e0bc` · `fdd540c` · `1cf4ad0` · `621c69e` · `c47082b` ·
@@ -146,9 +154,10 @@ Commits, oldest first: `5b0cb18` · `8b3e0bc` · `fdd540c` · `1cf4ad0` · `621c
   Measured live: "Pokhara" and "Bhaktapur" both answer in ~1–3 s, first call after a cold server
   nearer 6 s. A place's subtitle is whatever Pelias gives (locality · county · region), which
   falls back to the layer name ("locality") when it gives nothing.
-- **G2 — Interests don't yet change the ranking of a trek.** They pick the POIs that are shown
-  and drive the tour variants, but trek options are labelled by pace/engine order, not by how
-  well they match. The scoring step of §5 in the original plan is unbuilt.
+- ~~**G2 — Interests don't change the ranking of a trek.**~~ **Closed** (`bc7c4bd`). Measured:
+  Kathmandu → Namobuddha, 3 days, mountains + culture + villages → "Most temples & culture"
+  (45.6 km), "Most villages & squares" (41.8 km), "Alternative 2" (49.3 km). Paces are still
+  labelled by pace, which is the only honest difference when the engine gives one line.
 - **G3 — Curated treks are not used as trek candidates.** The plan said a curated line near both
   ends should join the candidate list; `planTrek` asks ORS only.
 - ~~**G4 — "Tour" is decided by start↔end distance.**~~ **Closed** (`e2ac4f0`): a destination
@@ -157,9 +166,13 @@ Commits, oldest first: `5b0cb18` · `8b3e0bc` · `fdd540c` · `1cf4ad0` · `621c
   (39.4 km / +1,909 m / 7.9 h and 31.7 km), numbered pins, days of ~4 h each. Only two options
   because identical stop sets are dropped rather than padded. The catch: the regions are the
   only thing that says "city", so this works for Kathmandu and Pokhara and nowhere else (G5).
-- **G5 — Baked POIs cover Kathmandu Valley and Pokhara only** (2,842 + 1,313 places). Anywhere
-  else falls back to live Overpass, which timed out on us repeatedly. Add regions by editing
-  `REGIONS` in `scripts/fetch-pois.ts` and re-running it.
+- **G5 — Baked POIs now cover five places**: Kathmandu Valley (2,842), Pokhara (1,313), Chitwan
+  /Sauraha (142), Lumbini (103), Bandipur (64). Add more by editing `REGIONS` in
+  `scripts/fetch-pois.ts` and running `pnpm tsx scripts/fetch-pois.ts <id>`; attempts rotate
+  through three Overpass mirrors because the main one answered with 504s and connect timeouts
+  for a whole afternoon. **Chitwan has no wildlife POIs**: OSM holds the national park as one
+  huge polygon whose centre is ~25 km from Sauraha, outside the day-out radius. Anywhere not on
+  the list still falls back to live Overpass.
 - **G6 — Partly closed.** §11 steps 1–6 were run at 375×812 in the app's own browser, against
   the live APIs, and pass. Three bugs were found there and fixed (`3eb8277`, `e91dbe7`): a
   hydration mismatch on every load, a dead end when location is refused, and copy that claimed
@@ -169,18 +182,20 @@ Commits, oldest first: `5b0cb18` · `8b3e0bc` · `fdd540c` · `1cf4ad0` · `621c
 - **G7 — The planner needs network.** Offline it shows "Route planning needs a connection", which
   is honest but means the MVP path is online-only. The trekker screens keep their offline
   behaviour.
-- **G8 — Payload size.** A 239 km route is ~9,300 coordinates (~500 KB of JSON). Fine for
-  MapLibre, heavy on a phone connection. Simplify server-side if the results step feels slow.
-- **G9 — The sheet has fixed heights** (peek / 70 dvh), no drag handle. Seen in the browser: the
-  locate button sits *under* the expanded sheet, so it can't be tapped while the sheet is open.
+- ~~**G8 — Payload size.**~~ **Closed** (`7c352a4`): Douglas–Peucker at 10 m, server-side, after
+  the day split. Kathmandu → Namobuddha, three options: 1,703 + 1,464 + 2,324 points and 153 KB
+  became 510 + 371 + 605 points and 44 KB, with the distances and day plans unchanged.
+- **G9 — The sheet has fixed heights** (peek / 70 dvh), no drag handle. The locate button used to
+  sit *under* it; it now rides above whichever height the sheet has (`9930ea6`).
 - **G11 — Long treks take ~25 s.** Kathmandu → EBC, 3 days: one `/api/plan` call, ~25 s to the
   first card, no progress beyond the button's busy state.
 - **G12 — Day counts are taken at face value.** "3 days · as asked" for Kathmandu → EBC means
   35.7 h of walking on day one. The arithmetic is right and the pace is the trekker's to choose,
   so nothing clamps it; the hours are shown per day and for the whole route so the choice is
   visible.
-- **G13 — OSM names leak into the highlights**: "Scarf of life", "Jorpati Main Road". The
-  notable-first ranking helps but doesn't filter.
+- **G13 — OSM names leak into the highlights**: "Scarf of life", "Jorpati Main Road". Notable
+  places now sort first (`229386a`), so those only show up once the good ones run out; nothing
+  filters them.
 - **G10 — `/plan`, `/routes`, `/trek` and the rest still exist** and are unchanged. Only `/` and
   the old landing page (now `/about`) moved.
 
@@ -256,15 +271,22 @@ with a stubbed position — see G6):
 5. Expand a card → day 1 and day 2, each with distance, hours, highlights and where it ends.
 6. Swipe to another card → the map redraws that option's line and pins.
 7. Airplane mode → a new search says planning needs a connection; results already on screen stay.
+   Verified with `navigator.onLine` forced false and `/api/*` fetches rejected, not with a real
+   radio off: the copy appears in `text-danger` and the drawn route stays on the map.
 8. No crash, no console error, no login prompt anywhere in 1–7.
 
-Steps 1–6 pass. Step 7 (airplane mode) and everything on a real phone are still unrun (G6).
+Steps 1–7 pass. A real phone, a real permission prompt and a real radio off are still unrun (G6).
 
 ## 12. Next session, in order
 
-1. **§11 step 7** (airplane mode) and a real phone — the only parts of the demo never run.
-2. **G5**: bake POIs for every region the demo will touch. It is now the thing that decides
-   what counts as a city (G4), so a demo in Chitwan or Lumbini silently becomes a 200 km trek.
-3. **G9**: move the locate button above the sheet — it is unreachable while the sheet is open.
-4. **G2/G3** (interest scoring, curated treks as candidates) if there is time.
-5. **G11** if the wait looks bad on the projector: simplify the geometry server-side (G8).
+1. **A real phone** on mobile data, with the real location prompt and a real airplane-mode
+   switch. Everything else in §11 has now been run in a browser; this has not (G6).
+2. **G11 — the wait.** A long trek still takes ~25 s with no progress beyond a busy button.
+   Measure where it goes (ORS vs Overpass) before optimising; a smaller payload (G8) did not
+   touch it.
+3. **G3** — curated treks as trek candidates. Thin while only EBC has waypoints, so it is worth
+   doing only alongside more curated route data.
+4. **G5** — bake any other region the demo will visit, and decide what to do about Chitwan's
+   wildlife (the park polygon sits outside the day-out radius).
+5. **G12/G13** are deliberate: the pace is the trekker's to choose, and OSM names are what OSM
+   has. Revisit only if the demo audience trips over them.
