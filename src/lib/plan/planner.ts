@@ -3,7 +3,7 @@ import { toDayLegs } from "./daysplit";
 import type { InterestId } from "./interests";
 import { fetchCandidates, fetchThrough } from "./ors";
 import { fetchPoisAlong } from "./overpass";
-import { poisAround } from "./pois";
+import { poisAround, regionFor } from "./pois";
 import { buildTourVariants } from "./tour";
 import type { LatLng, PlanKind, PlannedRoute, PlanRequest, PlanResult, Poi } from "./types";
 
@@ -18,7 +18,10 @@ const DEFAULT_TOUR_INTERESTS: InterestId[] = ["culture", "villages", "forests", 
 const DEFAULT_TREK_INTERESTS: InterestId[] = ["mountains", "villages", "rivers", "teahouses"];
 
 export function planKind(start: LatLng, end: LatLng): PlanKind {
-  return haversineKm(start, end) <= TOUR_RADIUS_KM ? "tour" : "trek";
+  if (haversineKm(start, end) <= TOUR_RADIUS_KM) return "tour";
+  // Asking for a city we hold the places of is a day out *in* that city: you
+  // fly or take the bus to Pokhara, you don't walk 200 km to it.
+  return regionFor(end) ? "tour" : "trek";
 }
 
 export async function plan(request: PlanRequest): Promise<PlanResult> {
@@ -34,16 +37,19 @@ export async function plan(request: PlanRequest): Promise<PlanResult> {
  */
 async function planTour({ start, end, days, interests }: PlanRequest): Promise<PlannedRoute[]> {
   const wanted = interests.length > 0 ? interests : DEFAULT_TOUR_INTERESTS;
+  // A day out in a city far from home starts in that city, not at the doorstep
+  // of someone who is still in Kathmandu.
+  const base = haversineKm(start, end) <= TOUR_RADIUS_KM ? start : end;
   // Big enough to hold a city, wider for a longer stay.
   const radiusM = Math.min(15_000, 4_000 + days * 2_000);
   const pois = await poisAround(end, radiusM, wanted);
-  const variants = buildTourVariants(start, pois, days, wanted);
+  const variants = buildTourVariants(base, pois, days, wanted);
   const stays = pois.filter((poi) => poi.interest === "teahouses");
 
   const routes: PlannedRoute[] = [];
   for (const variant of variants) {
     // Out and back: a day out ends where it started.
-    const route = await fetchThrough([start, ...variant.stops, start]);
+    const route = await fetchThrough([base, ...variant.stops, base]);
     if (!route) continue;
     routes.push({
       ...route,
