@@ -27,3 +27,7 @@ export const formatAgo = (iso: string, nowMs: number) => {
   if (min < 1440) return `${Math.floor(min / 60)} h ago`;
   return `${Math.floor(min / 1440)} d ago`;
 };
+
+/** 27.98813, 86.925 → "27.9881° N, 86.9250° E" */
+export const formatCoords = (lat: number, lng: number) =>
+  `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? "N" : "S"}, ${Math.abs(lng).toFixed(4)}° ${lng >= 0 ? "E" : "W"}`;
