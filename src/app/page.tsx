@@ -35,5 +35,7 @@ function curatedDestinations(): Destination[] {
 }
 
 export default function HomePage() {
-  return <PlanScreen destinations={curatedDestinations()} />;
+  // A basemap key is used by the map in the browser, so it is passed down
+  // rather than kept server-side like the secrets in CLAUDE.md rule 5.
+  return <PlanScreen destinations={curatedDestinations()} basemapKey={process.env.CARTO_BASEMAPS_API_KEY} />;
 }

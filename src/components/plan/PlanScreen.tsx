@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { ArrowRight, Crosshair, Menu, Search, X } from "lucide-react";
+import { ArrowRight, Crosshair, Menu, Search, SlidersHorizontal, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,9 +31,10 @@ const LOCATE_LABEL: Record<string, string> = {
 
 export interface PlanScreenProps {
   destinations: Destination[];
+  basemapKey?: string;
 }
 
-export function PlanScreen({ destinations }: PlanScreenProps) {
+export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
   const { status, coords, locate } = usePosition();
   const [sheet, setSheet] = React.useState<SheetState>("peek");
   const [destination, setDestination] = React.useState<Destination | null>(null);
@@ -107,7 +108,7 @@ export function PlanScreen({ destinations }: PlanScreenProps) {
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       <div className="absolute inset-0">
-        <PlanMap position={coords} routes={routes} selectedRouteId={selectedId} onReady={onReady} />
+        <PlanMap position={coords} basemapKey={basemapKey} routes={routes} selectedRouteId={selectedId} onReady={onReady} />
       </div>
 
       {/* Top bar: menu + the pill that opens the search. */}
@@ -199,9 +200,11 @@ export function PlanScreen({ destinations }: PlanScreenProps) {
               <button
                 type="button"
                 onClick={() => setSheet("trip")}
-                className="min-h-12 text-small text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+                aria-label="Change days or interests"
+                title="Change days or interests"
+                className="flex size-12 items-center justify-center rounded-[var(--radius)] text-accent hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
               >
-                Edit
+                <SlidersHorizontal className="size-5" aria-hidden />
               </button>
             </div>
             <RouteCards routes={routes} selectedId={selectedId ?? ""} days={days} onSelect={setSelectedId} />

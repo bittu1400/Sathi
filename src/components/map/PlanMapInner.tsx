@@ -3,7 +3,7 @@
 import * as React from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { getRasterStyle } from "./style";
+import { getBasemapUrl } from "./style";
 import { setPositionLayer } from "./layers";
 import type { Coords } from "@/lib/plan/position";
 import { NEPAL_CENTER } from "@/lib/plan/position";
@@ -15,6 +15,8 @@ maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
 export interface PlanMapProps {
   position: Coords | null;
+  /** CARTO basemap key; the map falls back to the keyless style without it. */
+  basemapKey?: string;
   routes?: PlannedRoute[];
   selectedRouteId?: string | null;
   /** Called once the map is usable, so the screen can fly it around. */
@@ -50,7 +52,7 @@ function boundsOf(routes: PlannedRoute[]): maplibregl.LngLatBounds | null {
  * The planner's full-bleed map. Unlike `MapInner` (one trek, fixed aspect,
  * offline packs) this one fills the viewport and is panned like a maps app.
  */
-export default function PlanMapInner({ position, routes = [], selectedRouteId = null, onReady }: PlanMapProps) {
+export default function PlanMapInner({ position, basemapKey, routes = [], selectedRouteId = null, onReady }: PlanMapProps) {
   const container = React.useRef<HTMLDivElement>(null);
   const [map, setMap] = React.useState<maplibregl.Map | null>(null);
   // Checked at render, not in the effect: an old device or a blocked context
@@ -70,7 +72,7 @@ export default function PlanMapInner({ position, routes = [], selectedRouteId = 
     try {
       instance = new maplibregl.Map({
         container: container.current,
-        style: getRasterStyle(),
+        style: getBasemapUrl("light", basemapKey),
         center: [NEPAL_CENTER.lng, NEPAL_CENTER.lat],
         zoom: 6.5,
         attributionControl: false,
@@ -90,13 +92,21 @@ export default function PlanMapInner({ position, routes = [], selectedRouteId = 
       setMap(null);
       instance.remove();
     };
-  }, [webgl]);
+  }, [webgl, basemapKey]);
 
   // First real fix flies to the device; later fixes only move the dot, so the
   // map doesn't yank itself back while the user is panning.
   React.useEffect(() => {
     if (!map) return;
     setPositionLayer(map, position ? { lat: position.lat, lng: position.lng } : null);
+    // The shared layer is painted for the trekker screens' dark basemap; over
+    // pale tiles it needs the map palette to stay visible.
+    if (map.getLayer("me-dot")) {
+      const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+      map.setPaintProperty("me-dot", "circle-color", css("map-route"));
+      map.setPaintProperty("me-dot", "circle-stroke-color", "#ffffff");
+      map.setPaintProperty("me-halo", "circle-color", css("map-route"));
+    }
     if (position && !centred.current) {
       centred.current = true;
       map.flyTo({ center: [position.lng, position.lat], zoom: 13, duration: 900 });
@@ -120,8 +130,8 @@ export default function PlanMapInner({ position, routes = [], selectedRouteId = 
         source: "plan-routes",
         layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["case", ["get", "selected"], 1, 0] },
         paint: {
-          "line-color": ["case", ["get", "selected"], css("accent"), css("text-faint")],
-          "line-width": ["case", ["get", "selected"], 5, 3],
+          "line-color": ["case", ["get", "selected"], css("map-route"), css("map-route-dim")],
+          "line-width": ["case", ["get", "selected"], 6, 3],
           "line-opacity": ["case", ["get", "selected"], 1, 0.7],
         },
       });

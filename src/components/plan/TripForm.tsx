@@ -1,11 +1,40 @@
 "use client";
 
 import * as React from "react";
-import { Minus, Plus, Search } from "lucide-react";
+import {
+  Bird,
+  Landmark,
+  Minus,
+  Mountain,
+  Plus,
+  Route,
+  Search,
+  Sunrise,
+  Trees,
+  Waves,
+  Droplets,
+  Hotel,
+  Houses,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Chip, ChipGroup } from "@/components/ui/chip";
 import { INTERESTS, type InterestId } from "@/lib/plan/interests";
+
 import type { Destination } from "./DestinationSearch";
+
+/** One icon per interest: the chips read as a row of places, not a wall of text. */
+const INTEREST_ICON: Record<InterestId, typeof Mountain> = {
+  mountains: Mountain,
+  rivers: Waves,
+  sunrise: Sunrise,
+  lakes: Droplets,
+  waterfalls: Droplets,
+  forests: Trees,
+  culture: Landmark,
+  villages: Houses,
+  teahouses: Hotel,
+  wildlife: Bird,
+};
 
 export const MIN_DAYS = 1;
 export const MAX_DAYS = 21;
@@ -99,15 +128,19 @@ export function TripForm({
         <div>
           <p className="mb-2 text-small text-text-muted">What do you want to see?</p>
           <ChipGroup>
-            {INTERESTS.map((interest) => (
-              <Chip
-                key={interest.id}
-                selected={interests.includes(interest.id)}
-                onClick={() => toggle(interest.id)}
-              >
-                {interest.label}
-              </Chip>
-            ))}
+            {INTERESTS.map((interest) => {
+              const Icon = INTEREST_ICON[interest.id];
+              return (
+                <Chip
+                  key={interest.id}
+                  selected={interests.includes(interest.id)}
+                  onClick={() => toggle(interest.id)}
+                >
+                  <Icon className="size-4" aria-hidden />
+                  {interest.label}
+                </Chip>
+              );
+            })}
           </ChipGroup>
         </div>
       </div>
@@ -119,7 +152,7 @@ export function TripForm({
       )}
 
       <Button className="w-full" disabled={!hasStart} state={busy ? "busy" : "idle"} onClick={onSubmit}>
-        Find routes
+        <Route className="size-5" aria-hidden /> Find routes
       </Button>
     </div>
   );
