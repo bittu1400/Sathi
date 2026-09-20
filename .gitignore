@@ -47,3 +47,6 @@ next-env.d.ts
 
 # MapLibre worker copied out of node_modules by scripts/copy-maplibre-worker.mjs
 /public/maplibre/
+
+# Scratch design notes kept beside the repo, never published from here.
+/redesign.md
