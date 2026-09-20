@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Car, ChevronDown, Footprints, MapPin, TrendingUp } from "lucide-react";
 import { formatGain, formatKm } from "@/lib/format";
+import { placeWord } from "@/lib/plan/interests";
 import type { PlannedRoute } from "@/lib/plan/types";
 import { DayPlan } from "./DayPlan";
 
@@ -78,7 +79,10 @@ export function RouteCards({ routes, selectedId, onSelect }: RouteCardsProps) {
                 {route.stops.length > 0 && (
                   <p className="flex items-start gap-1 text-small text-text-muted">
                     <MapPin className="mt-0.5 size-4 shrink-0" aria-hidden />
-                    <span className="line-clamp-2">{route.stops.map((stop) => stop.name).join(" · ")}</span>
+                    <span className="line-clamp-2">
+                      <span className="sr-only">Places on this route, in walking order: </span>
+                      {route.stops.map((stop) => `${stop.name} (${placeWord(stop.kind, stop.interest)})`).join(" · ")}
+                    </span>
                   </p>
                 )}
 

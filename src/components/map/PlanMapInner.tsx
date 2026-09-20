@@ -7,6 +7,7 @@ import { getBasemapUrl } from "./style";
 import { setPositionLayer } from "./layers";
 import type { Coords } from "@/lib/plan/position";
 import { NEPAL_CENTER } from "@/lib/plan/position";
+import { placeWord } from "@/lib/plan/interests";
 import type { PlannedRoute, Poi } from "@/lib/plan/types";
 
 // Turbopack doesn't emit MapLibre's `import.meta.url` worker, so the worker 404s
@@ -147,14 +148,20 @@ export default function PlanMapInner({
     }
   }, [map, routes, selectedRouteId]);
 
-  // Numbered pins for the stops of whichever route is selected.
+  // Pins for the stops of whichever route is selected: the number says the
+  // order, the label beside it says what the place is — a pin reading "3" on
+  // its own tells the trekker nothing about why they are walking past it.
   React.useEffect(() => {
     if (!map) return;
     const data: GeoJSON.FeatureCollection = {
       type: "FeatureCollection",
       features: stops.map((stop, index) => ({
         type: "Feature",
-        properties: { label: String(index + 1), name: stop.name },
+        properties: {
+          label: String(index + 1),
+          // Two lines: the name, then what kind of place it is.
+          name: `${stop.name}\n${placeWord(stop.kind, stop.interest)}`,
+        },
         geometry: { type: "Point", coordinates: [stop.lng, stop.lat] },
       })),
     };
@@ -181,6 +188,26 @@ export default function PlanMapInner({
         source: "plan-stops",
         layout: { "text-field": ["get", "label"], "text-size": 12, "text-allow-overlap": true },
         paint: { "text-color": "#ffffff" },
+      });
+      // The name sits under the pin and may be dropped when two pins collide —
+      // the numbered dot always stays, the words give way.
+      map.addLayer({
+        id: "plan-stops-name",
+        type: "symbol",
+        source: "plan-stops",
+        layout: {
+          "text-field": ["get", "name"],
+          "text-size": 11,
+          "text-anchor": "top",
+          "text-offset": [0, 1.1],
+          "text-max-width": 9,
+          "text-line-height": 1.1,
+        },
+        paint: {
+          "text-color": css("map-label"),
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.5,
+        },
       });
     }
   }, [map, stops]);
