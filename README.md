@@ -20,8 +20,14 @@ Trekkers in Nepal's high mountains are exposed to Acute Mountain Sickness (AMS),
   lakes — and Sathi draws the options with a day-by-day plan: distance, climb, walking hours,
   what each day passes and where it ends. A destination in a city becomes a **day out**, a
   walking loop through a set of places; anywhere else becomes a **trek**, a line split into
-  days. No sign-in anywhere on that path. Routing by OpenRouteService, places from
-  OpenStreetMap, basemap by CARTO.
+  days. Every option carries **both travel times** — walking always, by road where a road
+  exists. No sign-in anywhere on that path. Routing by OpenRouteService, places from
+  OpenStreetMap, basemap by CARTO. The map's right rail also holds the community boards and
+  the SOS button.
+- **Community boards (`/community`):** five place-named boards — Pokhara, Everest Base Camp,
+  Kathmandu, Annapurna Circuit, Langtang — where trekkers' notes are listed best-first. The
+  board names are real places; **the posts are sample content shipped with the app**, read-only,
+  with no sign-in and nothing stored.
 - **Route & Topo Intelligence:** Curated Himalayan routes (full data for Everest Base Camp today; more routes as their data is verified) with maps, elevation profiles, acclimatization stages, and an emergency directory that marks unverified entries.
 - **Deterministic Altitude Watch:** Pure TypeScript rules engine implementing the 2018 Lake Louise Score (LLS) and Wilderness Medical Society ascent guidelines. **Zero AI in the critical safety loop**—all advice is deterministic and unit-tested.
 - **Offline Packs (PMTiles):** Single-file vector map packs and emergency directories downloaded in Kathmandu, accessible anywhere on the trail without cell reception.
@@ -122,6 +128,7 @@ pnpm check   # Executes: typecheck + eslint + vitest + next build
 | Route | Role / Access | Purpose |
 |---|---|---|
 | `/` | Public | **Route recommender** — the map-first planner, no sign-in |
+| `/community`, `/community/<board>` | Public | Community boards — five place boards with sample posts, read-only |
 | `/about` | Public | Product introduction, feature overview, and offline architecture |
 | `/login` | Public | Authentication with one-click demo logins |
 | `/trek` | Trekker (`trekker`) | Live trail companion: altitude HUD, next waypoint, symptom check-in, alerts |
