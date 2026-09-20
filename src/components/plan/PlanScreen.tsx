@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { ArrowRight, Circle, Crosshair, MapPin, Menu, SlidersHorizontal, Users, X } from "lucide-react";
+import { ArrowRight, Circle, Crosshair, MapPin, SlidersHorizontal, Users, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,7 @@ import type { InterestId } from "@/lib/plan/interests";
 import type { PlanMode, PlannedRoute, PlanResult, VariantKind } from "@/lib/plan/types";
 import { Chip, ChipGroup } from "@/components/ui/chip";
 import { DestinationSearch, type Destination } from "./DestinationSearch";
+import { MapMenu } from "./MapMenu";
 import { RouteCards } from "./RouteCards";
 import { TripForm } from "./TripForm";
 
@@ -176,13 +177,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
 
       {/* Top bar: menu, then both ends of the trip — from here, to there. */}
       <div className="absolute inset-x-0 top-0 flex items-start gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
-        <Link
-          href="/about"
-          aria-label="About Sathi"
-          className="flex size-12 shrink-0 items-center justify-center rounded-full border border-line bg-surface text-text shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <Menu className="size-5" aria-hidden />
-        </Link>
+        <MapMenu />
         <div className="min-w-0 flex-1 divide-y divide-line overflow-hidden rounded-[var(--radius-lg)] border border-line bg-surface shadow-lg">
           <button
             type="button"
