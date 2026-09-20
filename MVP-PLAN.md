@@ -121,7 +121,8 @@ trips to it are planned.
    share_factor: 0.6, weight_factor: 1.6}`; on refusal, the same profile **without** alternatives;
    then `driving-car` the same way. A 401/403 fails fast (that's our key, not the request).
    `source` records which profile answered, and the card says so when it's a road route.
-2. `fetchPoisAlong(line, 2 km, interests)` for the day highlights and overnight names.
+2. `fetchPoisAlong(…, 2 km, interests)` for the day highlights and overnight names — **one**
+   query over every candidate's coordinates at once, because alternatives share a corridor.
 3. If ORS returned more than one geometry, each becomes an option, **scored** by how many of the
    chosen places it passes (notable ones count double). The best match leads the carousel and
    each card is named after what that line has most of ("Most temples & culture"); a line with
@@ -129,8 +130,11 @@ trips to it are planned.
    corridor, so one Overpass query covers them all and `poisNear()` splits the result per line.
 4. If it returned one — which is most of the high mountains — the options are three **paces** of
    the same line: as asked, one day faster, one day easier.
-5. Last of all, every geometry is run through Douglas–Peucker at 10 m (`simplify.ts`), after the
-   day split has measured climb on the full line.
+
+### Before the response leaves (both shapes) — `src/lib/plan/simplify.ts`
+Every geometry goes through Douglas–Peucker at 10 m, **last**, after the day split has measured
+climb on every original point. `distanceM`, `ascentM`, `durationS` and the day legs therefore
+describe the line ORS sent, not the line the phone draws.
 
 ### Day plan (both shapes) — `src/lib/plan/daysplit.ts`
 Naismith: 4.5 km/h plus one hour per 600 m of climb, descent ignored. The line is cut into legs
@@ -304,7 +308,8 @@ the marketing header), `src/components/map/style.ts` (`getBasemapUrl`), `src/app
 (three map tokens), `.env.example`.
 
 Server-only modules — never import these from a client component: `ors.ts`, `overpass.ts`,
-`pois.ts`, `planner.ts`, `simplify.ts` is pure but only used there.
+`pois.ts`, `planner.ts`. (`simplify.ts` is pure and would work anywhere, but only the planner
+uses it.)
 
 ## 10. Running and checking it
 
@@ -424,5 +429,5 @@ browser pane** of the Claude desktop app (`preview_start`, `navigate`, `read_pag
    the trekker screens keep their offline behaviour.
 
 Where the rest of the documentation lives: `docs/SPEC.md` §17 is the contract and behaviour,
-`docs/DECISIONS.md` #161–#190 is why each choice was made, `docs/TODO.md` NEXT M-0 … M-12 is the
+`docs/DECISIONS.md` #161–#191 is why each choice was made, `docs/TODO.md` NEXT M-0 … M-12 is the
 task board. This file is the only one with the measurements.
