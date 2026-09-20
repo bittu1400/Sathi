@@ -1,12 +1,14 @@
 "use client";
 
-import React, { useState } from "react";
-import { AlertTriangle, Clock, Radio, CheckCircle2 } from "lucide-react";
+import React from "react";
+import { Clock, Inbox } from "lucide-react";
 import type { SosStatus } from "@/lib/types";
 import type { SosWithContext } from "@/lib/db/queries";
 import { formatAltitude } from "@/lib/format";
 import { getRoute } from "@/lib/data";
-import { cn } from "cn";
+import { cn } from "@/lib/utils";
+import { Status, type StatusTone } from "@/components/ui/status";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const CATEGORY_LABELS: Record<string, string> = {
   altitude_illness: "Altitude illness",
@@ -16,141 +18,105 @@ export const CATEGORY_LABELS: Record<string, string> = {
   other: "Other emergency",
 };
 
-export const STATUS_STYLE: Record<SosStatus, string> = {
-  open: "bg-sos/20 text-sos",
-  acknowledged: "bg-caution/20 text-caution",
-  resolved: "bg-ok/20 text-ok",
-};
+export const STATUS_TONE: Record<SosStatus, StatusTone> = { open: "sos", acknowledged: "caution", resolved: "ok" };
+const RULE: Record<SosStatus, string> = { open: "border-l-sos", acknowledged: "border-l-caution", resolved: "border-l-ok" };
 
-const CHANNEL_STYLE = {
-  online: "border-info/30 bg-info/10 text-info",
-  queued: "border-caution/30 bg-caution/10 text-caution",
-  sms: "border-ok/30 bg-ok/10 text-ok",
-} as const;
-
-export function timeSince(iso: string, now: number | null): string {
+/** "12s", "4m 03s", "1h 05m": a live counter for open incidents. */
+export function elapsed(fromIso: string, now: number | null): string {
   if (now === null) return "";
-  const seconds = Math.max(0, Math.floor((now - Date.parse(iso)) / 1000));
-  if (seconds < 5) return "just now";
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+  const s = Math.max(0, Math.floor((now - Date.parse(fromIso)) / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  if (h > 0) return `${h}h ${pad(m)}m`;
+  if (m > 0) return `${m}m ${pad(s % 60)}s`;
+  return `${s}s`;
 }
 
 export const routeName = (routeId: string | null) => (routeId ? (getRoute(routeId)?.name ?? routeId) : "No active trek");
 
-const RANK: Record<SosStatus, number> = { open: 0, acknowledged: 1, resolved: 2 };
-type Filter = "open" | "acknowledged" | "all";
+export type QueueTab = SosStatus;
+const ORDER: QueueTab[] = ["open", "acknowledged", "resolved"];
+
+/** The queue order everything else (shortcuts, selection) shares. */
+export const inTab = (events: SosWithContext[], tab: QueueTab) =>
+  events
+    .filter((e) => e.status === tab)
+    .sort((a, b) => Date.parse(b.receivedAt ?? b.createdAt) - Date.parse(a.receivedAt ?? a.createdAt));
 
 interface SosQueueProps {
   events: SosWithContext[];
+  tab: QueueTab;
+  onTab: (tab: QueueTab) => void;
   selectedId: string | null;
   onSelect: (id: string) => void;
   now: number | null;
+  /** Rows to highlight for 2 s after arriving. */
+  flashIds: Set<string>;
 }
 
-export function SosQueue({ events, selectedId, onSelect, now }: SosQueueProps) {
-  const [filter, setFilter] = useState<Filter>("open");
-
-  const visible = events
-    .filter((e) => filter === "all" || e.status === filter)
-    .sort(
-      (a, b) =>
-        RANK[a.status] - RANK[b.status] ||
-        Date.parse(b.receivedAt ?? b.createdAt) - Date.parse(a.receivedAt ?? a.createdAt),
-    );
-  const counts = {
-    open: events.filter((e) => e.status === "open").length,
-    acknowledged: events.filter((e) => e.status === "acknowledged").length,
-    all: events.length,
-  };
+export function SosQueue({ events, tab, onTab, selectedId, onSelect, now, flashIds }: SosQueueProps) {
+  const visible = inTab(events, tab);
+  const count = (s: QueueTab) => events.filter((e) => e.status === s).length;
 
   return (
-    <div className="flex h-full flex-col border-r border-border bg-bg/95">
-      <div className="space-y-2.5 border-b border-border p-3">
-        <h2 className="flex items-center gap-2 text-sm font-semibold tracking-tight">
-          <Radio className="h-4 w-4 text-sos" />
-          SOS queue
-        </h2>
-        <div role="tablist" className="flex rounded-[var(--radius-sm)] bg-surface-2/60 p-1 text-xs font-medium">
-          {(["open", "acknowledged", "all"] as const).map((f) => (
-            <button
-              key={f}
-              type="button"
-              role="tab"
-              aria-selected={filter === f}
-              onClick={() => setFilter(f)}
-              className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 transition-colors",
-                filter === f ? "bg-bg font-semibold text-text shadow-sm" : "text-text-muted hover:text-text",
-              )}
-            >
-              <span className="capitalize">{f === "acknowledged" ? "Ack" : f}</span>
-              <span className="font-mono tabular-nums text-[10px]">{counts[f]}</span>
-            </button>
+    <div className="flex h-full flex-col bg-bg">
+      <Tabs value={tab} onValueChange={(v) => onTab(v as QueueTab)} className="border-b border-line px-2">
+        <TabsList className="border-b-0">
+          {ORDER.map((s) => (
+            <TabsTrigger key={s} value={s} className="px-3 capitalize">
+              {s} <span className="ml-1 font-mono tabular-nums">{count(s)}</span>
+            </TabsTrigger>
           ))}
-        </div>
-      </div>
+        </TabsList>
+      </Tabs>
 
-      <div className="flex-1 divide-y divide-border/40 overflow-y-auto" aria-live="polite">
+      <ul className="flex-1 overflow-y-auto" aria-label="SOS queue">
         {visible.length === 0 ? (
-          <div className="space-y-2 p-8 text-center text-xs text-text-muted">
-            <CheckCircle2 className="mx-auto h-8 w-8 opacity-40" />
-            <p className="font-medium text-text">No incidents in this view</p>
-          </div>
+          <li className="flex flex-col items-center gap-2 p-8 text-center text-text-muted">
+            <Inbox className="size-6" aria-hidden />
+            <span>No {tab} incidents</span>
+          </li>
         ) : (
-          visible.map((event) => (
-            <button
-              key={event.id}
-              type="button"
-              onClick={() => onSelect(event.id)}
-              aria-current={event.id === selectedId}
-              className={cn(
-                "relative block w-full border-l-4 p-3.5 text-left transition-colors",
-                event.id === selectedId ? "border-l-sos bg-surface-2/70" : "border-l-transparent hover:bg-surface-2/40",
-              )}
-            >
-              <div className="mb-1.5 flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1.5">
-                  <span className={cn("rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider", STATUS_STYLE[event.status])}>
-                    {event.status}
-                  </span>
-                  <span className={cn("rounded border px-1.5 py-0.5 font-mono text-[10px]", CHANNEL_STYLE[event.channel])}>
-                    {event.channel.toUpperCase()}
-                  </span>
-                </div>
-                <span className="flex items-center gap-1 font-mono text-[11px] text-text-muted">
-                  <Clock className="h-3 w-3" />
-                  {timeSince(event.createdAt, now)}
-                </span>
-              </div>
-              <div className="mb-1 flex items-center justify-between text-sm font-semibold">
-                <span>{CATEGORY_LABELS[event.category]}</span>
-                {event.altM !== null && (
-                  <span className="font-mono text-xs tabular-nums text-text-muted">{formatAltitude(event.altM)}</span>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-xs text-text-muted">
-                <span className="font-medium text-text/80">{event.trekkerName}</span>
-                <span className="max-w-[160px] truncate text-[11px]">{routeName(event.routeId)}</span>
-              </div>
-              {event.note && (
-                <p className="mt-2 truncate rounded border border-border/40 bg-bg/50 p-1.5 text-xs italic text-text-muted">
-                  &ldquo;{event.note}&rdquo;
-                </p>
-              )}
-              {event.lastCheckinLls !== null && (
-                <p className="mt-1.5 flex items-center gap-1 font-mono text-[11px] text-caution">
-                  <AlertTriangle className="h-3 w-3" />
-                  Last Lake Louise score {event.lastCheckinLls}
-                </p>
-              )}
-            </button>
-          ))
+          visible.map((event) => {
+            const selected = event.id === selectedId;
+            return (
+              <li key={event.id} className="border-b border-line" data-incident={event.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelect(event.id)}
+                  aria-current={selected || undefined}
+                  className={cn(
+                    "block min-h-14 w-full cursor-pointer border-l-4 px-3 py-3 text-left transition-colors duration-[var(--dur)]",
+                    RULE[event.status],
+                    selected ? "bg-surface-3" : flashIds.has(event.id) ? "bg-sos-bg" : "hover:bg-surface-2"
+                  )}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="truncate text-body font-medium">{event.trekkerName}</span>
+                    <span className="flex shrink-0 items-center gap-1 font-mono text-small tabular-nums text-text-muted">
+                      <Clock className="size-3.5" aria-hidden />
+                      {elapsed(event.createdAt, now)}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-center justify-between gap-2 text-small text-text-muted">
+                    <span className="truncate">
+                      {CATEGORY_LABELS[event.category]} · {routeName(event.routeId)}
+                    </span>
+                    {event.altM !== null && <span className="shrink-0 font-mono tabular-nums">{formatAltitude(event.altM)}</span>}
+                  </div>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Status tone={STATUS_TONE[event.status]}>{event.status}</Status>
+                    <Status>{event.channel}</Status>
+                    {event.lastCheckinLls !== null && <Status tone="caution">LLS {event.lastCheckinLls}</Status>}
+                  </div>
+                  {event.note && <p className="mt-2 truncate text-small italic text-text-muted">&ldquo;{event.note}&rdquo;</p>}
+                </button>
+              </li>
+            );
+          })
         )}
-      </div>
+      </ul>
     </div>
   );
 }
