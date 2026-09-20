@@ -11,11 +11,12 @@ import { TabBar } from "./ui/shell/tab-bar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Consoles, the public family page and the demo driver bring their own chrome.
+  // Consoles, the public family page, sign-in and the demo driver bring their own chrome.
   const isExcludedRoute =
     pathname.startsWith("/rescue") ||
     pathname.startsWith("/agency") ||
     pathname.startsWith("/share") ||
+    pathname.startsWith("/login") ||
     pathname.startsWith("/demo");
 
   if (isExcludedRoute) {
@@ -45,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // SOS FAB: trek mode and route detail pages (SPEC §9.1). HeaderSos covers the rest (Q3).
   const showFab = pathname === "/trek" || /^\/routes\/[^/]+$/.test(pathname);
-  const showHeaderSos = pathname !== "/sos" && pathname !== "/login";
+  const showHeaderSos = pathname !== "/sos";
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg text-text">
