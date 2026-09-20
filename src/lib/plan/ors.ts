@@ -50,27 +50,28 @@ export function toPlannedRoutes(features: OrsFeature[], source: RouteSource): Pl
         id: `${source}-${index}`,
         label: index === 0 ? "Fastest" : `Alternative ${index}`,
         source,
+        kind: "trek",
         distanceM: Math.round(summary.distance ?? 0),
         durationS: Math.round(summary.duration ?? 0),
         ascentM: typeof feature.properties?.ascent === "number" ? Math.round(feature.properties.ascent) : null,
         // ORS sends [lng, lat, elevation]; the third value is kept, GeoJSON allows it.
         geometry: { type: "LineString", coordinates },
+        // Filled in by the planner once it knows what the line passes.
+        stops: [],
+        days: [],
       },
     ];
   });
 }
 
-type Profile = "foot-hiking" | "driving-car";
+export type Profile = "foot-hiking" | "foot-walking" | "driving-car";
 
-async function directions(profile: Profile, start: LatLng, end: LatLng, key: string, alternatives: boolean) {
+async function directions(profile: Profile, points: LatLng[], key: string, alternatives: boolean) {
   return fetch(`${ORS_BASE}/${profile}/geojson`, {
     method: "POST",
     headers: { Authorization: key, "Content-Type": "application/json" },
     body: JSON.stringify({
-      coordinates: [
-        [start.lng, start.lat],
-        [end.lng, end.lat],
-      ],
+      coordinates: points.map((p) => [p.lng, p.lat]),
       elevation: true,
       instructions: false,
       // Up to three genuinely different lines: share_factor caps how much of the
@@ -96,8 +97,7 @@ async function readError(response: Response): Promise<string> {
  * falls back to the road route and says so through `source`.
  */
 export async function fetchCandidates(start: LatLng, end: LatLng): Promise<PlannedRoute[]> {
-  const key = process.env.ORS_API_KEY;
-  if (!key) throw new PlanError(503, "Route planning is not configured yet.");
+  const key = requireKey();
   if (!inNepal(start) || !inNepal(end)) {
     throw new PlanError(400, "Sathi plans routes inside Nepal only.");
   }
@@ -108,7 +108,7 @@ export async function fetchCandidates(start: LatLng, end: LatLng): Promise<Plann
   for (const profile of profiles) {
     // Long trips lose the alternatives, not the route: one honest line beats none.
     for (const alternatives of [true, false]) {
-      const response = await directions(profile, start, end, key, alternatives);
+      const response = await directions(profile, [start, end], key, alternatives);
       if (response.ok) {
         const body = (await response.json()) as { features?: OrsFeature[] };
         const routes = toPlannedRoutes(body.features ?? [], profile === "foot-hiking" ? "hiking" : "driving");
@@ -128,4 +128,34 @@ export async function fetchCandidates(start: LatLng, end: LatLng): Promise<Plann
   }
 
   throw new PlanError(502, lastMessage);
+}
+
+function requireKey(): string {
+  const key = process.env.ORS_API_KEY;
+  if (!key) throw new PlanError(503, "Route planning is not configured yet.");
+  return key;
+}
+
+/**
+ * One walking route through every point in order: the shape of a day out, where
+ * the stops are the point of the route. Returns null when ORS can't join them,
+ * so the caller can drop that variant and keep the others.
+ */
+export async function fetchThrough(points: LatLng[], profile: Profile = "foot-walking"): Promise<PlannedRoute | null> {
+  const key = requireKey();
+  if (points.length < 2) return null;
+  if (points.some((point) => !inNepal(point))) {
+    throw new PlanError(400, "Sathi plans routes inside Nepal only.");
+  }
+  const response = await directions(profile, points, key, false);
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 403) {
+      throw new PlanError(502, "Route service rejected our key.");
+    }
+    console.error("Through-route failed:", await readError(response));
+    return null;
+  }
+  const body = (await response.json()) as { features?: OrsFeature[] };
+  const [route] = toPlannedRoutes(body.features ?? [], profile === "driving-car" ? "driving" : "hiking");
+  return route ?? null;
 }

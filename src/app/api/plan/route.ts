@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { INTEREST_IDS } from "@/lib/plan/interests";
-import { fetchCandidates, PlanError } from "@/lib/plan/ors";
-import type { PlanResult } from "@/lib/plan/types";
+import { PlanError } from "@/lib/plan/ors";
+import { plan } from "@/lib/plan/planner";
+import type { InterestId, PlanResult } from "@/lib/plan/types";
 
 const point = z.object({
   lat: z.number().min(-90).max(90),
@@ -29,6 +30,7 @@ function cacheKey(input: z.infer<typeof planSchema>): string {
     round(input.end.lat),
     round(input.end.lng),
     input.days,
+    [...input.interests].sort().join("+"),
   ].join(":");
 }
 
@@ -46,8 +48,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const routes = await fetchCandidates(parsed.data.start, parsed.data.end);
-    const result: PlanResult = { routes };
+    const result: PlanResult = await plan({
+      ...parsed.data,
+      interests: parsed.data.interests as InterestId[],
+    });
+    if (result.routes.length === 0) {
+      return NextResponse.json({ error: "No route found between those points." }, { status: 404 });
+    }
     cache.set(key, { at: Date.now(), result });
     return NextResponse.json(result);
   } catch (error) {
