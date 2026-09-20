@@ -104,7 +104,7 @@ export default async function FamilySharePage({ params }: { params: Promise<{ to
         <Banner
           severity="sos"
           headline="An SOS was sent"
-          reasons={["Coordination has received it and is working on it. Their status isn't shown here."]}
+          reasons={["Coordination has received it. Whether they have acknowledged it isn't shown here."]}
           disclaimer={SOS_DISCLAIMER}
         />
       )}
