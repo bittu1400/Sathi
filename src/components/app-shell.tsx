@@ -4,7 +4,6 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Compass, Mountain, Map, Settings } from "lucide-react";
-import { ThemeToggle } from "./theme-toggle";
 import { LiveConnectivityPill } from "./live-connectivity";
 import { SosButton } from "./sos/SosButton";
 import { TopoBackground } from "./ui/topo-background";
@@ -70,7 +69,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           {/* Header Controls */}
           <div className="flex items-center gap-3">
             <LiveConnectivityPill />
-            <ThemeToggle />
           </div>
         </div>
       </header>
