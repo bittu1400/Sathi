@@ -1,5 +1,7 @@
 import { haversineKm } from "@/lib/geo";
+import chitwan from "@/data/pois/chitwan.json";
 import kathmandu from "@/data/pois/kathmandu.json";
+import lumbini from "@/data/pois/lumbini.json";
 import pokhara from "@/data/pois/pokhara.json";
 import type { InterestId } from "./interests";
 import { fetchPois, type Bbox } from "./overpass";
@@ -13,11 +15,14 @@ interface Region {
 }
 
 /**
- * OpenStreetMap extracts for the cities the demo plans around, baked by
- * scripts/fetch-pois.mts. Overpass is a shared public service and was timing
+ * OpenStreetMap extracts for the places the demo plans around, baked by
+ * scripts/fetch-pois.ts. Overpass is a shared public service and was timing
  * out on us; a city day out shouldn't fail because of that.
+ *
+ * This list is also what `planKind` treats as a city worth spending days in,
+ * so adding a region changes how trips to it are planned.
  */
-const REGIONS = [kathmandu, pokhara] as unknown as Region[];
+const REGIONS = [kathmandu, pokhara, chitwan, lumbini] as unknown as Region[];
 
 export function regionFor(point: LatLng): Region | null {
   return (
