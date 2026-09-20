@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "pnpm copy-worker && next dev",
+    "build": "pnpm copy-worker && next build",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "next typegen && tsc --noEmit",
@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm validate-data && pnpm build",
     "prepare": "git config core.hooksPath .githooks || true",
-    "validate-data": "tsx scripts/validate-data.ts"
+    "validate-data": "tsx scripts/validate-data.ts",
+    "copy-worker": "node scripts/copy-maplibre-worker.mjs"
   },
   "dependencies": {
     "@protomaps/basemaps": "^5.7.2",

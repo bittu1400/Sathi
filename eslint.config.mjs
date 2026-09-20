@@ -14,6 +14,8 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Private team docs (separate repo, gitignored)
     "docs/**",
+    // MapLibre's worker bundle, copied out of node_modules (gitignored)
+    "public/maplibre/**",
   ]),
 ]);
 

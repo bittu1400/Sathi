@@ -44,3 +44,6 @@ next-env.d.ts
 # Private team docs = a separate clone of the PRIVATE repo bittu1400/sathi-docs.
 # This repo is PUBLIC. docs/ must NEVER be committed here (guarded by .githooks/pre-commit and CI).
 /docs/
+
+# MapLibre worker copied out of node_modules by scripts/copy-maplibre-worker.mjs
+/public/maplibre/
