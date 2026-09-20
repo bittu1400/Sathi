@@ -1,6 +1,7 @@
 import * as React from "react";
-import { cn } from "cn";
-import { Mountain } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Mountain, TriangleAlert } from "lucide-react";
+import { Button } from "./button";
 
 export interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -11,7 +12,7 @@ export interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon = <Mountain className="w-10 h-10 text-text-muted" />,
+  icon = <Mountain className="size-6 text-text-muted" strokeWidth={1.75} />,
   title,
   description,
   action,
@@ -20,18 +21,32 @@ export function EmptyState({
   return (
     <div
       className={cn(
-        "flex flex-col items-center justify-center p-8 rounded-[var(--radius)] border border-dashed border-border text-center bg-surface-2/40 gap-3",
+        "flex flex-col items-center justify-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-line-strong bg-surface p-8 text-center",
         className
       )}
     >
-      <div className="p-3 bg-surface rounded-full border border-border">
-        {icon}
-      </div>
-      <h3 className="text-lg font-semibold text-text">{title}</h3>
-      {description && (
-        <p className="text-sm text-text-muted max-w-sm">{description}</p>
-      )}
-      {action && <div className="mt-2">{action}</div>}
+      {icon}
+      <h3 className="text-h2 text-text">{title}</h3>
+      {description && <p className="max-w-sm text-body text-text-muted">{description}</p>}
+      {action && <div className="mt-1">{action}</div>}
     </div>
+  );
+}
+
+/** Says what happened and what to do; Retry when the caller can retry. */
+export function ErrorState({ onRetry, ...props }: EmptyStateProps & { onRetry?: () => void }) {
+  return (
+    <EmptyState
+      icon={<TriangleAlert className="size-6 text-danger" strokeWidth={1.75} />}
+      action={
+        props.action ??
+        (onRetry && (
+          <Button variant="secondary" onClick={onRetry}>
+            Retry
+          </Button>
+        ))
+      }
+      {...props}
+    />
   );
 }
