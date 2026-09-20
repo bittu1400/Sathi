@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { amsInputFromCheckins, evaluateAms } from "@/lib/ams";
+import { amsInputFromCheckins, evaluateAms, isFastGain } from "@/lib/ams";
 import type { AmsInput, RedFlag } from "@/lib/types";
 
 const checkin = (
@@ -318,5 +318,14 @@ describe("amsInputFromCheckins", () => {
       amsInputFromCheckins(2860, [c("2026-09-18T13:00:00Z", 3860), c("2026-09-19T13:00:00Z", 4940)]),
     );
     expect(result.alerts.map((a) => a.kind)).toContain("ams_gain");
+  });
+});
+
+describe("isFastGain", () => {
+  it("flags more than 500 m above 3,000 m only", () => {
+    expect(isFastGain(3500, 501)).toBe(true);
+    expect(isFastGain(3500, 500)).toBe(false);
+    expect(isFastGain(3000, 800)).toBe(false);
+    expect(isFastGain(3001, 501)).toBe(true);
   });
 });
