@@ -12,6 +12,11 @@ function hours(seconds: number): string {
   return `${h.toFixed(h < 10 ? 1 : 0)} h`;
 }
 
+/** Naismith hours, in the same words as the engine's seconds. */
+function walkLabel(h: number): string {
+  return h < 1 ? `${Math.round(h * 60)} min` : `${h.toFixed(h < 10 ? 1 : 0)} h`;
+}
+
 export interface RouteCardsProps {
   routes: PlannedRoute[];
   selectedId: string;
@@ -56,14 +61,18 @@ export function RouteCards({ routes, selectedId, onSelect }: RouteCardsProps) {
                       {formatGain(route.ascentM)}
                     </span>
                   )}
-                  <span className="inline-flex items-center gap-1">
-                    {route.source === "driving" ? (
-                      <Car className="size-4" aria-hidden />
-                    ) : (
-                      <Footprints className="size-4" aria-hidden />
-                    )}
-                    {hours(route.durationS)}
+                  <span className="inline-flex items-center gap-1" title="Walking time">
+                    <Footprints className="size-4" aria-hidden />
+                    {walkLabel(route.footHours)}
+                    <span className="sr-only"> on foot</span>
                   </span>
+                  {route.carDurationS !== null && (
+                    <span className="inline-flex items-center gap-1" title="Driving time, bike or car">
+                      <Car className="size-4" aria-hidden />
+                      {hours(route.carDurationS)}
+                      <span className="sr-only"> by bike or car</span>
+                    </span>
+                  )}
                 </div>
 
                 {route.stops.length > 0 && (
@@ -74,7 +83,9 @@ export function RouteCards({ routes, selectedId, onSelect }: RouteCardsProps) {
                 )}
 
                 {route.source === "driving" && (
-                  <p className="text-small text-text-muted">Road route — too far to walk end to end.</p>
+                  <p className="text-small text-text-muted">
+                    Road route — too far to walk end to end. The walking time is for that same road.
+                  </p>
                 )}
               </button>
 

@@ -103,6 +103,17 @@ export function smsBody(sos: SosEvent, opts: SmsBodyOptions): string {
   return body.length > 300 ? body.substring(0, 297) + "..." : body
 }
 
+/**
+ * The same message on WhatsApp. A desktop browser does nothing with an `sms:`
+ * link, and a laptop is what a demo runs on; wa.me opens on both. It still
+ * needs the human to press Send — nothing here sends by itself.
+ */
+export function whatsappHref(phoneNumber: string, body: string): string {
+  // wa.me takes the number without "+" or spaces.
+  const cleanNumber = phoneNumber.replace(/\D/g, "")
+  return `https://wa.me/${cleanNumber}?text=${encodeURIComponent(body)}`
+}
+
 export function smsHref(phoneNumber: string, body: string): string {
   const cleanNumber = phoneNumber.replace(/[^\d+]/g, "")
   const encodedBody = encodeURIComponent(body)

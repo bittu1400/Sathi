@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { Copy, MessageSquare, Phone } from "lucide-react"
+import { Copy, MessageCircle, MessageSquare, Phone } from "lucide-react"
 import type { SosEvent } from "@/lib/types"
-import { smsBody, smsHref } from "@/lib/sos"
+import { smsBody, smsHref, whatsappHref } from "@/lib/sos"
 import { SOS_DISCLAIMER } from "@/lib/ams-copy"
 import { getRoute } from "@/lib/data"
 import { nearestWaypoint } from "@/lib/geo"
@@ -61,6 +61,15 @@ export function OfflineSosPanel({ sos, onResolve }: { sos: SosEvent; onResolve: 
     }
   }
 
+  const copyMessage = async () => {
+    try {
+      await navigator.clipboard.writeText(body)
+      toast.success("Message copied")
+    } catch {
+      toast.error("Couldn't copy. Read the message out instead.")
+    }
+  }
+
   return (
     <div className="mx-auto max-w-lg space-y-4 p-4 text-text sm:p-6">
       {!sos.userId ? (
@@ -86,10 +95,32 @@ export function OfflineSosPanel({ sos, onResolve }: { sos: SosEvent; onResolve: 
                 Send SMS to {smsTo}
               </a>
             </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button asChild variant="secondary" className="w-full normal-case">
+                <a href={`tel:${smsNumber}`}>
+                  <Phone className="size-5" aria-hidden /> Call
+                </a>
+              </Button>
+              <Button asChild variant="secondary" className="w-full normal-case">
+                <a href={whatsappHref(smsNumber, body)} target="_blank" rel="noreferrer">
+                  <MessageCircle className="size-5" aria-hidden /> WhatsApp
+                </a>
+              </Button>
+            </div>
             <p className="text-small text-text-muted">
               To <span className="font-mono tabular-nums text-text">{smsNumber}</span>. Standard SMS rates may apply.
+              Each of these opens an app with the message ready — you still press Send.
             </p>
             {opened && <p role="status" className="text-body font-medium text-text">Messages app opened. Press Send there.</p>}
+            <details className="text-small text-text-muted">
+              <summary className="min-h-12 cursor-pointer list-none py-3 text-text underline">
+                Show the message, to send it another way
+              </summary>
+              <p className="rounded-[var(--radius)] border border-line bg-surface p-3 text-body text-text">{body}</p>
+              <Button variant="secondary" className="mt-2 w-full normal-case" onClick={copyMessage}>
+                <Copy className="size-5" aria-hidden /> Copy message
+              </Button>
+            </details>
           </>
         ) : (
           <p className="rounded-[var(--radius)] border border-line bg-surface p-3 text-body font-medium">No SMS number set. Add an emergency contact in Settings.</p>

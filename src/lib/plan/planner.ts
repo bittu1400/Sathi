@@ -1,7 +1,7 @@
 import { haversineKm } from "@/lib/geo";
-import { toDayLegs } from "./daysplit";
+import { toDayLegs, walkingHours } from "./daysplit";
 import { interestLabel, type InterestId } from "./interests";
-import { fetchCandidates, fetchThrough } from "./ors";
+import { fetchCandidates, fetchDuration, fetchThrough } from "./ors";
 import { fetchPoisAlong, poisNear } from "./overpass";
 import { poisAround, regionFor } from "./pois";
 import { simplifyLine } from "./simplify";
@@ -28,15 +28,38 @@ export function planKind(start: LatLng, end: LatLng): PlanKind {
 export async function plan(request: PlanRequest): Promise<PlanResult> {
   const kind = planKind(request.start, request.end);
   const routes = kind === "tour" ? await planTour(request) : await planTrek(request);
+  // Every route between these two points shares the road time, so it is asked
+  // for once. A tour is a walking loop through its stops: a road time between
+  // its two (nearly identical) ends would mean nothing, so it isn't asked for.
+  const carS = kind === "trek" ? await drivingSeconds(request.start, request.end, routes) : null;
   // Last step: the days are measured on every point ORS sent, the phone only
   // has to draw the line.
   return {
     kind,
     routes: routes.map((route) => ({
       ...route,
+      footHours: Number(walkingHours(route.distanceM, route.ascentM ?? 0).toFixed(1)),
+      carDurationS: route.source === "driving" ? route.durationS : carS,
       geometry: { ...route.geometry, coordinates: simplifyLine(route.geometry.coordinates) },
     })),
   };
+}
+
+/**
+ * The road time between the trip's ends. A route the engine already drove
+ * gives it for free; otherwise it costs one request, and a trip with no road
+ * (or one ORS refuses) simply has no road time.
+ */
+async function drivingSeconds(start: LatLng, end: LatLng, routes: PlannedRoute[]): Promise<number | null> {
+  const driven = routes.find((route) => route.source === "driving");
+  if (driven) return driven.durationS;
+  if (routes.length === 0) return null;
+  try {
+    return await fetchDuration("driving-car", start, end);
+  } catch {
+    // A missing second estimate must never lose the routes we already have.
+    return null;
+  }
 }
 
 /**

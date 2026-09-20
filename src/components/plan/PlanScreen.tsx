@@ -3,7 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { ArrowRight, Crosshair, Menu, Search, SlidersHorizontal, Users, X } from "lucide-react";
+import { ArrowRight, Circle, Crosshair, MapPin, Menu, SlidersHorizontal, Users, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -72,12 +72,23 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
     : coords
       ? { lat: coords.lat, lng: coords.lng }
       : null;
+  const startLabel = manualStart ? manualStart.name : coords ? "Your location" : START_LABEL[status];
 
   const pickStart = (picked: Destination) => {
     setManualStart(picked);
     setRoutes([]);
     setError(null);
-    setSheet("trip");
+    setSheet(destination ? "trip" : "search");
+    mapRef.current?.flyTo({ center: [picked.lng, picked.lat], zoom: 11, duration: 900 });
+  };
+
+  /** Back to the device's position as the start, asking for it if need be. */
+  const useMyLocation = () => {
+    setManualStart(null);
+    setRoutes([]);
+    locate();
+    if (coords) mapRef.current?.flyTo({ center: [coords.lng, coords.lat], zoom: 12, duration: 700 });
+    setSheet(destination ? "trip" : "search");
   };
 
   const pick = (picked: Destination) => {
@@ -144,8 +155,8 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         />
       </div>
 
-      {/* Top bar: menu + the pill that opens the search. */}
-      <div className="absolute inset-x-0 top-0 flex items-center gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
+      {/* Top bar: menu, then both ends of the trip — from here, to there. */}
+      <div className="absolute inset-x-0 top-0 flex items-start gap-2 p-3 pt-[calc(env(safe-area-inset-top)+0.75rem)]">
         <Link
           href="/about"
           aria-label="About Sathi"
@@ -153,14 +164,30 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         >
           <Menu className="size-5" aria-hidden />
         </Link>
-        <button
-          type="button"
-          onClick={() => setSheet("search")}
-          className="flex h-12 min-w-0 flex-1 items-center gap-3 rounded-full border border-line bg-surface px-4 text-left shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-        >
-          <Search className="size-5 shrink-0 text-text-muted" aria-hidden />
-          <span className="truncate text-body text-text-muted">{destination ? destination.name : "Where to?"}</span>
-        </button>
+        <div className="min-w-0 flex-1 divide-y divide-line overflow-hidden rounded-[var(--radius-lg)] border border-line bg-surface shadow-lg">
+          <button
+            type="button"
+            onClick={() => setSheet("start")}
+            className="flex h-12 w-full min-w-0 items-center gap-3 px-4 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          >
+            <Circle className={`size-4 shrink-0 ${startPoint ? "text-accent" : "text-text-muted"}`} aria-hidden />
+            <span className="truncate text-body text-text-muted">
+              <span className="text-text-muted">From </span>
+              <span className={startPoint ? "text-text" : ""}>{startLabel}</span>
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setSheet("search")}
+            className="flex h-12 w-full min-w-0 items-center gap-3 px-4 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-accent"
+          >
+            <MapPin className={`size-4 shrink-0 ${destination ? "text-accent" : "text-text-muted"}`} aria-hidden />
+            <span className="truncate text-body text-text-muted">
+              <span className="text-text-muted">To </span>
+              <span className={destination ? "text-text" : ""}>{destination ? destination.name : "Where to?"}</span>
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Right rail, kept clear of the sheet: at 70 dvh it used to sit under it. */}
@@ -215,18 +242,21 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         {sheet === "start" && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
             <SheetHeader title="Start from" onClose={() => setSheet(destination ? "trip" : "peek")} />
-            {coords && (
-              <button
-                type="button"
-                onClick={() => {
-                  setManualStart(null);
-                  setSheet("trip");
-                }}
-                className="flex min-h-12 items-center gap-3 px-1 text-left text-body text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
-              >
-                <Crosshair className="size-5 shrink-0" aria-hidden /> Your location
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={useMyLocation}
+              disabled={status === "unavailable"}
+              className="flex min-h-12 items-center gap-3 px-1 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent disabled:opacity-40"
+            >
+              <Crosshair
+                className={`size-5 shrink-0 ${coords ? "text-accent" : "text-text-muted"} ${status === "locating" ? "animate-pulse" : ""}`}
+                aria-hidden
+              />
+              <span>
+                <span className={`block text-body ${coords ? "text-accent" : "text-text"}`}>Your location</span>
+                {!coords && <span className="block text-small text-text-muted">{LOCATE_LABEL[status]}</span>}
+              </span>
+            </button>
             <DestinationSearch destinations={destinations} onPick={pickStart} />
           </div>
         )}
@@ -243,7 +273,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
             <SheetHeader title="Your trip" onClose={() => setSheet("peek")} />
             <TripForm
               destination={destination}
-              startLabel={manualStart ? manualStart.name : coords ? "Your location" : START_LABEL[status]}
+              startLabel={startLabel}
               startHint={manualStart ? manualStart.detail : startPoint ? null : "Tap to pick a starting point."}
               hasStart={startPoint !== null}
               days={days}

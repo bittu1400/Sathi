@@ -53,6 +53,9 @@ export function toPlannedRoutes(features: OrsFeature[], source: RouteSource): Pl
         kind: "trek",
         distanceM: Math.round(summary.distance ?? 0),
         durationS: Math.round(summary.duration ?? 0),
+        // Both are filled in by the planner, which knows the whole trip.
+        footHours: 0,
+        carDurationS: null,
         ascentM: typeof feature.properties?.ascent === "number" ? Math.round(feature.properties.ascent) : null,
         // ORS sends [lng, lat, elevation]; the third value is kept, GeoJSON allows it.
         geometry: { type: "LineString", coordinates },
@@ -158,6 +161,22 @@ export async function fetchThrough(points: LatLng[], profile: Profile = "foot-wa
   const body = (await response.json()) as { features?: OrsFeature[] };
   const [route] = toPlannedRoutes(body.features ?? [], profile === "driving-car" ? "driving" : "hiking");
   return route ?? null;
+}
+
+/**
+ * Travel time for one profile between two points, for the second mode on the
+ * card: no alternatives, no geometry kept. Null when the engine has no answer
+ * (no road, or too far for that profile) — an unknown time is left blank
+ * rather than guessed.
+ */
+export async function fetchDuration(profile: Profile, start: LatLng, end: LatLng): Promise<number | null> {
+  const key = requireKey();
+  if (!inNepal(start) || !inNepal(end)) return null;
+  const response = await directions(profile, [start, end], key, false);
+  if (!response.ok) return null;
+  const body = (await response.json()) as { features?: OrsFeature[] };
+  const seconds = body.features?.[0]?.properties?.summary?.duration;
+  return typeof seconds === "number" ? Math.round(seconds) : null;
 }
 
 const ORS_GEOCODE = "https://api.openrouteservice.org/geocode/autocomplete";

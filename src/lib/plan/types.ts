@@ -51,6 +51,13 @@ export interface PlannedRoute {
   distanceM: number;
   /** Engine estimate in seconds of travel, not of the trek's days. */
   durationS: number;
+  /**
+   * Walking time by Naismith over this line, so the card and the day plan
+   * never disagree. Always present: it needs no second request.
+   */
+  footHours: number;
+  /** Driving time for the same trip, or null when no road joins the two ends. */
+  carDurationS: number | null;
   ascentM: number | null;
   geometry: GeoJSON.LineString;
   /** The places this route was built to pass, in order. */

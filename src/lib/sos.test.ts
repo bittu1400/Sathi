@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { buildSos, smsBody, smsHref } from "./sos"
+import { buildSos, smsBody, smsHref, whatsappHref } from "./sos"
 
 describe("SOS Engine", () => {
   it("builds a well-formed SosEvent with default values", () => {
@@ -71,5 +71,10 @@ describe("SOS Engine", () => {
   it("generates cross-platform sms: URI with encoded query parameter", () => {
     const uri = smsHref("+977 980-123-4567", "SOS Sathi. Maya.")
     expect(uri).toBe("sms:+9779801234567?&body=SOS%20Sathi.%20Maya.")
+  })
+
+  it("generates a wa.me link with no plus sign", () => {
+    const uri = whatsappHref("+977 980-123-4567", "SOS Sathi. Maya.")
+    expect(uri).toBe("https://wa.me/9779801234567?text=SOS%20Sathi.%20Maya.")
   })
 })
