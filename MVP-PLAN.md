@@ -156,7 +156,7 @@ within 5 km (null when there is none — never invented).
 | P6 | Day plans, overnight stops, stop pins | **done** (`c47082b`, `26762c5`) |
 | — | City day-outs (added mid-session by the lead) | **done** (`c47082b`) |
 | — | CARTO light basemap, icon controls | **done** (`621c69e`, tokens in `1cf4ad0`) |
-| P7 | Every state reachable | **done**; §11 steps 1–7 verified in a browser (7 with a stubbed fetch) |
+| P7 | Every state reachable | **done**; §11 steps 1–8 verified in the browser pane (step 7 with a stubbed fetch) |
 | P8 | Bug bash on real phones | **not started** — verified at 375×812 in the desktop browser only |
 
 Commits, oldest first.
@@ -206,9 +206,9 @@ docs.
   (`3eb8277`, `e91dbe7`, `9930ea6`): a hydration mismatch on every load, a dead end when location
   is refused, and a locate button buried under the sheet. **What a browser pane cannot do**, and
   what therefore has still never happened: a real phone, a real geolocation permission prompt
-  (every fix below came from the stub in §13), and a real radio switched off (step 7 used a
+  (every fix below came from the stub in §12), and a real radio switched off (step 7 used a
   stubbed `fetch`). The Chrome extension is still unusable from these sessions ("the OAuth token
-  belongs to a different claude.ai account"); use the built-in browser pane, §13.
+  belongs to a different claude.ai account"); use the built-in browser pane, §12.
 - **G7 — The planner needs network.** Offline it shows "Route planning needs a connection", which
   is honest but means the MVP path is online-only. The trekker screens keep their offline
   behaviour.
