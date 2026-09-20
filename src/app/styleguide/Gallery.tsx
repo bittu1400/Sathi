@@ -101,7 +101,10 @@ export function Gallery() {
       <header className="space-y-2">
         <Logo />
         <h1 className="text-h1">Instrument: tokens and components</h1>
-        <p className="text-text-muted">Dark only. Every primitive in every state. Not linked from the app.</p>
+        <p className="text-text-muted">
+          Dark and light — flip it with the switch in the header. Every primitive in every state.
+          Not linked from the app.
+        </p>
       </header>
 
       <Section n={1} title="Colour">

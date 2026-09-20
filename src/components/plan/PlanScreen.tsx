@@ -204,12 +204,16 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         </div>
       </div>
 
-      {/* Right rail, kept clear of the sheet: at 70 dvh it used to sit under it. */}
+      {/* One bottom sheet, three heights. The map stays interactive behind it. */}
       <div
-        className={`absolute right-3 flex flex-col items-end gap-2 transition-[bottom] duration-[var(--dur-base)] motion-reduce:transition-none ${
-          expanded ? "bottom-[calc(70dvh+0.75rem)]" : "bottom-[calc(9rem+env(safe-area-inset-bottom))]"
+        className={`absolute inset-x-0 bottom-0 flex flex-col rounded-t-[var(--radius-lg)] border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] shadow-2xl transition-[height] duration-[var(--dur-base)] motion-reduce:transition-none ${
+          expanded ? "h-[70dvh]" : "h-auto"
         }`}
       >
+        {/* The rail rides on top of the sheet whatever height it has: the
+            results sheet grows with its cards, and a fixed offset put the SOS
+            button over them. */}
+        <div className="absolute bottom-full right-3 mb-3 flex flex-col items-end gap-2">
         <ThemeToggle className="rounded-full border border-line bg-surface shadow-lg" />
         <Link
           href="/community"
@@ -233,14 +237,8 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         </button>
         {/* The app-wide FAB, placed in the rail so the sheet never covers it. */}
         <SosButton className="static shadow-lg" />
-      </div>
+        </div>
 
-      {/* One bottom sheet, three heights. The map stays interactive behind it. */}
-      <div
-        className={`absolute inset-x-0 bottom-0 flex flex-col rounded-t-[var(--radius-lg)] border-t border-line bg-surface pb-[env(safe-area-inset-bottom)] shadow-2xl transition-[height] duration-[var(--dur-base)] motion-reduce:transition-none ${
-          expanded ? "h-[70dvh]" : "h-auto"
-        }`}
-      >
         {sheet === "peek" && (
           <div className="flex flex-col gap-3 p-4">
             {status === "denied" && (
