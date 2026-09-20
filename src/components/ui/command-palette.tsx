@@ -73,9 +73,10 @@ export function CommandPalette() {
   const go = (href: string) => () => router.push(href);
 
   const items: Item[] = [
+    { id: "map", group: "Go to", label: "Plan a route", hint: "The map", run: go("/") },
     { id: "routes", group: "Go to", label: "Routes", run: go("/routes") },
     { id: "trek", group: "Go to", label: "Trek", run: go("/trek") },
-    { id: "plan", group: "Go to", label: "Plan", run: go("/plan") },
+    { id: "community", group: "Go to", label: "Community", run: go("/community") },
     { id: "sos", group: "Go to", label: "SOS", run: go("/sos") },
     { id: "settings", group: "Go to", label: "Settings", run: go("/settings") },
     ...(role === "coordinator" ? [{ id: "rescue", group: "Go to" as const, label: "Rescue console", run: go("/rescue") }] : []),

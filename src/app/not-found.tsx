@@ -12,7 +12,7 @@ export default function NotFound() {
       <p className="text-text-muted">The link may be old or mistyped.</p>
       <div className="flex flex-wrap gap-3">
         <Button asChild>
-          <Link href="/routes">Browse routes</Link>
+          <Link href="/">Plan a route</Link>
         </Button>
         <Button asChild variant="secondary">
           <Link href="/sos">Open SOS</Link>

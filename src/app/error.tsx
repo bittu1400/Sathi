@@ -11,7 +11,7 @@ export default function ErrorPage({ retry }: { error: Error & { digest?: string 
       <div className="flex flex-wrap gap-3">
         <Button onClick={() => retry()}>Try again</Button>
         <Button asChild variant="secondary">
-          <Link href="/routes">Routes</Link>
+          <Link href="/">Plan a route</Link>
         </Button>
         <Button asChild variant="secondary">
           <Link href="/sos">Open SOS</Link>
