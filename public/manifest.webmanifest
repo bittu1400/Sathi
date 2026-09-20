@@ -2,10 +2,10 @@
   "name": "Sathi — Offline Trekking Safety",
   "short_name": "Sathi",
   "description": "Offline-first trekking safety companion for Nepal: route intelligence, AMS monitoring, and SOS.",
-  "start_url": "/",
+  "start_url": "/trek",
   "display": "standalone",
-  "background_color": "#0A0E13",
-  "theme_color": "#0A0E13",
+  "background_color": "#0A0B0D",
+  "theme_color": "#0A0B0D",
   "icons": [
     {
       "src": "/icons/icon-192.png",

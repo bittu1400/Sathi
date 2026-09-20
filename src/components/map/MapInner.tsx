@@ -7,7 +7,6 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import type { RouteDetail, Resource } from "@/lib/types";
 import { getMapStyle } from "./style";
 import { addRouteLayers, addResourceLayers, setPositionLayer } from "./layers";
-import { useTheme } from "../theme-toggle";
 
 let protocolAdded = false;
 function ensurePMTilesProtocol() {
@@ -27,7 +26,7 @@ export interface MapProps {
 }
 
 /**
- * The map is created once per route/theme; route, resources and position
+ * The map is created once per route; route, resources and position
  * update their sources in place, so GPS fixes don't rebuild the map.
  */
 export default function MapInner({
@@ -41,7 +40,6 @@ export default function MapInner({
   const container = useRef<HTMLDivElement>(null);
   const [loaded, setLoaded] = useState<maplibregl.Map | null>(null);
   const [basemapMissing, setBasemapMissing] = useState(false);
-  const theme = useTheme();
   const routeId = route?.id;
   const firstCenter = useRef(position ?? null);
 
@@ -52,7 +50,7 @@ export default function MapInner({
     const start = firstCenter.current;
     const map = new maplibregl.Map({
       container: container.current,
-      style: getMapStyle(theme, route?.tilesUrl),
+      style: getMapStyle(route?.tilesUrl),
       center: start ? [start.lng, start.lat] : ((route?.line.coordinates[0] as [number, number]) ?? [86.7314, 27.687]),
       zoom: start ? 13 : 10,
       interactive,
@@ -74,9 +72,9 @@ export default function MapInner({
       setLoaded(null);
       map.remove();
     };
-    // Recreate only when the route or theme changes; other props update sources below.
+    // Recreate only when the route changes; other props update sources below.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- route object identity is irrelevant, routeId is the key
-  }, [routeId, theme, interactive]);
+  }, [routeId, interactive]);
 
   useEffect(() => {
     if (loaded && route) addRouteLayers(loaded, route);
