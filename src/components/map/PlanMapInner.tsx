@@ -7,7 +7,7 @@ import { getBasemapUrl } from "./style";
 import { setPositionLayer } from "./layers";
 import type { Coords } from "@/lib/plan/position";
 import { NEPAL_CENTER } from "@/lib/plan/position";
-import type { PlannedRoute } from "@/lib/plan/types";
+import type { PlannedRoute, Poi } from "@/lib/plan/types";
 
 // Turbopack doesn't emit MapLibre's `import.meta.url` worker, so the worker 404s
 // and no tile ever loads. scripts/copy-maplibre-worker.mjs puts a copy here.
@@ -19,6 +19,8 @@ export interface PlanMapProps {
   basemapKey?: string;
   routes?: PlannedRoute[];
   selectedRouteId?: string | null;
+  /** Stops of the selected route, drawn in visiting order. */
+  stops?: Poi[];
   /** Called once the map is usable, so the screen can fly it around. */
   onReady?: (map: maplibregl.Map) => void;
 }
@@ -52,7 +54,14 @@ function boundsOf(routes: PlannedRoute[]): maplibregl.LngLatBounds | null {
  * The planner's full-bleed map. Unlike `MapInner` (one trek, fixed aspect,
  * offline packs) this one fills the viewport and is panned like a maps app.
  */
-export default function PlanMapInner({ position, basemapKey, routes = [], selectedRouteId = null, onReady }: PlanMapProps) {
+export default function PlanMapInner({
+  position,
+  basemapKey,
+  routes = [],
+  selectedRouteId = null,
+  stops = [],
+  onReady,
+}: PlanMapProps) {
   const container = React.useRef<HTMLDivElement>(null);
   const [map, setMap] = React.useState<maplibregl.Map | null>(null);
   // Checked at render, not in the effect: an old device or a blocked context
@@ -137,6 +146,44 @@ export default function PlanMapInner({ position, basemapKey, routes = [], select
       });
     }
   }, [map, routes, selectedRouteId]);
+
+  // Numbered pins for the stops of whichever route is selected.
+  React.useEffect(() => {
+    if (!map) return;
+    const data: GeoJSON.FeatureCollection = {
+      type: "FeatureCollection",
+      features: stops.map((stop, index) => ({
+        type: "Feature",
+        properties: { label: String(index + 1), name: stop.name },
+        geometry: { type: "Point", coordinates: [stop.lng, stop.lat] },
+      })),
+    };
+    const source = map.getSource("plan-stops") as maplibregl.GeoJSONSource | undefined;
+    if (source) source.setData(data);
+    else map.addSource("plan-stops", { type: "geojson", data });
+
+    if (!map.getLayer("plan-stops-dot")) {
+      const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+      map.addLayer({
+        id: "plan-stops-dot",
+        type: "circle",
+        source: "plan-stops",
+        paint: {
+          "circle-radius": 12,
+          "circle-color": css("map-stop"),
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+      map.addLayer({
+        id: "plan-stops-label",
+        type: "symbol",
+        source: "plan-stops",
+        layout: { "text-field": ["get", "label"], "text-size": 12, "text-allow-overlap": true },
+        paint: { "text-color": "#ffffff" },
+      });
+    }
+  }, [map, stops]);
 
   // New results reframe the map; picking one of them does not, so the view
   // doesn't jump under the thumb while comparing.

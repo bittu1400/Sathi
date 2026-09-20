@@ -104,11 +104,19 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
   };
 
   const expanded = sheet === "search" || sheet === "trip";
+  const selectedRoute = routes.find((route) => route.id === selectedId) ?? null;
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-bg">
       <div className="absolute inset-0">
-        <PlanMap position={coords} basemapKey={basemapKey} routes={routes} selectedRouteId={selectedId} onReady={onReady} />
+        <PlanMap
+          position={coords}
+          basemapKey={basemapKey}
+          routes={routes}
+          selectedRouteId={selectedId}
+          stops={selectedRoute?.stops ?? []}
+          onReady={onReady}
+        />
       </div>
 
       {/* Top bar: menu + the pill that opens the search. */}
@@ -207,7 +215,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
                 <SlidersHorizontal className="size-5" aria-hidden />
               </button>
             </div>
-            <RouteCards routes={routes} selectedId={selectedId ?? ""} days={days} onSelect={setSelectedId} />
+            <RouteCards routes={routes} selectedId={selectedId ?? ""} onSelect={setSelectedId} />
           </div>
         )}
       </div>
