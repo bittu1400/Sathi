@@ -1,8 +1,7 @@
 # MVP-PLAN — map-first route recommender
 
-Last updated 2026-09-20, end of the third session. Last code commit: `a2ac1e8`, with this
-session's docs commits on top of it. `origin/main` is at `81923db`, so **everything after that
-is still local** (§13 step 0).
+Last updated 2026-09-20, end of the fourth session. Last code commit: `1cf788b`. `origin/main`
+is at `e06b2ad`, so **the fourth session's three commits are still local** (§13 step 0).
 
 This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the
 flow) is what we agreed to build and §6 says exactly how much of it exists. Nothing below
@@ -11,6 +10,14 @@ describes intentions as if they were code.
 **Starting a session? Read §13 (what to do next), then §12 (how to verify things), then the
 gap in §7 you are about to touch.** §8 holds every number we have measured — keep adding to it
 rather than re-measuring.
+
+**The fourth session changed the recommender itself**, on the lead's report that only the city
+day out worked: a trip now has a **shape** the trekker picks (Suggest · Day out · **Point to
+point**), a trek is planned **from its trailhead** rather than from the trekker's doorstep, and
+the three options differ by a **toggle** — different ways, different paces, or the treks we hold
+our own data for. Line routes also carry the chosen places they pass, which the map pins. Every
+number in §8's fourth table came from `curl` against the live APIs; **none of it has been
+rendered in a browser** (§12 — this session had no browser pane either).
 
 **The third session added two things beside the planner** (community boards, an SOS button on
 the map) and changed three things inside it (both ends of a trip are pickable, "Your location"
@@ -56,6 +63,14 @@ Decisions taken by the lead in the **third** session (2026-09-20, late):
 | D13 | The SOS number | **9703080105**, "use the number … for the SOS for notification for now". Stored as `+9779703080105` in `.env.local` (`NEXT_PUBLIC_SOS_SMS_NUMBER`), **env only** — the lead picked that over a committed constant because this repo is public |
 | D14 | What community is | **Five static boards** with posts you can read, "kinda like how reddit works" — but **not** named like Reddit: "not r, that is just copying reddit, just use the name". Board pages only; no per-post view, no comments, no voting |
 | D15 | Travel time | **Show both**: "the time it would take for both on foot and bike/car", where today a card showed only whichever profile ORS happened to answer with |
+
+Decisions taken by the lead in the **fourth** session (2026-09-20, later still):
+
+| # | Question | Decision |
+|---|---|---|
+| D16 | Day out or exact A → B | **An explicit toggle**, app-preselected and flippable: "locals … know the place precisely, so they want to start at one place and end at the next destination, exactly". Built as three chips (Suggest · Day out · Point to point) because the client cannot run the region rule without shipping the baked POI files to the browser |
+| D17 | What a long trek should be | **Three foot routes from the trailhead**: "if they want to trek, they will start from the base camp, not from all the way from kathmandu". Trailhead from curated data first, then a roadhead probe — **never** an invented coordinate (the lead picked "Curated + roadhead fallback") |
+| D18 | How three options are made | **All three, as a toggle**: different ways, different paces, known treks — "make it toggle, which one they want". Plus: "mark what exactly is the attraction that they chose to see is in that path", which is the `stops` a line route now carries |
 
 ## 3. Services and keys
 
@@ -129,6 +144,11 @@ on the button.
 Guards, in order: zod → a 1-hour in-process cache keyed by start/end rounded to 3 decimals +
 days + interests → Nepal bbox (a point outside gets 400 before any request is spent).
 
+**Shape** — `mode` on the request (`auto` · `tour` · `direct`), chosen with three chips in the
+trip form. `auto` is the rule below. `tour` and `direct` are obeyed as given: a local who asks
+point to point gets the exact line between their two points, with no loop back and no detour,
+which is what the ≤ 25 km rule used to take away from them.
+
 **`planKind`** (`src/lib/plan/planner.ts`): haversine start↔end ≤ 25 km → `tour`; otherwise a
 destination inside a baked POI region (Kathmandu, Pokhara, Chitwan, Lumbini, Bandipur) is still
 a `tour`, walked from that city, because nobody walks 200 km to Pokhara; anything else → `trek`.
@@ -149,6 +169,39 @@ trips to it are planned.
    destination itself when the city is far away — then ORS `foot-walking` is asked for one route
    through `[base, …stops, base]`: a day out ends where it began.
 4. The line is split into days (below).
+
+### Where a trek starts — `src/lib/plan/trailhead.ts` (fourth session)
+Asked for the Khumbu from Kathmandu, ORS answers with a 294 km walking line out of the city.
+The arithmetic is right and nobody walks it: people fly to Lukla and start there. So for
+`kind === "trek"`:
+1. **Curated trailhead.** If the destination falls inside a curated trek's own bounding box, that
+   file's `kind: "trailhead"` waypoint is the start — Lukla for Everest — whenever the trekker is
+   more than 25 km from it. Costs nothing: the data is in the repo. Only treks with
+   `hasFullData` have waypoints, so today that is **EBC alone**.
+2. **Roadhead.** Otherwise, and only when ORS can offer nothing but a road route (or refuses
+   outright), the planner takes the settlements OSM holds within 40 km of the destination,
+   nearest first, and asks for a **driving** route from the start to each — at most three. The
+   first one a car can reach is where the walking begins.
+3. The route is then planned from that point, and `trailhead` on the card names it. The road
+   time becomes the time **to the trailhead**, or nothing at all when no road reaches it, which
+   is the truth for Lukla.
+A `direct` request never does any of this: the trekker's two points are the two points.
+
+### What the three options differ by — `variants` (fourth session)
+A toggle over the results, because the honest answer depends on the trip:
+- **Different ways** (default): the engine's own alternatives where it has them; where it has
+  one line, a walk **through a place off it** that matches the chosen interests. Up to four
+  detours are tried and the first two that route are kept. Picks alternate the two halves of the
+  walk, and a lodge or village is tried before a summit — ORS refuses any point with no way
+  within 350 m, which is most peaks.
+- **Different paces**: the same line over more or fewer days (what every long trek used to give).
+- **Known treks**: the curated routes whose line passes within 10 km of the destination, with
+  their **own** length, climb and night-by-night stages out of the file. No engine estimate, and
+  no invented number. Nothing matches → a plain 404, "We don't hold a known trek that reaches
+  there yet."
+A destination ORS cannot route to **at all** — Base Camp itself has no way within 350 m, which
+is why every request for it used to end in an error — falls back to a curated trek that reaches
+it when we hold one.
 
 ### Trek (a line between two points)
 1. `fetchCandidates`: ORS `foot-hiking` with `alternative_routes {target_count: 3,
@@ -184,6 +237,12 @@ A card used to show one time: whatever ORS answered with. A long trip falls back
 - A failed or refused driving request is swallowed: the routes we already have must never be
   lost to a missing second estimate.
 
+### The places on the line (fourth session)
+A line route now carries `stops`: the POIs matching the chosen interests that the line passes,
+notable first, at most eight, ordered by how far along the line they are reached. The map already
+pins and numbers `stops`, and the card already lists them, so a trek stops being a bare line and
+says what the trekker is actually going to walk past. Day highlights are unchanged.
+
 ### Before the response leaves (both shapes) — `src/lib/plan/simplify.ts`
 Every geometry goes through Douglas–Peucker at 10 m, **last**, after the day split has measured
 climb on every original point. `distanceM`, `ascentM`, `durationS` and the day legs therefore
@@ -211,6 +270,7 @@ within 5 km (null when there is none — never invented).
 | — | CARTO light basemap, icon controls | **done** (`621c69e`, tokens in `1cf4ad0`) |
 | P7 | Every state reachable | **done**; §11 steps 1–8 verified in the browser pane (step 7 with a stubbed fetch) |
 | P8 | Bug bash on real phones | **not started** — verified at 375×812 in the desktop browser only |
+| P10 | Trip shape, trailhead-anchored treks, the variants toggle | **built, never seen in a browser** (`d355f60`, `0627f32`, `1cf788b`) — every number in §8's fourth table measured by `curl` against the live APIs |
 | P9 | Community boards, SOS on the map, both travel times | **built, never seen in a browser** (`81923db`, `a2ac1e8`) — `pnpm check` green and the planner numbers measured against the live API by `curl`; the UI itself is unverified (§12) |
 
 Commits, oldest first.
@@ -223,6 +283,10 @@ stops and day plans on the results · `8b05bd5`, `60673a4` docs.
 *Session 3 (community, SOS on the map, both travel times — no browser available):*
 `81923db` community boards + an SOS button on the map · `a2ac1e8` pick both ends, show foot and
 road times, reach the SOS number. `81923db` is pushed; **`a2ac1e8` is not** (§13 step 0).
+
+*Session 4 (the recommender itself — no browser available):* `d355f60` point-to-point routes and
+the places they pass · `0627f32` a trek starts at its trailhead · `1cf788b` three ways to walk it
+and the treks we already hold. **None of the three is pushed** (§13 step 0).
 
 *Session 2 (first browser run, then the fixes it found):* `3eb8277` hydration fix (C1) ·
 `e91dbe7` pick a start when location is off (C2) · `98af32c` country-wide place search (C3, G1) ·
@@ -243,8 +307,12 @@ docs.
   Kathmandu → Namobuddha, 3 days, mountains + culture + villages → "Most temples & culture"
   (45.6 km), "Most villages & squares" (41.8 km), "Alternative 2" (49.3 km). Paces are still
   labelled by pace, which is the only honest difference when the engine gives one line.
-- **G3 — Curated treks are not used as trek candidates.** The plan said a curated line near both
-  ends should join the candidate list; `planTrek` asks ORS only.
+- ~~**G3 — Curated treks are not used as trek candidates.**~~ **Closed** (`1cf788b`): the
+  "Known treks" toggle offers every curated trek whose line passes within 10 km of the
+  destination, and a destination ORS cannot route to falls back to one automatically. Measured:
+  Kathmandu → EBC, which used to be a hard error, now returns the Everest trek — 56.2 km, its own
+  9 stages, trailhead Lukla. **Only EBC has the data**, so that toggle answers for the Khumbu and
+  404s everywhere else (G19).
 - ~~**G4 — "Tour" is decided by start↔end distance.**~~ **Closed** (`e2ac4f0`): a destination
   inside a baked POI region is a day out **in that city**, walked from the destination, however
   far away the trekker is. Verified live: Kathmandu → Pokhara, 3 days, returns 2 tour options
@@ -284,10 +352,27 @@ docs.
   tapping, and §11 step 6's "swipe" means scrolling that row.
 - **G10 — `/plan`, `/routes`, `/trek` and the rest still exist** and are unchanged. Only `/` and
   the old landing page (now `/about`) moved.
+- **G19 — "Known treks" has one trek in it.** `curatedFor` walks every route in
+  `src/data/routes`, but only `ebc.json` carries a line, waypoints and stages; the other five are
+  summaries. The same shortage limits the curated trailhead (§5) to Everest. Adding a trek means
+  real coordinates for its waypoints and stages — a `⚠ HUMAN NEEDED` to verify each one
+  (CLAUDE.md rule 6), not something to invent.
+- **G20 — Overpass sometimes answers a plan with nothing.** One `paces` run for Kathmandu →
+  Gorak Shep came back with `stops: []` and no day highlights; the identical request a minute
+  later had eight. The query is bounded and the failure is swallowed by design (a route with no
+  place names beats no route), but the 1-hour cache then serves that empty answer for an hour.
+  Nothing retries. Worth a single retry before caching if it shows up on stage.
+- **G21 — A detour costs a request and may buy nothing.** "Different ways" tries up to four
+  via-routes and keeps the first two that route; on a trail with no parallel path and no walkable
+  place off it, the card list can still come back as one line. Measured cost: Kathmandu → Gorak
+  Shep, 10 days, three lines in ~4 s.
 - **G11 — Long treks take ~25 s.** Kathmandu → EBC, 3 days: one `/api/plan` call, ~25 s to the
   first card, no progress beyond the button's busy state.
 - **G12 — Day counts are taken at face value.** "3 days · as asked" for Kathmandu → EBC means
-  35.7 h of walking on day one. The arithmetic is right and the pace is the trekker's to choose,
+  35.7 h of walking on day one — less wild since the fourth session, because that trek now starts
+  at Lukla (48.7 km, 18.4 h) instead of in Kathmandu (294 km, 105.9 h). A "Known treks" card
+  ignores the asked-for day count entirely and shows the trek's own stages, which is the schedule
+  people actually walk. The arithmetic is right and the pace is the trekker's to choose,
   so nothing clamps it; the hours are shown per day and for the whole route so the choice is
   visible.
 - **G13 — OSM names leak into the highlights**: "Scarf of life", "Jorpati Main Road". Notable
@@ -369,9 +454,26 @@ live APIs, because no browser was available (§12):
 | `/community`, `/community/pokhara` | HTTP 200, all five boards and the sorted posts render server-side; prerendered as SSG at build (`● /community/<slug>`, five paths) |
 | `/community/nope` | the 404 page renders, but **dev returns HTTP 200** — `/routes/nope` does the same, so it is Next's dev behaviour, not these pages |
 
+Measured in session 4 (2026-09-20, later still) — `curl` against the running dev server and the
+live APIs, no browser (§12). Restart `pnpm dev` or change an input before re-running: the route
+handler still caches for an hour, now keyed by mode and variants too.
+
+| Request | Result |
+|---|---|
+| `/api/plan`, Kathmandu → Bhaktapur (27.671, 85.4298), 1 day, culture, **mode `auto`** | `tour`, 2 loops — 31.9 km and 21.7 km, both ending back at the start. This is the "goes backwards" the lead reported |
+| The same request, **mode `direct`** | `direct`, **3 real ORS alternatives** — 16.0 / 16.2 / 16.5 km, foot 3.9–4.3 h, road 1,090 s, every line ending exactly on Bhaktapur, each card listing the temples it passes |
+| `/api/plan`, Kathmandu → Gorak Shep (27.9812, 86.8281), 9 days, **before** the trailhead change | `trek`, 294.1 km, foot **105.9 h**, starting in Kathmandu |
+| The same request, **after** | `trek` from **Lukla**, 48.7 km, foot 18.4 h, road time **null** (no road reaches Lukla), 8 stops named on the line |
+| `/api/plan`, Kathmandu → **Base Camp itself** (27.9881, 86.925), any profile | ORS: "Could not find routable point within a radius of 350.0 meters" — foot **and** road. Until this session every request for EBC ended there |
+| The same request, now | the curated **Everest Base Camp** trek: 56.2 km, its own 9 stages, night 1 Phakding, trailhead Lukla |
+| `/api/plan`, Kathmandu → Gorak Shep, 10 days, mountains + teahouses + villages, **`variants: ways`** | 3 genuinely different lines in ~4 s: 48.7 km direct · **64.2 km via Thame** · 56.3 km via Green Valley Lodge |
+| Detours to peaks | refused by ORS ("no routable point within 350 m"), which is why picks prefer a lodge or a village and four are tried for two kept |
+| `/api/plan`, Bhaktapur, **`variants: treks`** | **404** "We don't hold a known trek that reaches there yet." (G19) |
+| One `paces` run, Kathmandu → Gorak Shep, 9 days | `stops: []` and no highlights — Overpass returned nothing that call and the hour-long cache kept it (G20). The same request with a different day count: 8 stops |
+
 ## 9. Files
 
-Everything the pivot added, as it stands at `a2ac1e8`:
+Everything the pivot added, as it stands at `1cf788b`:
 
 | File | What it is |
 |---|---|
@@ -383,7 +485,9 @@ Everything the pivot added, as it stands at `a2ac1e8`:
 | `src/components/plan/PlanScreen.tsx` | the one client component that holds the state: sheet, destination, manual start, days, interests, results |
 | `src/components/plan/DestinationSearch.tsx` | curated matches offline + debounced `/api/places`; used for both the destination and the start |
 | `src/components/plan/TripForm.tsx` | To / From / Days / interest chips / Find routes |
-| `src/components/plan/RouteCards.tsx` | the snap-scrolling results carousel (tap a card to select it) |
+| `src/components/plan/RouteCards.tsx` | the snap-scrolling results carousel (tap a card to select it), including the trailhead note |
+| `src/lib/plan/trailhead.ts` | where a trek really begins: the curated trailhead, else the nearest settlement a car can reach |
+| `src/lib/plan/curated.ts` | the treks we hold our own data for, as routes: line length, stage days, trailhead |
 | `src/components/plan/DayPlan.tsx` | the day-by-day list inside a card |
 | `src/lib/plan/planner.ts` | `planKind`, `plan`, the tour and trek paths, `scorePois`, `topInterest` |
 | `src/lib/plan/ors.ts` | ORS: `fetchCandidates`, `fetchThrough`, `geocode`, `toPlaces`, `toPlannedRoutes`, `inNepal`, `PlanError` |
@@ -518,6 +622,19 @@ a real radio off are still unrun (G6). Two caveats a demo driver should know: th
 search needs two letters before it calls the country-wide search, and a card is *tapped*, not
 swiped (G9).
 
+**Steps 13–16 (fourth session, written and unrun — nothing below has been rendered anywhere):**
+
+13. On the trip sheet, **Shape of the trip** shows three chips (Suggest · Day out · Point to
+    point) and the hint under them changes. Pick two places inside the valley, choose **Point to
+    point**, Find routes: three cards, and the line on the map ends at the destination instead of
+    curling back to the start.
+14. Kathmandu → a Khumbu destination, Suggest: the cards say **"The walk starts at Lukla — no
+    road reaches it."**, and the drawn line starts at Lukla, not in Kathmandu.
+15. Over the results, the toggle row (Different ways · Different paces · Known treks) re-plans on
+    tap, greys out while busy, and is **absent for a day out**. "Known treks" outside the Khumbu
+    shows the 404 text in the results sheet with the toggle still usable.
+16. A trek card now lists the places it passes and the map pins them, numbered, in walking order.
+
 ## 12. How to verify it yourself (what worked, so nobody re-invents it)
 
 **Which tools you have depends on where the session runs, so check first:**
@@ -566,13 +683,16 @@ browser pane** of the Claude desktop app (`preview_start`, `navigate`, `read_pag
 
 ## 13. Next session, in order
 
-0. **Push what is local.** `origin/main` is at `81923db`; `a2ac1e8` (the code) and the third
-   session's docs commits on top of it were all refused by the sandbox. `git status -sb`, then
+0. **Push what is local.** `origin/main` is at `e06b2ad`; the fourth session's three code commits
+   (`d355f60`, `0627f32`, `1cf788b`) and the docs commit on top of them are not pushed — the
+   sandbox refuses `git push` here. `git status -sb`, then
    `git pull --ff-only && git push origin main`. Check this before anything else — `81923db`
    and `a2ac1e8` are one feature between them, and a teammate with only the first gets a map
    whose SOS panel has no Call or WhatsApp button and cards with one travel time. (The private
    `docs/` repo is already pushed.)
-1. **Render what session 3 built** (§11 steps 9–12, G6). Nothing from that session has been
+1. **Render what sessions 3 and 4 built** (§11 steps 9–16, G6). Sessions 3 and 4 both ran without
+   a browser, so the trip-shape chips, the trailhead note, the variants toggle and the pinned
+   stops join the list below as never-seen-anywhere. Nothing from that session has been
    seen in a browser: the From/To card, the rail's two new buttons, the community pages, both
    times on a card. Start `pnpm dev`, open `/` at 375×812 and walk steps 9–12, then the whole
    of §11. Specific risks worth looking for, since they are untested:
