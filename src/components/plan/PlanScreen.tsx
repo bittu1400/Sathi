@@ -162,8 +162,12 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         </button>
       </div>
 
-      {/* Right rail. */}
-      <div className="absolute right-3 bottom-[calc(9rem+env(safe-area-inset-bottom))] flex flex-col gap-2">
+      {/* Right rail, kept clear of the sheet: at 70 dvh it used to sit under it. */}
+      <div
+        className={`absolute right-3 flex flex-col gap-2 transition-[bottom] duration-[var(--dur-base)] motion-reduce:transition-none ${
+          expanded ? "bottom-[calc(70dvh+0.75rem)]" : "bottom-[calc(9rem+env(safe-area-inset-bottom))]"
+        }`}
+      >
         <button
           type="button"
           onClick={recentre}
