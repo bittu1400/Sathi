@@ -29,7 +29,7 @@ export function MarketingHeader() {
             <Link href="/login">Sign in</Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/routes">Browse routes</Link>
+            <Link href="/">Plan a route</Link>
           </Button>
         </div>
       </div>
@@ -43,11 +43,14 @@ export function MarketingFooter() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Logo />
         <nav aria-label="Footer" className="flex flex-wrap gap-x-6 gap-y-2 text-body text-text-muted">
+          <Link href="/" className="hover:text-text">
+            Plan a route
+          </Link>
           <Link href="/routes" className="hover:text-text">
             Routes
           </Link>
-          <Link href="/plan" className="hover:text-text">
-            Plan
+          <Link href="/community" className="hover:text-text">
+            Community
           </Link>
           <Link href="/sos" className="hover:text-text">
             SOS

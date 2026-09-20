@@ -14,7 +14,7 @@ export function TabBar() {
     >
       <ul className="mx-auto grid h-[var(--tabbar-h)] max-w-md grid-cols-4">
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname.startsWith(href);
+          const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
           return (
             <li key={href}>
               <Link

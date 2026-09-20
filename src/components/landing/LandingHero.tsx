@@ -15,19 +15,23 @@ export function LandingHero() {
   return (
     <section className="grid items-center gap-8 py-8 lg:grid-cols-2 lg:gap-12 lg:py-16">
       <div className="space-y-6">
-        <h1 className="text-display">Know your altitude. Get help when the signal is gone.</h1>
+        <h1 className="text-display">Say where you want to go. We draw the way.</h1>
         <p className="max-w-xl text-h2 font-normal text-text-muted">
-          Sathi watches altitude gain and daily check-ins on Nepal&apos;s trails, and sends an SOS that still works without mobile data.
+          Tell Sathi a place, how many days you have and what you want to see. It draws the routes
+          on the map, splits them into days, and names what you walk past. Then it watches your
+          altitude and gets an SOS out when the signal is gone.
         </p>
         <div className="flex flex-wrap gap-3">
           <Button asChild size="lg">
-            <Link href="/routes">Browse routes</Link>
+            <Link href="/">Plan a route</Link>
           </Button>
           <Button asChild size="lg" variant="secondary">
             <a href="#sos">How SOS works</a>
           </Button>
         </div>
-        <p className="text-small text-text-muted">SOS, check-ins and altitude-sickness guidance are free, always.</p>
+        <p className="text-small text-text-muted">
+          No account needed to plan. SOS, check-ins and altitude-sickness guidance are free, always.
+        </p>
       </div>
 
       {/* Built from the real components: EBC day 5 (Tengboche 3,860 m to Dingboche 4,410 m) and the real guidance text. */}

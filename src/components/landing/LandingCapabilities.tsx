@@ -10,11 +10,30 @@ interface Capability {
 
 // Only what works today and is free (FRONTEND-AUDIT §7). Altitude weather and offline map packs belong to Trek Pass (see LandingPricing) and are left out.
 const rows: Capability[] = [
+  {
+    name: "Route recommender",
+    detail: "A day out, a trek, or the exact way between two places",
+    offline: "No — needs a connection",
+    free: true,
+  },
+  {
+    name: "Day-by-day plan",
+    detail: "Hours, climb and where each day ends",
+    offline: "Comes with the route",
+    free: true,
+  },
+  {
+    name: "Places on the route",
+    detail: "Temples, viewpoints and villages, pinned and named",
+    offline: "Comes with the route",
+    free: true,
+  },
   { name: "SOS", detail: "One tap, 5-second cancel window", offline: "By SMS, needs phone signal", free: true },
   { name: "Altitude-sickness check-in", detail: "Lake Louise score and red flags", offline: "Yes", free: true },
   { name: "Altitude guidance and alerts", detail: "Sleeping-altitude gain and rest days", offline: "Yes", free: true },
   { name: "Emergency directory", detail: "Rescue posts, hospitals, helipads", offline: "Yes", free: true },
   { name: "Family live share link", detail: "Family sees your last position", offline: "Updates when you're online", free: true },
+  { name: "Community boards", detail: "Five boards of trail notes to read", offline: "No — needs a connection", free: true },
 ];
 
 const yes = <Check className="inline size-4 text-ok" aria-label="Yes" />;

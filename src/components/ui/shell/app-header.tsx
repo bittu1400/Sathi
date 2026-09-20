@@ -23,7 +23,7 @@ export function AppHeader({ showSos }: { showSos: boolean }) {
         </Link>
         <nav aria-label="Primary" className="ml-4 hidden items-center gap-1 lg:flex">
           {navItems.map(({ href, label }) => {
-            const active = pathname.startsWith(href);
+            const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <Link
                 key={href}
