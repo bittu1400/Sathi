@@ -3,7 +3,7 @@
 import * as React from "react"
 import { Button } from "@/components/ui/button"
 import type { SosCategory } from "@/lib/types"
-import { cn } from "cn"
+import { cn } from "@/lib/utils"
 
 interface SosCountdownProps {
   initialCategory?: SosCategory
@@ -46,8 +46,8 @@ export function SosCountdown({ initialCategory = "altitude_illness", onCancel, o
   return (
     <div className="mx-auto flex h-full max-w-md flex-col items-center justify-between space-y-6 p-6 text-text">
       <div className="space-y-1 text-center">
-        <p className="text-2xl font-black uppercase tracking-tight text-sos">Emergency SOS</p>
-        <p className="text-sm text-text-muted" aria-live="assertive">
+        <p className="text-h1 uppercase text-sos">Emergency SOS</p>
+        <p className="text-body text-text-muted" aria-live="assertive">
           Sending in {seconds} s
         </p>
       </div>
@@ -59,7 +59,7 @@ export function SosCountdown({ initialCategory = "altitude_illness", onCancel, o
             cx="50"
             cy="50"
             r="40"
-            className="stroke-sos transition-all duration-1000 ease-linear motion-reduce:transition-none"
+            className="stroke-sos transition-[stroke-dashoffset] duration-1000 ease-linear motion-reduce:transition-none"
             strokeWidth="8"
             strokeDasharray={CIRCUMFERENCE}
             strokeDashoffset={CIRCUMFERENCE - (CIRCUMFERENCE * seconds) / SECONDS}
@@ -67,11 +67,11 @@ export function SosCountdown({ initialCategory = "altitude_illness", onCancel, o
             fill="transparent"
           />
         </svg>
-        <span className="absolute font-mono text-5xl font-black tabular-nums text-sos">{seconds}</span>
+        <span className="absolute text-readout-xl text-sos">{seconds}</span>
       </div>
 
       <fieldset className="w-full space-y-2">
-        <legend className="mb-2 w-full text-center text-xs font-semibold uppercase tracking-wider text-text-muted">
+        <legend className="mb-2 w-full text-center text-label text-text-muted">
           What happened?
         </legend>
         <div className="grid grid-cols-2 gap-2">
@@ -82,10 +82,10 @@ export function SosCountdown({ initialCategory = "altitude_illness", onCancel, o
               aria-pressed={category === cat.id}
               onClick={() => setCategory(cat.id)}
               className={cn(
-                "min-h-12 rounded-[var(--radius-sm)] border p-2.5 text-sm font-medium transition-colors",
+                "min-h-12 cursor-pointer rounded-[var(--radius)] border p-2.5 text-body font-medium transition-colors duration-[var(--dur-fast)]",
                 category === cat.id
-                  ? "border-sos bg-sos font-bold text-sos-ink"
-                  : "border-border bg-surface-2 text-text hover:bg-surface-3"
+                  ? "border-sos bg-sos text-ink"
+                  : "border-control-border bg-surface-2 text-text hover:bg-surface-3"
               )}
             >
               {cat.label}
@@ -102,11 +102,11 @@ export function SosCountdown({ initialCategory = "altitude_illness", onCancel, o
           maxLength={500}
           onChange={(e) => setNote(e.target.value)}
           placeholder="Optional note (e.g. fell, head wound)"
-          className="h-12 w-full rounded-[var(--radius-sm)] border border-border bg-bg px-3 text-sm text-text focus:outline-none focus:ring-2 focus:ring-sos"
+          className="h-12 w-full rounded-[var(--radius)] border border-control-border bg-surface-2 px-3 text-body text-text placeholder:text-text-muted"
         />
       </label>
 
-      <Button type="button" variant="outline" size="lg" onClick={onCancel} className="w-full border-2 border-text" autoFocus>
+      <Button type="button" variant="secondary" onClick={onCancel} data-autofocus className="h-[72px] w-full text-h2">
         Cancel
       </Button>
     </div>

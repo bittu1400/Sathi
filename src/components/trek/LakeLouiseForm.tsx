@@ -13,67 +13,33 @@ export interface LakeLouiseFormProps {
   onChange: (newScores: LakeLouiseScores) => void;
 }
 
-export function LakeLouiseForm({ scores, onChange }: LakeLouiseFormProps) {
-  const options = [
-    { value: 0, label: "None" },
-    { value: 1, label: "Mild" },
-    { value: 2, label: "Moderate" },
-    { value: 3, label: "Severe" },
-  ];
+// Severity descriptors are not in SAFETY.md yet, so only the labels are shown (CHK-2).
+const options = [
+  { value: 0, label: "None" },
+  { value: 1, label: "Mild" },
+  { value: 2, label: "Moderate" },
+  { value: 3, label: "Severe" },
+];
 
+const questions: { key: keyof LakeLouiseScores; title: string; hint: string }[] = [
+  { key: "headache", title: "Headache", hint: "Do you have a headache?" },
+  { key: "gi", title: "Stomach", hint: "Poor appetite, nausea, or vomiting?" },
+  { key: "fatigue", title: "Fatigue or weakness", hint: "Unusual tiredness or physical weakness?" },
+  { key: "dizziness", title: "Dizziness", hint: "Feeling unsteady or light-headed?" },
+];
+
+export function LakeLouiseForm({ scores, onChange }: LakeLouiseFormProps) {
   return (
     <div className="space-y-6">
-      {/* 1. Headache */}
-      <div className="space-y-2">
-        <div>
-          <h4 className="font-semibold text-sm text-text">1. Headache</h4>
-          <p className="text-xs text-text-muted">Do you have a headache?</p>
-        </div>
-        <Segmented
-          options={options}
-          value={scores.headache}
-          onChange={(val) => onChange({ ...scores, headache: val as 0 | 1 | 2 | 3 })}
-        />
-      </div>
-
-      {/* 2. GI Symptoms */}
-      <div className="space-y-2">
-        <div>
-          <h4 className="font-semibold text-sm text-text">2. Gastrointestinal Symptoms</h4>
-          <p className="text-xs text-text-muted">Poor appetite, nausea, or vomiting?</p>
-        </div>
-        <Segmented
-          options={options}
-          value={scores.gi}
-          onChange={(val) => onChange({ ...scores, gi: val as 0 | 1 | 2 | 3 })}
-        />
-      </div>
-
-      {/* 3. Fatigue / Weakness */}
-      <div className="space-y-2">
-        <div>
-          <h4 className="font-semibold text-sm text-text">3. Fatigue / Weakness</h4>
-          <p className="text-xs text-text-muted">Unusual tiredness or physical weakness?</p>
-        </div>
-        <Segmented
-          options={options}
-          value={scores.fatigue}
-          onChange={(val) => onChange({ ...scores, fatigue: val as 0 | 1 | 2 | 3 })}
-        />
-      </div>
-
-      {/* 4. Dizziness / Light-headedness */}
-      <div className="space-y-2">
-        <div>
-          <h4 className="font-semibold text-sm text-text">4. Dizziness / Light-headedness</h4>
-          <p className="text-xs text-text-muted">Feeling unsteady or dizzy?</p>
-        </div>
-        <Segmented
-          options={options}
-          value={scores.dizziness}
-          onChange={(val) => onChange({ ...scores, dizziness: val as 0 | 1 | 2 | 3 })}
-        />
-      </div>
+      {questions.map((q, i) => (
+        <fieldset key={q.key} className="space-y-2">
+          <legend className="text-body font-medium">
+            {i + 1}. {q.title}
+          </legend>
+          <p className="text-small text-text-muted">{q.hint}</p>
+          <Segmented aria-label={q.title} options={options} value={scores[q.key]} onChange={(val) => onChange({ ...scores, [q.key]: val as 0 | 1 | 2 | 3 })} />
+        </fieldset>
+      ))}
     </div>
   );
 }

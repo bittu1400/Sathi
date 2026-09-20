@@ -1,17 +1,21 @@
 "use client"
 
 import * as React from "react"
-import { Copy, Phone, MessageSquare, Check, WifiOff, UserX } from "lucide-react"
+import { Copy, MessageSquare, Phone } from "lucide-react"
 import type { SosEvent } from "@/lib/types"
 import { smsBody, smsHref } from "@/lib/sos"
 import { SOS_DISCLAIMER } from "@/lib/ams-copy"
 import { getRoute } from "@/lib/data"
 import { nearestWaypoint } from "@/lib/geo"
 import { getNearestResources } from "@/lib/emergency-resources"
-import { formatKm } from "@/lib/format"
+import { formatCoords, formatKm } from "@/lib/format"
 import { sessionStore } from "@/lib/session"
 import type { RouteDetail } from "@/lib/types"
 import { markSmsSent } from "@/lib/sos-actions"
+import { Banner } from "@/components/ui/banner"
+import { Button } from "@/components/ui/button"
+import { Panel } from "@/components/ui/panel"
+import { toast } from "@/components/ui/toast"
 import { ResolveSosForm } from "./ResolveSosForm"
 
 const KIND_LABEL: Record<string, string> = {
@@ -28,7 +32,7 @@ const KIND_LABEL: Record<string, string> = {
 /** Offline SOS panel (SPEC §9.1 step 4, "Not sent"). */
 export function OfflineSosPanel({ sos, onResolve }: { sos: SosEvent; onResolve: (note: string) => Promise<void> }) {
   const session = sessionStore.useValue()
-  const [copied, setCopied] = React.useState(false)
+  const [opened, setOpened] = React.useState(false)
 
   const hasFix = sos.lat !== null && sos.lng !== null
   const route = session?.trek ? getRoute(session.trek.routeId) : null
@@ -36,124 +40,101 @@ export function OfflineSosPanel({ sos, onResolve }: { sos: SosEvent; onResolve: 
   const near = hasFix && routeDetail ? nearestWaypoint(routeDetail, { lat: sos.lat!, lng: sos.lng! }).waypoint.name : undefined
 
   // Emergency contact first, then the team number (SPEC §9.1). Never an invented fallback.
-  const smsNumber = session?.emergencyContactPhone || process.env.NEXT_PUBLIC_SOS_SMS_NUMBER || null
+  const contactPhone = session?.emergencyContactPhone || null
+  const smsNumber = contactPhone || process.env.NEXT_PUBLIC_SOS_SMS_NUMBER || null
+  const smsTo = contactPhone && session?.emergencyContactName ? session.emergencyContactName : "the SOS team"
   const body = smsBody(sos, {
     trekkerName: session?.displayName ?? "Trekker",
     routeName: route?.name,
     locationName: near,
   })
   const resources = hasFix ? getNearestResources(sos.lat!, sos.lng!, sos.category, sos.altM, 3) : []
-
-  const coords = hasFix
-    ? `${Math.abs(sos.lat!).toFixed(4)}°${sos.lat! >= 0 ? "N" : "S"} ${Math.abs(sos.lng!).toFixed(4)}°${sos.lng! >= 0 ? "E" : "W"}`
-    : null
+  const coords = hasFix ? formatCoords(sos.lat!, sos.lng!) : null
 
   const copyCoords = async () => {
     if (!coords) return
     try {
       await navigator.clipboard.writeText(coords)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      toast.success("Coordinates copied")
     } catch {
-      // clipboard blocked: coordinates stay on screen to read out
+      toast.error("Couldn't copy. Read the coordinates out instead.")
     }
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-5 p-4 text-text sm:p-6">
+    <div className="mx-auto max-w-lg space-y-4 p-4 text-text sm:p-6">
       {!sos.userId ? (
-        <Notice icon={<UserX className="h-5 w-5 shrink-0" />} title="Not signed in">
-          Coordination can&apos;t receive this SOS. Send the SMS below or call for help.
-        </Notice>
+        <Banner severity="caution" headline="Not signed in" reasons={["Coordination can't receive this SOS. Send the SMS below or call for help."]} />
       ) : (
-        <Notice icon={<WifiOff className="h-5 w-5 shrink-0" />} title="No connection: SOS queued">
-          Will send to coordination automatically when signal returns.
-        </Notice>
+        <Banner severity="caution" headline="No connection: SOS queued" reasons={["Will send to coordination automatically when signal returns."]} />
       )}
 
-      <div className="space-y-3 rounded-[var(--radius-lg)] bg-sos p-5 text-center text-sos-ink shadow-lg">
-        <p className="text-lg font-black uppercase tracking-tight">Send emergency SMS</p>
-        <p className="text-xs opacity-90">SMS often works when mobile data doesn&apos;t. Opens your messages app with your position filled in.</p>
+      <div className="space-y-3 rounded-[var(--radius-lg)] border border-sos/60 bg-sos-bg p-4">
+        <p className="text-h2 uppercase text-sos">Send emergency SMS</p>
+        <p className="text-body text-text-muted">SMS often works when mobile data doesn&apos;t. It opens your messages app with your position filled in.</p>
         {smsNumber ? (
-          <a
-            href={smsHref(smsNumber, body)}
-            onClick={() => {
-              markSmsSent(sos).catch(() => {})
-            }}
-            className="inline-flex h-14 w-full items-center justify-center gap-2 rounded-[var(--radius)] bg-bg font-bold text-text shadow focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sos-ink"
-          >
-            <MessageSquare className="h-5 w-5" />
-            Send SMS to <span className="font-mono tabular-nums">{smsNumber}</span>
-          </a>
+          <>
+            <Button asChild variant="sos" size="lg" className="w-full normal-case">
+              <a
+                href={smsHref(smsNumber, body)}
+                onClick={() => {
+                  setOpened(true)
+                  markSmsSent(sos).catch(() => {})
+                }}
+              >
+                <MessageSquare className="size-5" aria-hidden />
+                Send SMS to {smsTo}
+              </a>
+            </Button>
+            <p className="text-small text-text-muted">
+              To <span className="font-mono tabular-nums text-text">{smsNumber}</span>. Standard SMS rates may apply.
+            </p>
+            {opened && <p role="status" className="text-body font-medium text-text">Messages app opened. Press Send there.</p>}
+          </>
         ) : (
-          <p className="rounded-[var(--radius)] bg-bg p-3 text-sm font-semibold text-text">
-            No SMS number set. Add an emergency contact in Settings.
-          </p>
+          <p className="rounded-[var(--radius)] border border-line bg-surface p-3 text-body font-medium">No SMS number set. Add an emergency contact in Settings.</p>
         )}
       </div>
 
-      <div className="space-y-2 rounded-[var(--radius)] border border-border bg-surface-2 p-4">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">Your position</span>
+      <Panel title="Your position">
+        <div className="flex items-center justify-between gap-3">
+          <p className="font-mono text-h2 tabular-nums">{coords ?? "No GPS fix"}</p>
           {coords && (
-            <button
-              type="button"
-              onClick={copyCoords}
-              className="flex min-h-12 items-center gap-1 px-2 text-sm text-accent hover:underline"
-            >
-              {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-              {copied ? "Copied" : "Copy"}
-            </button>
+            <Button variant="ghost" size="icon" aria-label="Copy coordinates" onClick={copyCoords}>
+              <Copy className="size-4" aria-hidden />
+            </Button>
           )}
         </div>
-        <p className="font-mono text-2xl font-bold tabular-nums">{coords ?? "No GPS fix"}</p>
-        {sos.altM !== null && (
-          <p className="font-mono text-sm tabular-nums text-text-muted">alt {sos.altM.toLocaleString("en-US")} m</p>
-        )}
-      </div>
+        {sos.altM !== null && <p className="font-mono text-small tabular-nums text-text-muted">alt {sos.altM.toLocaleString("en-US")} m</p>}
+      </Panel>
 
       {resources.length > 0 && (
-        <div className="space-y-2 rounded-[var(--radius)] border border-border bg-surface-2 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">Nearest help</p>
-          <ul className="divide-y divide-border">
+        <Panel title="Nearest help">
+          <ul className="divide-y divide-line">
             {resources.map((r) => (
-              <li key={r.id} className="flex items-center justify-between gap-3 py-2 text-sm">
+              <li key={r.id} className="flex items-center justify-between gap-3 py-2">
                 <span>
-                  <span className="block font-semibold">{r.name}</span>
-                  <span className="block text-xs text-text-muted">
+                  <span className="block text-body font-medium">{r.name}</span>
+                  <span className="block text-small text-text-muted">
                     <span className="font-mono tabular-nums">{formatKm(r.distanceKm)}</span> · {KIND_LABEL[r.kind] ?? r.kind}
                   </span>
                 </span>
                 {r.phone && r.verified && (
-                  <a
-                    href={`tel:${r.phone}`}
-                    className="inline-flex min-h-12 items-center gap-1 rounded-[var(--radius-sm)] bg-ok/15 px-3 font-medium text-ok"
-                  >
-                    <Phone className="h-4 w-4" />
-                    Call
-                  </a>
+                  <Button asChild variant="secondary">
+                    <a href={`tel:${r.phone}`}>
+                      <Phone className="size-4" aria-hidden /> Call
+                    </a>
+                  </Button>
                 )}
               </li>
             ))}
           </ul>
-        </div>
+        </Panel>
       )}
 
-      <p className="text-center text-xs italic leading-relaxed text-text-muted">{SOS_DISCLAIMER}</p>
+      <p className="text-center text-small text-text-muted">{SOS_DISCLAIMER}</p>
 
       <ResolveSosForm onResolve={onResolve} />
-    </div>
-  )
-}
-
-function Notice({ icon, title, children }: { icon: React.ReactNode; title: string; children: React.ReactNode }) {
-  return (
-    <div role="status" className="flex items-start gap-3 rounded-[var(--radius)] border border-caution/40 bg-caution/10 p-3.5 text-caution">
-      {icon}
-      <div className="space-y-1">
-        <p className="text-sm font-semibold">{title}</p>
-        <p className="text-xs text-text-muted">{children}</p>
-      </div>
     </div>
   )
 }
