@@ -18,7 +18,7 @@ export interface ConfirmDialogProps {
   onConfirm: () => void | Promise<void>;
 }
 
-/** For irreversible or safety actions. Replaces window.confirm. Cancel has first focus. */
+/** For irreversible or safety actions. Replaces the browser confirm box. Cancel has first focus. */
 export function ConfirmDialog({ open, onOpenChange, title, body, confirmLabel, tone = "default", requireText, onConfirm }: ConfirmDialogProps) {
   const [typed, setTyped] = React.useState("");
   const [busy, setBusy] = React.useState(false);
