@@ -1,67 +1,43 @@
-import * as React from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { RouteSummary } from "@/lib/types";
-import { Badge } from "../ui/badge";
-import { Chip, ChipGroup } from "../ui/chip";
-import { Calendar, Mountain } from "lucide-react";
+import { ChevronRight } from "lucide-react";
+import type { Difficulty, RouteSummary } from "@/lib/types";
+import { formatAltitude } from "@/lib/format";
+import { Status, type StatusTone } from "../ui/status";
 
-export function RouteCard({ route }: { route: RouteSummary }) {
+export const difficultyTone: Record<Difficulty, StatusTone> = { easy: "ok", moderate: "accent", strenuous: "warning", extreme: "danger" };
+
+export function DifficultyStatus({ difficulty }: { difficulty: Difficulty }) {
+  return <Status tone={difficultyTone[difficulty]}>{difficulty}</Status>;
+}
+
+export function DataStatus({ full }: { full: boolean }) {
+  return full ? <Status tone="ok">Full data</Status> : <Status unverified>Preview</Status>;
+}
+
+/** One route as a dense row (mobile list). The whole row is the link. */
+export function RouteRow({ route }: { route: RouteSummary }) {
   return (
-    <Link href={`/routes/${route.id}`} className="group block">
-      <div className="bg-surface border border-border rounded-[var(--radius)] overflow-hidden shadow-sm hover:border-accent/60 transition-all group-hover:shadow-md">
-        {/* Image Header */}
-        <div className="relative h-48 w-full overflow-hidden">
-          <Image
-            src={route.heroImage}
-            alt={route.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-bg/90 via-bg/20 to-transparent" />
-          <div className="absolute top-3 left-3 flex gap-2">
-            <Badge variant={route.difficulty === "easy" ? "ok" : "warning"}>
-              {route.difficulty.toUpperCase()}
-            </Badge>
-            {route.hasFullData && <Badge variant="ok">Full route data</Badge>}
-          </div>
-          <div className="absolute bottom-3 left-3 right-3">
-            <span className="text-xs uppercase tracking-wider text-accent font-semibold">
-              {route.region}
-            </span>
-            <h3 className="text-xl font-bold text-text group-hover:text-accent transition-colors">
-              {route.name}
-            </h3>
-          </div>
+    <Link
+      href={`/routes/${route.id}`}
+      className="flex min-h-16 items-center gap-3 border-b border-line px-4 py-3 last:border-0 hover:bg-surface-2"
+    >
+      <div className="min-w-0 flex-1 space-y-1">
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="truncate text-body font-medium">{route.name}</span>
+          <span className="shrink-0 font-mono text-body tabular-nums">{formatAltitude(route.maxAltitudeM)}</span>
         </div>
-
-        {/* Card Body */}
-        <div className="p-4 space-y-3">
-          <p className="text-sm text-text-muted line-clamp-2">
-            {route.summary}
-          </p>
-
-          <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs font-mono">
-            <div className="flex items-center gap-1.5 text-text">
-              <Calendar className="w-3.5 h-3.5 text-text-muted" />
-              <span>{route.days[0]}–{route.days[1]} days</span>
-            </div>
-
-            <div className="flex items-center gap-1.5 text-text font-bold">
-              <Mountain className="w-3.5 h-3.5 text-accent" />
-              <span>{route.maxAltitudeM.toLocaleString()} m</span>
-            </div>
-          </div>
-
-          <ChipGroup className="pt-1">
-            {route.terrain.slice(0, 3).map((t) => (
-              <Chip key={t} className="py-0.5 px-2 text-[10px] min-h-0 pointer-events-none">
-                {t.replace("_", " ")}
-              </Chip>
-            ))}
-          </ChipGroup>
+        <div className="flex flex-wrap items-center gap-2 text-small text-text-muted">
+          <span>{route.region}</span>
+          <span aria-hidden>·</span>
+          <span className="font-mono tabular-nums">
+            {route.days[0]}–{route.days[1]} days
+          </span>
+          <DifficultyStatus difficulty={route.difficulty} />
+          <DataStatus full={route.hasFullData} />
         </div>
+        {!route.hasFullData && <p className="text-small text-text-muted">Preview — stages and packs not ready</p>}
       </div>
+      <ChevronRight className="size-5 shrink-0 text-text-muted" aria-hidden />
     </Link>
   );
 }
