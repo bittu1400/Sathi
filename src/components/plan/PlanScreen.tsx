@@ -10,7 +10,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { SosButton } from "@/components/sos/SosButton";
 import { usePosition, type PositionStatus } from "@/lib/plan/position";
 import type { InterestId } from "@/lib/plan/interests";
-import type { PlanMode, PlannedRoute, PlanResult } from "@/lib/plan/types";
+import type { PlanMode, PlannedRoute, PlanResult, VariantKind } from "@/lib/plan/types";
+import { Chip, ChipGroup } from "@/components/ui/chip";
 import { DestinationSearch, type Destination } from "./DestinationSearch";
 import { RouteCards } from "./RouteCards";
 import { TripForm } from "./TripForm";
@@ -21,6 +22,13 @@ const PlanMap = dynamic(() => import("@/components/map/PlanMapInner"), {
 });
 
 type SheetState = "peek" | "search" | "start" | "trip" | "results";
+
+/** What the three cards should differ by. A day out makes its own three. */
+const VARIANTS: { id: VariantKind; label: string }[] = [
+  { id: "ways", label: "Different ways" },
+  { id: "paces", label: "Different paces" },
+  { id: "treks", label: "Known treks" },
+];
 
 const LOCATE_LABEL: Record<PositionStatus, string> = {
   idle: "Use my location",
@@ -52,8 +60,11 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
   const [manualStart, setManualStart] = React.useState<Destination | null>(null);
   const [days, setDays] = React.useState(3);
   const [mode, setMode] = React.useState<PlanMode>("auto");
+  const [variants, setVariants] = React.useState<VariantKind>("ways");
   const [interests, setInterests] = React.useState<InterestId[]>([]);
   const [routes, setRoutes] = React.useState<PlannedRoute[]>([]);
+  /** The shape the planner settled on, which decides whether the toggle shows. */
+  const [result, setResult] = React.useState<PlanResult | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -100,7 +111,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
     mapRef.current?.flyTo({ center: [picked.lng, picked.lat], zoom: 10, duration: 900 });
   };
 
-  const findRoutes = async () => {
+  const findRoutes = async (wanted: VariantKind = variants) => {
     if (!destination || !startPoint) return;
     setBusy(true);
     setError(null);
@@ -114,11 +125,15 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
           days,
           interests,
           mode,
+          variants: wanted,
         }),
       });
       const body = (await response.json().catch(() => null)) as (PlanResult & { error?: string }) | null;
       if (!response.ok || !body?.routes) {
         setError(body?.error ?? "Couldn't reach the route service.");
+        // The sheet stays on the results when a toggle came back empty, so the
+        // trekker can switch back to what did work.
+        setRoutes([]);
         return;
       }
       const first = body.routes[0];
@@ -127,6 +142,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         return;
       }
       setRoutes(body.routes);
+      setResult(body);
       setSelectedId(first.id);
       setSheet("results");
     } catch {
@@ -310,7 +326,32 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
                 <SlidersHorizontal className="size-5" aria-hidden />
               </button>
             </div>
-            <RouteCards routes={routes} selectedId={selectedId ?? ""} onSelect={setSelectedId} />
+            {result?.kind !== "tour" && (
+              <ChipGroup>
+                {VARIANTS.map((option) => (
+                  <Chip
+                    key={option.id}
+                    selected={variants === option.id}
+                    disabled={busy}
+                    className={busy ? "opacity-40" : undefined}
+                    onClick={() => {
+                      setVariants(option.id);
+                      void findRoutes(option.id);
+                    }}
+                  >
+                    {option.label}
+                  </Chip>
+                ))}
+              </ChipGroup>
+            )}
+            {error && (
+              <p role="alert" className="text-small text-danger">
+                {error}
+              </p>
+            )}
+            {routes.length > 0 && (
+              <RouteCards routes={routes} selectedId={selectedId ?? ""} onSelect={setSelectedId} />
+            )}
           </div>
         )}
       </div>

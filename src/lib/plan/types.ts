@@ -13,12 +13,20 @@ export interface LatLng {
  */
 export type PlanMode = "auto" | "direct" | "tour";
 
+/**
+ * What should make the three options differ. `ways` is different ground,
+ * `paces` is the same ground over more or fewer days, `treks` is the routes we
+ * hold our own data for. The trekker picks; each answer is a different plan.
+ */
+export type VariantKind = "ways" | "paces" | "treks";
+
 export interface PlanRequest {
   start: LatLng;
   end: LatLng;
   days: number;
   interests: InterestId[];
   mode: PlanMode;
+  variants: VariantKind;
 }
 
 /** A named place worth walking past, from OpenStreetMap. */

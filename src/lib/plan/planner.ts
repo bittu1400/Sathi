@@ -1,7 +1,8 @@
 import { haversineKm } from "@/lib/geo";
 import { toDayLegs, walkingHours } from "./daysplit";
 import { interestLabel, type InterestId } from "./interests";
-import { fetchCandidates, fetchDuration, fetchThrough } from "./ors";
+import { curatedFor, stageDays, toCuratedRoute } from "./curated";
+import { fetchCandidates, fetchDuration, fetchThrough, PlanError } from "./ors";
 import { fetchPoisAlong, orderAlong, poisNear } from "./overpass";
 import { poisAround, regionFor } from "./pois";
 import { simplifyLine } from "./simplify";
@@ -26,6 +27,23 @@ const TOUR_RADIUS_KM = 25;
 /** What a day out looks for when the trekker picked nothing in particular. */
 const DEFAULT_TOUR_INTERESTS: InterestId[] = ["culture", "villages", "forests", "sunrise"];
 const DEFAULT_TREK_INTERESTS: InterestId[] = ["mountains", "villages", "rivers", "teahouses"];
+
+/**
+ * How far off the line a detour may look for somewhere worth the extra walking.
+ * Inside 2 km the direct line already passes it, so it makes no third option.
+ */
+const DETOUR_RADIUS_M = 8_000;
+
+/** Two detours on the card, and at most this many tried: each one is a request. */
+const DETOUR_TRIES = 4;
+const DETOUR_MAX = 2;
+
+/**
+ * Interests whose places sit on something you can walk to. A summit or a
+ * waterfall is often 350 m from the nearest way, which ORS refuses to route
+ * to, so those are tried last rather than first.
+ */
+const WALKABLE: InterestId[] = ["villages", "teahouses", "culture", "sunrise", "forests"];
 
 /** How many places a line route pins: enough to see what you came for, few enough to read. */
 const MAX_LINE_STOPS = 8;
@@ -131,21 +149,41 @@ async function planTour({ start, end, days, interests }: PlanRequest): Promise<P
  * the honest difference.
  */
 async function planLine(
-  { start, end, days, interests }: PlanRequest,
+  { start, end, days, interests, variants }: PlanRequest,
   kind: PlanKind,
 ): Promise<PlannedRoute[]> {
   const wanted = interests.length > 0 ? interests : defaultInterests(start, end);
-  const { candidates, trailhead } = await lineCandidates(start, end, kind);
+  if (variants === "treks") return curatedRoutes(end, wanted);
+
+  let lines: { candidates: PlannedRoute[]; trailhead: Trailhead | null };
+  try {
+    lines = await lineCandidates(start, end, kind);
+  } catch (error) {
+    // ORS refuses to route to a point with no way near it, which is true of
+    // Base Camp itself. If we hold a trek that reaches there, that trek is the
+    // answer rather than an error.
+    if (curatedFor(end).length > 0) return curatedRoutes(end, wanted);
+    throw error;
+  }
+  const { candidates, trailhead } = lines;
   const first = candidates[0];
   if (!first) return [];
 
   // Alternatives run down the same corridor, so one query covers them all and
-  // each line is then given the places it actually passes.
+  // each line is then given the places it actually passes. The band is wider
+  // than the 2 km a day plan lists, because a detour is by definition
+  // somewhere the direct line misses.
   const pois = await fetchPoisAlong(
     candidates.flatMap((route) => route.geometry.coordinates),
-    2_000,
+    DETOUR_RADIUS_M,
     wanted,
   );
+
+  if (variants === "paces" || candidates.length === 1) {
+    const near = poisNear(pois, first.geometry.coordinates, 2_000);
+    if (variants === "paces") return paceVariants(first, days, near, kind, trailhead);
+    return wayVariants(first, days, near, pois, wanted, kind, trailhead);
+  }
 
   if (candidates.length > 1) {
     const taken = new Set<InterestId>();
@@ -166,6 +204,111 @@ async function planLine(
       });
   }
   return paceVariants(first, days, poisNear(pois, first.geometry.coordinates, 2_000), kind, trailhead);
+}
+
+/**
+ * The treks we hold our own data for and that actually reach the destination.
+ * Their lines, climb and hours come from the files, not from the engine.
+ */
+async function curatedRoutes(end: LatLng, wanted: InterestId[]): Promise<PlannedRoute[]> {
+  const treks = curatedFor(end);
+  if (treks.length === 0) {
+    throw new PlanError(404, "We don't hold a known trek that reaches there yet.");
+  }
+  const pois = await fetchPoisAlong(
+    treks.flatMap((detail) => detail.line.coordinates),
+    2_000,
+    wanted,
+  );
+  return treks.map((detail) => {
+    const route = toCuratedRoute(detail);
+    const near = poisNear(pois, route.geometry.coordinates, 2_000);
+    return {
+      ...route,
+      stops: stopsAlong(near, route.geometry.coordinates),
+      // The trek's own stages, not a split of the asked-for days: this is the
+      // schedule the route is walked in.
+      days: stageDays(detail),
+    };
+  });
+}
+
+/**
+ * Three ways over different ground when the engine only offered one line: the
+ * direct line, plus a walk through a place worth the detour that it misses.
+ * Each detour costs one request, and one ORS refuses is simply dropped.
+ */
+async function wayVariants(
+  base: PlannedRoute,
+  days: number,
+  near: Poi[],
+  wide: Poi[],
+  wanted: InterestId[],
+  kind: PlanKind,
+  trailhead: Trailhead | null,
+): Promise<PlannedRoute[]> {
+  const coordinates = base.geometry.coordinates;
+  const from = endpoint(coordinates[0]);
+  const to = endpoint(coordinates[coordinates.length - 1]);
+  const routes = [{ ...withDays(base, days, near, staysIn(near), kind, trailhead), label: "Most direct" }];
+  if (!from || !to) return routes;
+
+  for (const poi of detourPicks(wide, near, coordinates, wanted)) {
+    if (routes.length > DETOUR_MAX) break;
+    const via = await fetchThrough([from, poi, to], "foot-hiking");
+    // ORS refuses to route to a point with no way within 350 m, which is most
+    // summits: that detour is simply not walkable, so try the next one.
+    if (!via) continue;
+    const viaNear = poisNear(wide, via.geometry.coordinates, 2_000);
+    routes.push({
+      ...withDays(via, days, viaNear, staysIn(viaNear), kind, trailhead),
+      id: `via-${poi.id}`,
+      label: `Via ${poi.name}`,
+    });
+  }
+  return routes;
+}
+
+function endpoint(coordinate: number[] | undefined): LatLng | null {
+  const [lng, lat] = coordinate ?? [];
+  return typeof lng === "number" && typeof lat === "number" ? { lat, lng } : null;
+}
+
+/**
+ * Up to two places worth leaving the line for: what the trekker asked to see,
+ * off the direct line, one from each half of the walk so the two detours are
+ * not the same afternoon twice. Exported for its test.
+ */
+export function detourPicks(
+  wide: Poi[],
+  near: Poi[],
+  coordinates: number[][],
+  wanted: InterestId[],
+  limit = DETOUR_TRIES,
+): Poi[] {
+  const onLine = new Set(near.map((poi) => poi.id));
+  const off = orderAlong(
+    wide.filter((poi) => !onLine.has(poi.id) && wanted.includes(poi.interest)),
+    coordinates,
+  );
+  if (off.length === 0) return [];
+  const worth = (poi: Poi) => (WALKABLE.includes(poi.interest) ? 2 : 0) + (poi.notable ? 1 : 0);
+  const cut = Math.ceil(off.length / 2);
+  const halves = [off.slice(0, cut), off.slice(cut)].map((half) =>
+    [...half].sort((a, b) => worth(b) - worth(a)),
+  );
+  // One from each half in turn, so the two detours are not the same afternoon
+  // twice and a failed first pick still leaves the other end of the walk.
+  const picks: Poi[] = [];
+  for (let i = 0; picks.length < limit; i += 1) {
+    const round = halves.flatMap((half) => {
+      const poi = half[i];
+      return poi ? [poi] : [];
+    });
+    if (round.length === 0) break;
+    picks.push(...round.slice(0, limit - picks.length));
+  }
+  return picks;
 }
 
 /**
@@ -273,7 +416,8 @@ function withDays(
   return {
     ...route,
     kind,
-    trailhead: toStartPoint(trailhead),
+    // A curated route knows its own trailhead; nothing must wipe it.
+    trailhead: toStartPoint(trailhead) ?? route.trailhead,
     stops: stopsAlong(pois, route.geometry.coordinates),
     days: toDayLegs(route.geometry.coordinates, days, pois, stays),
   };
@@ -304,7 +448,7 @@ function paceVariants(
       id: `${route.id}-${pace.id}`,
       label: pace.label,
       kind,
-      trailhead: toStartPoint(trailhead),
+      trailhead: toStartPoint(trailhead) ?? route.trailhead,
       stops,
       days: toDayLegs(route.geometry.coordinates, pace.days, pois, stays),
     }));

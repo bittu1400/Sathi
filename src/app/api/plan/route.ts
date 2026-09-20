@@ -17,6 +17,9 @@ const planSchema = z.object({
   interests: z.array(z.enum(INTEREST_IDS as [string, ...string[]])).max(INTEREST_IDS.length),
   // What shape of trip: the planner's own guess unless the trekker said.
   mode: z.enum(["auto", "direct", "tour"]).default("auto"),
+  // What should make the options differ: different ground, different paces, or
+  // the treks we hold our own data for.
+  variants: z.enum(["ways", "paces", "treks"]).default("ways"),
 });
 
 // ponytail: per-process cache, good enough for one server and a demo. Move it
@@ -33,6 +36,7 @@ function cacheKey(input: z.infer<typeof planSchema>): string {
     round(input.end.lng),
     input.days,
     input.mode,
+    input.variants,
     [...input.interests].sort().join("+"),
   ].join(":");
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { poisNear } from "./overpass";
-import { planKind, scorePois, stopsAlong, topInterest } from "./planner";
+import { detourPicks, planKind, scorePois, stopsAlong, topInterest } from "./planner";
 import type { InterestId, Poi } from "./types";
 
 const kathmandu = { lat: 27.7172, lng: 85.324 };
@@ -106,5 +106,23 @@ describe("stopsAlong", () => {
     const stops = stopsAlong([...plain, notable], east, 2);
     expect(stops).toHaveLength(2);
     expect(stops.map((p) => p.name)).toContain("Boudhanath");
+  });
+});
+
+describe("detourPicks", () => {
+  // A line running east out of Kathmandu, a point every kilometre or so.
+  const east = Array.from({ length: 20 }, (_, i) => [85.32 + i * 0.01, 27.71]);
+  const onLine = poi("On the way", "culture", 27.711, 85.35);
+
+  it("picks places off the line, one from each half of the walk", () => {
+    const early = poi("Early hill", "mountains", 27.76, 85.34, true);
+    const late = poi("Late hill", "mountains", 27.76, 85.47, true);
+    const picks = detourPicks([onLine, early, late], [onLine], east, ["mountains", "culture"]);
+    expect(picks.map((p) => p.name)).toEqual(["Early hill", "Late hill"]);
+  });
+
+  it("ignores what the line already passes and what nobody asked for", () => {
+    const unwanted = poi("A hotel", "teahouses", 27.76, 85.34);
+    expect(detourPicks([onLine, unwanted], [onLine], east, ["mountains"])).toEqual([]);
   });
 });
