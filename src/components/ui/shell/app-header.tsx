@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { OPEN_PALETTE_EVENT } from "../command-palette";
+import { Kbd } from "../kbd";
 import { LiveConnectivityPill } from "@/components/live-connectivity";
 import { Logo } from "../logo";
 import { AccountMenu } from "./account-menu";
@@ -37,6 +39,14 @@ export function AppHeader({ showSos }: { showSos: boolean }) {
           })}
         </nav>
         <div className="ml-auto flex items-center gap-2">
+          {/* Desktop only: trekker screens are touch-first, so no mobile trigger. */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new Event(OPEN_PALETTE_EVENT))}
+            className="hidden min-h-10 cursor-pointer items-center gap-2 rounded-[var(--radius)] border border-line-strong px-3 text-small text-text-muted hover:bg-surface-2 hover:text-text lg:flex"
+          >
+            Search <Kbd>⌘K</Kbd>
+          </button>
           <LiveConnectivityPill />
           {showSos && <HeaderSos />}
           <AccountMenu />
