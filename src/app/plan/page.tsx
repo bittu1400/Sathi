@@ -1,20 +1,23 @@
 import * as React from "react";
+import type { Metadata } from "next";
 import { getRoutes } from "@/lib/data";
 import { RouteFinder } from "@/components/plan/RouteFinder";
+
+export const metadata: Metadata = { title: "Plan" };
 
 export default function PlanPage() {
   const routes = getRoutes();
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-extrabold tracking-tight">Plan Your Trek</h1>
-        <p className="text-text-muted text-base mt-1">
-          Answer 4 quick preferences to receive personalized route recommendations matching your timeframe and fitness.
-        </p>
+      <div className="space-y-1">
+        <h1 className="text-h1">Plan your trek</h1>
+        <p className="text-text-muted">Four preferences, and the routes that fit best come first.</p>
       </div>
-
-      <RouteFinder routes={routes} />
+      {/* useSearchParams needs a Suspense boundary. */}
+      <React.Suspense fallback={null}>
+        <RouteFinder routes={routes} />
+      </React.Suspense>
     </div>
   );
 }

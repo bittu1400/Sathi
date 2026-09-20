@@ -2,222 +2,252 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Terrain, Season, RouteSummary } from "@/lib/types";
-import { Chip, ChipGroup } from "../ui/chip";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { ArrowRight, Check } from "lucide-react";
+import type { RouteSummary, Season, Terrain } from "@/lib/types";
+import { formatAltitude } from "@/lib/format";
 import { Button } from "../ui/button";
-import { Card } from "../ui/card";
-import { Badge } from "../ui/badge";
-import { Compass, Sparkles, ArrowRight, Check } from "lucide-react";
+import { Chip, ChipGroup } from "../ui/chip";
+import { Panel } from "../ui/panel";
+import { Status } from "../ui/status";
 
 export interface RouteFinderProps {
   routes: RouteSummary[];
 }
 
+const TERRAINS: Terrain[] = [
+  "river_valley",
+  "forest",
+  "alpine",
+  "ridge",
+  "glacier",
+  "cultural",
+];
+const SEASONS: Season[] = ["spring", "autumn", "winter", "monsoon"];
+const FITNESS = ["low", "medium", "high"] as const;
+type Fitness = (typeof FITNESS)[number];
+const FIT_LABEL = ["Best fit", "Good fit", "Stretch"] as const;
+
+/** Preferences live in the URL, so a plan can be bookmarked or shared. */
 export function RouteFinder({ routes }: RouteFinderProps) {
-  const [selectedTerrain, setSelectedTerrain] = React.useState<Terrain[]>([
+  const router = useRouter();
+  const pathname = usePathname();
+  const search = useSearchParams();
+
+  // Slider range comes from the route data, not hard-coded text.
+  const shortest = routes.reduce((a, b) => (b.days[0] < a.days[0] ? b : a));
+  const longest = routes.reduce((a, b) => (b.days[1] > a.days[1] ? b : a));
+  const minDays = shortest.days[0];
+  const maxDays = longest.days[1];
+
+  const terrain = (search.get("terrain")?.split(",").filter(Boolean) ?? [
     "forest",
     "ridge",
-  ]);
-  const [days, setDays] = React.useState<number>(5);
-  const [fitness, setFitness] = React.useState<"low" | "medium" | "high">("low");
-  const [season, setSeason] = React.useState<Season>("spring");
+  ]) as Terrain[];
+  const days = Math.min(
+    Math.max(Number(search.get("days")) || 5, minDays),
+    maxDays,
+  );
+  const fitness = (FITNESS as readonly string[]).includes(
+    search.get("fitness") ?? "",
+  )
+    ? (search.get("fitness") as Fitness)
+    : "low";
+  const season = (SEASONS as string[]).includes(search.get("season") ?? "")
+    ? (search.get("season") as Season)
+    : "spring";
 
-  const rankedRoutes = React.useMemo(() => {
-    return routes
-      .map((r) => {
-        let score = 0;
-        const why: string[] = [];
-
-        // Terrain match
-        const terrainMatch = r.terrain.filter((t) => selectedTerrain.includes(t));
-        if (terrainMatch.length > 0) {
-          score += terrainMatch.length * 20;
-          why.push(`Matches terrain: ${terrainMatch.map((t) => t.replace("_", " ")).join(", ")}`);
-        }
-
-        // Days fit
-        if (days >= r.days[0] && days <= r.days[1]) {
-          score += 30;
-          why.push(`Fits your ${days}-day timeframe`);
-        } else if (Math.abs(r.days[0] - days) <= 2) {
-          score += 15;
-        }
-
-        // Fitness & altitude comfort
-        if (fitness === "low" && r.maxAltitudeM <= 3500) {
-          score += 25;
-          why.push("Comfortable max altitude for lower fitness");
-        } else if (fitness === "high" && r.maxAltitudeM > 5000) {
-          score += 25;
-          why.push("High altitude challenge suitable for high fitness");
-        }
-
-        // Season
-        if (r.bestSeasons.includes(season)) {
-          score += 20;
-          why.push(`Great condition in ${season}`);
-        }
-
-        return { route: r, score, why };
-      })
-      .sort((a, b) => b.score - a.score);
-  }, [routes, selectedTerrain, days, fitness, season]);
-
-  const toggleTerrain = (t: Terrain) => {
-    if (selectedTerrain.includes(t)) {
-      setSelectedTerrain(selectedTerrain.filter((x) => x !== t));
-    } else {
-      setSelectedTerrain([...selectedTerrain, t]);
-    }
+  const update = (
+    next: Partial<{
+      terrain: Terrain[];
+      days: number;
+      fitness: Fitness;
+      season: Season;
+    }>,
+  ) => {
+    const p = new URLSearchParams({
+      terrain: (next.terrain ?? terrain).join(","),
+      days: String(next.days ?? days),
+      fitness: next.fitness ?? fitness,
+      season: next.season ?? season,
+    });
+    router.replace(`${pathname}?${p.toString()}`, { scroll: false });
   };
 
+  const ranked = routes
+    .map((r) => {
+      let score = 0;
+      const why: string[] = [];
+      const match = r.terrain.filter((t) => terrain.includes(t));
+      if (match.length > 0) {
+        score += match.length * 20;
+        why.push(
+          `Matches terrain: ${match.map((t) => t.replace("_", " ")).join(", ")}`,
+        );
+      }
+      if (days >= r.days[0] && days <= r.days[1]) {
+        score += 30;
+        why.push(`Fits your ${days}-day timeframe`);
+      } else if (Math.abs(r.days[0] - days) <= 2) {
+        score += 15;
+      }
+      if (fitness === "low" && r.maxAltitudeM <= 3500) {
+        score += 25;
+        why.push("Comfortable max altitude for lower fitness");
+      } else if (fitness === "high" && r.maxAltitudeM > 5000) {
+        score += 25;
+        why.push("High altitude challenge suitable for high fitness");
+      }
+      if (r.bestSeasons.includes(season)) {
+        score += 20;
+        why.push(`Good conditions in ${season}`);
+      }
+      return { route: r, score, why };
+    })
+    .sort((a, b) => b.score - a.score);
+
+  // Fit is relative to the best match, so there is never a percentage above 100.
+  const top = ranked[0]?.score ?? 0;
+  const label = (score: number, i: number) =>
+    i === 0 && score > 0
+      ? FIT_LABEL[0]
+      : score > 0 && score >= top / 2
+        ? FIT_LABEL[1]
+        : FIT_LABEL[2];
+
+  const toggleTerrain = (t: Terrain) =>
+    update({
+      terrain: terrain.includes(t)
+        ? terrain.filter((x) => x !== t)
+        : [...terrain, t],
+    });
+
+  const card = ({ route, why }: (typeof ranked)[number], i: number) => (
+    <Panel key={route.id} className="space-y-3">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+        <div className="space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-h2">{route.name}</h3>
+            <Status tone={i === 0 ? "ok" : "neutral"}>
+              {label(ranked[i]!.score, i)}
+            </Status>
+            {!route.hasFullData && <Status unverified>Preview</Status>}
+          </div>
+          <p className="font-mono text-small tabular-nums text-text-muted">
+            {route.region} · {route.days[0]}–{route.days[1]} days · max{" "}
+            {formatAltitude(route.maxAltitudeM)} · {route.difficulty}
+          </p>
+        </div>
+        <Button asChild variant={i === 0 ? "primary" : "secondary"}>
+          <Link href={`/routes/${route.id}`}>
+            View route <ArrowRight className="size-4" aria-hidden />
+          </Link>
+        </Button>
+      </div>
+      {why.length > 0 && (
+        <ul className="space-y-1 text-body">
+          {why.map((reason) => (
+            <li key={reason} className="flex items-center gap-2">
+              <Check className="size-4 shrink-0 text-ok" aria-hidden /> {reason}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+
   return (
-    <div className="space-y-8 max-w-4xl mx-auto">
-      <div className="bg-surface border border-border rounded-[var(--radius-lg)] p-6 space-y-6 shadow-md">
-        <div className="flex items-center gap-2 text-xs font-mono uppercase tracking-wider text-accent font-semibold">
-          <Sparkles className="w-4 h-4 text-accent" />
-          Interactive Route Finder
-        </div>
-
-        {/* 1. Terrain selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-text block">
-            1. What type of terrain do you prefer?
-          </label>
+    <div className="mx-auto max-w-4xl space-y-6">
+      <Panel className="space-y-6">
+        <fieldset className="space-y-2">
+          <legend className="text-body font-medium">Terrain you like</legend>
           <ChipGroup>
-            {(["river_valley", "forest", "alpine", "ridge", "glacier", "cultural"] as Terrain[]).map(
-              (t) => (
-                <Chip
-                  key={t}
-                  selected={selectedTerrain.includes(t)}
-                  onClick={() => toggleTerrain(t)}
-                >
-                  {t.replace("_", " ")}
-                </Chip>
-              )
-            )}
+            {TERRAINS.map((t) => (
+              <Chip
+                key={t}
+                selected={terrain.includes(t)}
+                onClick={() => toggleTerrain(t)}
+              >
+                {t.replace("_", " ")}
+              </Chip>
+            ))}
           </ChipGroup>
-        </div>
+        </fieldset>
 
-        {/* 2. Days available */}
         <div className="space-y-2">
-          <div className="flex justify-between items-center text-sm font-semibold text-text">
-            <span>2. How many days do you have available?</span>
-            <span className="font-mono text-accent">{days} Days</span>
+          <div className="flex items-center justify-between text-body font-medium">
+            <label htmlFor="plan-days">Days available</label>
+            <span className="font-mono tabular-nums text-accent">
+              {days} days
+            </span>
           </div>
           <input
+            id="plan-days"
             type="range"
-            min={3}
-            max={18}
+            min={minDays}
+            max={maxDays}
             value={days}
-            onChange={(e) => setDays(Number(e.target.value))}
-            className="w-full accent-accent cursor-pointer"
+            aria-valuetext={`${days} days`}
+            onChange={(e) => update({ days: Number(e.target.value) })}
+            className="h-12 w-full cursor-pointer accent-accent"
           />
-          <div className="flex justify-between text-xs text-text-muted font-mono">
-            <span>3 days (Poon Hill)</span>
-            <span>18 days (Annapurna Circuit)</span>
+          <div className="flex justify-between font-mono text-small text-text-muted">
+            <span>
+              {minDays} days ({shortest.name})
+            </span>
+            <span>
+              {maxDays} days ({longest.name})
+            </span>
           </div>
         </div>
 
-        {/* 3. Fitness level */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-text block">
-            3. What is your current fitness level?
-          </label>
-          <div className="grid grid-cols-3 gap-3">
-            {(["low", "medium", "high"] as const).map((f) => (
-              <Button
+        <fieldset className="space-y-2">
+          <legend className="text-body font-medium">Fitness</legend>
+          <ChipGroup>
+            {FITNESS.map((f) => (
+              <Chip
                 key={f}
-                type="button"
-                variant={fitness === f ? "primary" : "secondary"}
-                onClick={() => setFitness(f)}
+                selected={fitness === f}
+                onClick={() => update({ fitness: f })}
                 className="capitalize"
               >
                 {f}
-              </Button>
+              </Chip>
             ))}
-          </div>
-        </div>
+          </ChipGroup>
+        </fieldset>
 
-        {/* 4. Season */}
-        <div className="space-y-2">
-          <label className="text-sm font-semibold text-text block">
-            4. Trekking Season
-          </label>
+        <fieldset className="space-y-2">
+          <legend className="text-body font-medium">Season</legend>
           <ChipGroup>
-            {(["spring", "autumn", "winter", "monsoon"] as Season[]).map((s) => (
+            {SEASONS.map((s) => (
               <Chip
                 key={s}
                 selected={season === s}
-                onClick={() => setSeason(s)}
+                onClick={() => update({ season: s })}
+                className="capitalize"
               >
                 {s}
               </Chip>
             ))}
           </ChipGroup>
-        </div>
-      </div>
+        </fieldset>
+      </Panel>
 
-      {/* Ranked Results */}
-      <div className="space-y-4">
-        <h2 className="text-xl font-bold flex items-center gap-2">
-          <Compass className="w-5 h-5 text-accent" />
-          Recommended Routes ({rankedRoutes.length})
-        </h2>
-
-        <div className="space-y-4">
-          {rankedRoutes.map(({ route, score, why }, idx) => (
-            <Card
-              key={route.id}
-              className={`p-5 space-y-4 transition-all ${
-                idx === 0 ? "border-accent ring-1 ring-accent/30 bg-surface" : ""
-              }`}
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border/60 pb-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    {idx === 0 && <Badge variant="ok">#1 Match</Badge>}
-                    <h3 className="text-xl font-bold text-text">{route.name}</h3>
-                    <Badge variant="neutral">{route.region}</Badge>
-                  </div>
-                  <p className="text-xs text-text-muted">
-                    {route.days[0]}–{route.days[1]} Days · Max {route.maxAltitudeM.toLocaleString()} m · {route.difficulty}
-                  </p>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <span className="text-xs text-text-muted font-mono uppercase block">Match Score</span>
-                    <span className="text-2xl font-mono font-extrabold text-accent">{score}%</span>
-                  </div>
-                  <Link href={`/routes/${route.id}`}>
-                    <Button variant="primary">
-                      View Route
-                      <ArrowRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-
-              {why.length > 0 && (
-                <div className="space-y-1">
-                  <span className="text-xs font-semibold text-text-muted uppercase tracking-wider block">
-                    Why it fits:
-                  </span>
-                  <ul className="text-xs text-text space-y-1">
-                    {why.map((reason, rIdx) => (
-                      <li key={rIdx} className="flex items-center gap-1.5">
-                        <Check className="w-3.5 h-3.5 text-ok shrink-0" />
-                        <span>{reason}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </Card>
-          ))}
-        </div>
-      </div>
+      <section className="space-y-3" aria-live="polite">
+        <h2 className="text-h2">Your top matches</h2>
+        {ranked.slice(0, 3).map((r, i) => card(r, i))}
+        {ranked.length > 3 && (
+          <details className="rounded-[var(--radius-lg)] border border-line bg-surface p-4">
+            <summary className="min-h-12 cursor-pointer text-body font-medium">
+              Other routes ({ranked.length - 3})
+            </summary>
+            <div className="mt-3 space-y-3">
+              {ranked.slice(3).map((r, i) => card(r, i + 3))}
+            </div>
+          </details>
+        )}
+      </section>
     </div>
   );
 }
