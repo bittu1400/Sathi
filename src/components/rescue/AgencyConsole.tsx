@@ -1,15 +1,22 @@
 "use client"
 
-import React, { useCallback, useEffect, useState } from "react"
-import { Compass, AlertTriangle, LifeBuoy, Phone, X, Users } from "lucide-react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
+import { Download, Phone, Users } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { listFleet, listSos, type FleetTrekker, type SosWithContext } from "@/lib/db/queries"
 import { formatAltitude, formatNepalTime } from "@/lib/format"
 import { RED_FLAG_LABELS } from "@/lib/ams-copy"
+import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Input, Select } from "@/components/ui/field"
+import { Panel } from "@/components/ui/panel"
+import { Readout } from "@/components/ui/readout"
+import { Sheet, SheetContent } from "@/components/ui/sheet"
+import { ConsoleHeader } from "@/components/ui/shell/console-header"
+import { Status, type StatusTone } from "@/components/ui/status"
+import { Table, type Column } from "@/components/ui/table"
 import { RescueMap } from "./RescueMap"
 import { CATEGORY_LABELS, routeName } from "./SosQueue"
-import { cn } from "cn"
 
 const POLL_MS = 10_000
 const DAY_MS = 86_400_000
@@ -17,19 +24,36 @@ const nepalDay = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Kathmandu" }
 const dayOf = (startedAt: string | null, today: string) =>
   startedAt ? Math.round((Date.parse(today) - Date.parse(nepalDay.format(new Date(startedAt)))) / DAY_MS) + 1 : null
 
+type State = "sos" | "attention" | "trail"
+const STATE_LABEL: Record<State, string> = { sos: "SOS", attention: "Needs attention", trail: "On trail" }
+const STATE_TONE: Record<State, StatusTone> = { sos: "sos", attention: "caution", trail: "ok" }
+const STATE_RANK: Record<State, number> = { sos: 0, attention: 1, trail: 2 }
+
+interface Row extends FleetTrekker {
+  state: State
+  sosLabel: string | null
+  day: number | null
+  alt: number | null
+}
+
 interface AgencyConsoleProps {
   initialFleet: FleetTrekker[]
   initialSos: SosWithContext[]
   initialError: string | null
   agencyName: string
+  adminName: string
 }
 
 /** Read-only fleet view for an agency admin (C-10). Everything comes from the database. */
-export function AgencyConsole({ initialFleet, initialSos, initialError, agencyName }: AgencyConsoleProps) {
+export function AgencyConsole({ initialFleet, initialSos, initialError, agencyName, adminName }: AgencyConsoleProps) {
   const [fleet, setFleet] = useState(initialFleet)
   const [sos, setSos] = useState(initialSos)
   const [error, setError] = useState(initialError)
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [query, setQuery] = useState("")
+  const [routeFilter, setRouteFilter] = useState("all")
+  const [stateFilter, setStateFilter] = useState<"all" | State>("all")
+  const [sort, setSort] = useState<{ key: string; dir: "asc" | "desc" }>({ key: "state", dir: "asc" })
 
   const refresh = useCallback(async () => {
     const sb = createClient()
@@ -57,105 +81,121 @@ export function AgencyConsole({ initialFleet, initialSos, initialError, agencyNa
     }
   }, [refresh])
 
-  const sosByTrek = new Map(sos.filter((s) => s.trekId).map((s) => [s.trekId!, s]))
-  const selected = fleet.find((t) => t.trekId === selectedId) ?? null
+  const sosByTrek = useMemo(() => new Map(sos.filter((s) => s.trekId).map((s) => [s.trekId!, s])), [sos])
   const today = nepalDay.format(new Date())
 
+  const rows: Row[] = useMemo(
+    () =>
+      fleet.map((t) => {
+        const open = sosByTrek.get(t.trekId)
+        return {
+          ...t,
+          state: open ? "sos" : t.openAlerts > 0 ? "attention" : "trail",
+          sosLabel: open ? `SOS ${open.status === "acknowledged" ? "acknowledged" : "open"}` : null,
+          day: dayOf(t.startedAt, today),
+          alt: t.position?.altM ?? null,
+        }
+      }),
+    [fleet, sosByTrek, today],
+  )
+
+  const routes = [...new Set(fleet.map((t) => t.routeId))]
+  const shown = rows
+    .filter((r) => (routeFilter === "all" || r.routeId === routeFilter) && (stateFilter === "all" || r.state === stateFilter) && r.trekkerName.toLowerCase().includes(query.trim().toLowerCase()))
+    .sort((a, b) => {
+      const av = sort.key === "state" ? STATE_RANK[a.state] : sort.key === "alt" ? (a.alt ?? -1) : sort.key === "day" ? (a.day ?? -1) : a.trekkerName.localeCompare(b.trekkerName)
+      const bv = sort.key === "state" ? STATE_RANK[b.state] : sort.key === "alt" ? (b.alt ?? -1) : sort.key === "day" ? (b.day ?? -1) : 0
+      return ((av < bv ? -1 : av > bv ? 1 : 0) || a.trekkerName.localeCompare(b.trekkerName)) * (sort.dir === "asc" ? 1 : -1)
+    })
+  const selected = rows.find((t) => t.trekId === selectedId) ?? null
+
+  const onSort = (key: string) => setSort((s) => ({ key, dir: s.key === key && s.dir === "asc" ? "desc" : "asc" }))
+
+  const exportCsv = () => {
+    const esc = (v: string | number | null) => `"${String(v ?? "").replace(/"/g, '""')}"`
+    const lines = [["Trekker", "Route", "Day", "Altitude (m)", "Last LLS", "Open alerts", "Status"].map(esc).join(",")]
+    for (const r of shown) lines.push([r.trekkerName, routeName(r.routeId), r.day, r.alt, r.lastCheckin?.lls ?? null, r.openAlerts, r.sosLabel ?? STATE_LABEL[r.state]].map(esc).join(","))
+    const url = URL.createObjectURL(new Blob([lines.join("\n")], { type: "text/csv" }))
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `trekkers-${today}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const columns: Column<Row>[] = [
+    {
+      key: "name",
+      header: "Trekker",
+      sortKey: "name",
+      cell: (r) => (
+        <button type="button" onClick={() => setSelectedId(r.trekId)} className="cursor-pointer text-left font-medium hover:text-accent">
+          {r.trekkerName}
+        </button>
+      ),
+    },
+    { key: "route", header: "Route", cell: (r) => <span className="text-text-muted">{routeName(r.routeId)}</span> },
+    { key: "day", header: "Day", numeric: true, sortKey: "day", cell: (r) => r.day ?? "—" },
+    { key: "alt", header: "Altitude", numeric: true, sortKey: "alt", cell: (r) => (r.alt !== null ? formatAltitude(r.alt) : "—") },
+    { key: "lls", header: "Last LLS", numeric: true, cell: (r) => r.lastCheckin?.lls ?? "—" },
+    { key: "alerts", header: "Alerts", numeric: true, cell: (r) => r.openAlerts },
+    { key: "state", header: "Status", sortKey: "state", cell: (r) => <Status tone={STATE_TONE[r.state]}>{r.sosLabel ?? STATE_LABEL[r.state]}</Status> },
+  ]
+
+  const selectedSos = selected ? sosByTrek.get(selected.trekId) : undefined
+
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-bg text-text">
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border bg-surface/60 px-6 backdrop-blur">
-        <div className="flex items-center gap-3">
-          <Compass className="h-5 w-5 text-accent" />
-          <h1 className="text-sm font-bold tracking-tight">
-            {agencyName} <span className="font-normal text-text-muted">· {fleet.length} on trail</span>
-          </h1>
-        </div>
-        <span className="rounded-[var(--radius-sm)] border border-border bg-surface-2 px-2.5 py-1 text-xs text-text-muted">
-          Read-only view
-        </span>
-      </header>
+    <div className="flex min-h-dvh w-full flex-col bg-bg text-text">
+      <ConsoleHeader product={agencyName} name={adminName} role="Agency admin" live={error === null}>
+        <Status>Read-only</Status>
+      </ConsoleHeader>
 
       {error && (
-        <p role="alert" className="border-b border-danger/40 bg-danger/10 px-6 py-2 text-sm text-danger">
+        <p role="alert" className="border-b border-danger/40 bg-danger-bg px-4 py-2 text-body text-danger">
           {error}
         </p>
       )}
 
-      <div className="grid flex-1 grid-cols-1 overflow-hidden lg:grid-cols-12">
-        <div className="flex h-full flex-col overflow-hidden border-r border-border lg:col-span-7">
+      <div className="grid flex-1 gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,26rem)]">
+        <div className="min-w-0 space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Input aria-label="Search trekkers" placeholder="Search by name" className="w-full sm:w-56" value={query} onChange={(e) => setQuery(e.target.value)} />
+            <Select aria-label="Route" className="w-auto" value={routeFilter} onChange={(e) => setRouteFilter(e.target.value)}>
+              <option value="all">All routes</option>
+              {routes.map((id) => (
+                <option key={id} value={id}>
+                  {routeName(id)}
+                </option>
+              ))}
+            </Select>
+            <Select aria-label="Status" className="w-auto" value={stateFilter} onChange={(e) => setStateFilter(e.target.value as "all" | State)}>
+              <option value="all">All statuses</option>
+              {(Object.keys(STATE_LABEL) as State[]).map((s) => (
+                <option key={s} value={s}>
+                  {STATE_LABEL[s]}
+                </option>
+              ))}
+            </Select>
+            <span className="ml-auto text-small text-text-muted">
+              {shown.length} of {fleet.length} on trail
+            </span>
+            {shown.length > 0 && (
+              <Button variant="secondary" size="sm" onClick={exportCsv}>
+                <Download className="size-4" aria-hidden /> CSV
+              </Button>
+            )}
+          </div>
+
           {fleet.length === 0 ? (
-            <EmptyState
-              className="m-6"
-              icon={<Users className="h-6 w-6 text-text-muted" />}
-              title="No active treks"
-              description="Trekkers linked to your agency appear here once they start a trek."
-            />
+            <EmptyState icon={<Users className="size-6 text-text-muted" />} title="No trekkers linked yet" description="Trekkers linked to your agency appear here once they start a trek." />
+          ) : shown.length === 0 ? (
+            <EmptyState title="No trekkers match" description="Clear the search or a filter to see more." />
           ) : (
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full border-collapse text-left text-xs">
-                <thead className="sticky top-0 border-b border-border bg-surface font-medium text-text-muted">
-                  <tr>
-                    <th className="px-4 py-2.5">Trekker</th>
-                    <th className="px-3 py-2.5">Route</th>
-                    <th className="px-3 py-2.5">Day</th>
-                    <th className="px-3 py-2.5">Altitude</th>
-                    <th className="px-3 py-2.5 text-center">Last LLS</th>
-                    <th className="px-3 py-2.5 text-center">Open alerts</th>
-                    <th className="px-3 py-2.5 text-right">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {fleet.map((t) => {
-                    const openSos = sosByTrek.get(t.trekId)
-                    return (
-                      <tr
-                        key={t.trekId}
-                        tabIndex={0}
-                        onClick={() => setSelectedId(t.trekId)}
-                        onKeyDown={(e) => e.key === "Enter" && setSelectedId(t.trekId)}
-                        className={cn(
-                          "cursor-pointer transition-colors hover:bg-surface-2/60 focus-visible:outline-2 focus-visible:outline-accent",
-                          selectedId === t.trekId && "bg-surface-2",
-                          openSos && "bg-sos/10",
-                        )}
-                      >
-                        <td className="px-4 py-3 font-semibold">{t.trekkerName}</td>
-                        <td className="px-3 py-3 text-text-muted">{routeName(t.routeId)}</td>
-                        <td className="px-3 py-3 font-mono tabular-nums">{dayOf(t.startedAt, today) ?? "—"}</td>
-                        <td className="px-3 py-3 font-mono font-semibold tabular-nums">
-                          {t.position?.altM != null ? formatAltitude(t.position.altM) : "—"}
-                        </td>
-                        <td className="px-3 py-3 text-center font-mono tabular-nums">{t.lastCheckin?.lls ?? "—"}</td>
-                        <td className="px-3 py-3 text-center">
-                          {t.openAlerts > 0 ? (
-                            <span className="inline-flex items-center gap-1 rounded bg-caution/20 px-1.5 py-0.5 font-mono font-bold text-caution">
-                              <AlertTriangle className="h-3 w-3" />
-                              {t.openAlerts}
-                            </span>
-                          ) : (
-                            <span className="font-mono text-text-muted">0</span>
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-right">
-                          {openSos ? (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-sos px-2 py-0.5 text-[10px] font-bold text-sos-ink">
-                              <LifeBuoy className="h-3 w-3" />
-                              SOS {openSos.status === "acknowledged" ? "ACK" : "OPEN"}
-                            </span>
-                          ) : (
-                            <span className="rounded-full bg-ok/20 px-2 py-0.5 text-[10px] font-semibold text-ok">ON TRAIL</span>
-                          )}
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <Table caption="Trekkers on trail" columns={columns} rows={shown} rowKey={(r) => r.trekId} sort={{ ...sort, onSort }} dense />
           )}
         </div>
 
-        <div className="relative flex h-full flex-col lg:col-span-5">
+        <div className="h-80 overflow-hidden rounded-[var(--radius-lg)] border border-line lg:h-auto lg:min-h-[28rem]">
           <RescueMap
             events={sos}
             treks={fleet}
@@ -165,87 +205,51 @@ export function AgencyConsole({ initialFleet, initialSos, initialError, agencyNa
         </div>
       </div>
 
-      {selected && (
-        <aside
-          aria-label={`${selected.trekkerName} details`}
-          className="fixed inset-y-0 right-0 z-50 flex w-full flex-col space-y-4 overflow-y-auto border-l border-border bg-surface p-5 shadow-2xl sm:w-96"
-        >
-          <div className="flex items-center justify-between border-b border-border pb-3">
-            <div>
-              <h2 className="text-base font-bold">{selected.trekkerName}</h2>
-              <p className="text-xs text-text-muted">
-                {routeName(selected.routeId)} · Day {dayOf(selected.startedAt, today) ?? "—"}
-              </p>
-            </div>
-            <button
-              type="button"
-              aria-label="Close"
-              onClick={() => setSelectedId(null)}
-              className="flex h-10 w-10 items-center justify-center rounded-[var(--radius-sm)] text-text-muted hover:bg-surface-2"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          {sosByTrek.get(selected.trekId) && (
-            <div className="space-y-1 rounded-[var(--radius-sm)] bg-sos p-3 text-sos-ink">
-              <p className="flex items-center gap-2 text-xs font-bold">
-                <LifeBuoy className="h-4 w-4" /> SOS {sosByTrek.get(selected.trekId)!.status}
-              </p>
-              <p className="text-[11px]">
-                {CATEGORY_LABELS[sosByTrek.get(selected.trekId)!.category]} · sent{" "}
-                {formatNepalTime(sosByTrek.get(selected.trekId)!.createdAt)} NPT. Coordination handles the response.
-              </p>
-            </div>
-          )}
-
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3">
-              <span className="block text-[10px] font-semibold uppercase text-text-muted">Altitude</span>
-              <span className="font-mono text-base font-bold tabular-nums">
-                {selected.position?.altM != null ? formatAltitude(selected.position.altM) : "—"}
-              </span>
-            </div>
-            <div className="rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3">
-              <span className="block text-[10px] font-semibold uppercase text-text-muted">Last position</span>
-              <span className="font-mono text-base font-bold tabular-nums">
-                {selected.position ? `${formatNepalTime(selected.position.recordedAt)} NPT` : "—"}
-              </span>
-            </div>
-          </div>
-
-          <div className="space-y-1 rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3 text-xs">
-            <span className="block text-[10px] font-semibold uppercase text-text-muted">Last check-in</span>
-            {selected.lastCheckin ? (
-              <>
-                <p className="font-mono font-bold">
-                  LLS {selected.lastCheckin.lls}/12 · {formatNepalTime(selected.lastCheckin.recordedAt)} NPT
-                </p>
-                {selected.lastCheckin.redFlags.length > 0 && (
-                  <p className="font-semibold text-danger">
-                    {selected.lastCheckin.redFlags.map((f) => RED_FLAG_LABELS[f]).join(" · ")}
+      <Sheet open={selected !== null} onOpenChange={(open) => !open && setSelectedId(null)}>
+        {selected && (
+          <SheetContent title={selected.trekkerName} description={`${routeName(selected.routeId)} · Day ${selected.day ?? "—"}`}>
+            <div className="space-y-4">
+              {selectedSos && (
+                <Panel className="border-sos/60 bg-sos-bg">
+                  <p className="text-body font-medium text-sos">SOS {selectedSos.status}</p>
+                  <p className="text-small text-text-muted">
+                    {CATEGORY_LABELS[selectedSos.category]} · sent {formatNepalTime(selectedSos.createdAt)} NPT. Coordination handles the response.
                   </p>
-                )}
-              </>
-            ) : (
-              <p className="text-text-muted">No check-ins yet.</p>
-            )}
-          </div>
-
-          {selected.emergencyContact && (
-            <div className="space-y-2 rounded-[var(--radius-sm)] border border-border bg-surface-2/60 p-3 text-xs">
-              <span className="block text-[10px] font-semibold uppercase text-text-muted">Emergency contact</span>
-              <div className="flex items-center justify-between">
-                <span className="font-medium">{selected.emergencyContact.name || "Emergency contact"}</span>
-                <a href={`tel:${selected.emergencyContact.phone}`} className="flex items-center gap-1 font-mono text-accent hover:underline">
-                  <Phone className="h-3.5 w-3.5" />
-                  {selected.emergencyContact.phone}
-                </a>
+                </Panel>
+              )}
+              <div className="grid grid-cols-2 gap-4">
+                <Readout size="md" label="Altitude" value={selected.alt !== null ? selected.alt.toLocaleString("en-US") : "—"} unit={selected.alt !== null ? "m" : undefined} />
+                <Readout size="md" label="Last position" value={selected.position ? formatNepalTime(selected.position.recordedAt) : "—"} unit={selected.position ? "NPT" : undefined} />
               </div>
+              <Panel title="Last check-in">
+                {selected.lastCheckin ? (
+                  <div className="space-y-1">
+                    <p className="font-mono text-h2 tabular-nums">
+                      LLS {selected.lastCheckin.lls}/12 <span className="text-small text-text-muted">{formatNepalTime(selected.lastCheckin.recordedAt)} NPT</span>
+                    </p>
+                    {selected.lastCheckin.redFlags.length > 0 && <p className="text-body font-medium text-danger">{selected.lastCheckin.redFlags.map((f) => RED_FLAG_LABELS[f]).join(" · ")}</p>}
+                  </div>
+                ) : (
+                  <p className="text-text-muted">No check-ins yet.</p>
+                )}
+              </Panel>
+              {selected.emergencyContact && (
+                <Panel title="Emergency contact">
+                  <div className="flex items-center justify-between gap-3">
+                    <span>{selected.emergencyContact.name || "Emergency contact"}</span>
+                    <Button asChild variant="secondary">
+                      <a href={`tel:${selected.emergencyContact.phone}`}>
+                        <Phone className="size-4" aria-hidden />
+                        <span className="font-mono tabular-nums">{selected.emergencyContact.phone}</span>
+                      </a>
+                    </Button>
+                  </div>
+                </Panel>
+              )}
             </div>
-          )}
-        </aside>
-      )}
+          </SheetContent>
+        )}
+      </Sheet>
     </div>
   )
 }

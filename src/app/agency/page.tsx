@@ -1,9 +1,12 @@
+import type { Metadata } from "next"
 import { requireRole } from "@/lib/auth"
 import { createClient } from "@/lib/supabase/server"
 import { getAgencyName, listFleet, listSos } from "@/lib/db/queries"
 import { AgencyConsole } from "@/components/rescue/AgencyConsole"
 
 export const dynamic = "force-dynamic"
+
+export const metadata: Metadata = { title: "Agency", robots: { index: false } }
 
 export default async function AgencyPage() {
   const { profile } = await requireRole("agency_admin", "/agency")
@@ -21,6 +24,7 @@ export default async function AgencyPage() {
       initialSos={sos ?? []}
       initialError={fleet && sos ? null : "Couldn't load live data. Retrying…"}
       agencyName={agencyName ?? "Your agency"}
+      adminName={profile.displayName}
     />
   )
 }
