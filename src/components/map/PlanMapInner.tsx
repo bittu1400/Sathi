@@ -7,6 +7,7 @@ import { getRasterStyle } from "./style";
 import { setPositionLayer } from "./layers";
 import type { Coords } from "@/lib/plan/position";
 import { NEPAL_CENTER } from "@/lib/plan/position";
+import type { PlannedRoute } from "@/lib/plan/types";
 
 // Turbopack doesn't emit MapLibre's `import.meta.url` worker, so the worker 404s
 // and no tile ever loads. scripts/copy-maplibre-worker.mjs puts a copy here.
@@ -14,15 +15,42 @@ maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
 export interface PlanMapProps {
   position: Coords | null;
+  routes?: PlannedRoute[];
+  selectedRouteId?: string | null;
   /** Called once the map is usable, so the screen can fly it around. */
   onReady?: (map: maplibregl.Map) => void;
+}
+
+function routeCollection(routes: PlannedRoute[], selectedId: string | null): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: routes.map((route) => ({
+      type: "Feature",
+      properties: { id: route.id, selected: route.id === selectedId },
+      geometry: route.geometry,
+    })),
+  };
+}
+
+function boundsOf(routes: PlannedRoute[]): maplibregl.LngLatBounds | null {
+  const bounds = new maplibregl.LngLatBounds();
+  let any = false;
+  for (const route of routes) {
+    for (const position of route.geometry.coordinates) {
+      const [lng, lat] = position;
+      if (typeof lng !== "number" || typeof lat !== "number") continue;
+      bounds.extend([lng, lat]);
+      any = true;
+    }
+  }
+  return any ? bounds : null;
 }
 
 /**
  * The planner's full-bleed map. Unlike `MapInner` (one trek, fixed aspect,
  * offline packs) this one fills the viewport and is panned like a maps app.
  */
-export default function PlanMapInner({ position, onReady }: PlanMapProps) {
+export default function PlanMapInner({ position, routes = [], selectedRouteId = null, onReady }: PlanMapProps) {
   const container = React.useRef<HTMLDivElement>(null);
   const [map, setMap] = React.useState<maplibregl.Map | null>(null);
   // Checked at render, not in the effect: an old device or a blocked context
@@ -74,6 +102,42 @@ export default function PlanMapInner({ position, onReady }: PlanMapProps) {
       map.flyTo({ center: [position.lng, position.lat], zoom: 13, duration: 900 });
     }
   }, [map, position]);
+
+  // The selected route is drawn on top and in the accent colour; the others stay
+  // visible but recede, so all three read as one set of options.
+  React.useEffect(() => {
+    if (!map) return;
+    const data = routeCollection(routes, selectedRouteId);
+    const source = map.getSource("plan-routes") as maplibregl.GeoJSONSource | undefined;
+    if (source) source.setData(data);
+    else map.addSource("plan-routes", { type: "geojson", data });
+
+    if (!map.getLayer("plan-routes-line")) {
+      const css = (name: string) => getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+      map.addLayer({
+        id: "plan-routes-line",
+        type: "line",
+        source: "plan-routes",
+        layout: { "line-cap": "round", "line-join": "round", "line-sort-key": ["case", ["get", "selected"], 1, 0] },
+        paint: {
+          "line-color": ["case", ["get", "selected"], css("accent"), css("text-faint")],
+          "line-width": ["case", ["get", "selected"], 5, 3],
+          "line-opacity": ["case", ["get", "selected"], 1, 0.7],
+        },
+      });
+    }
+  }, [map, routes, selectedRouteId]);
+
+  // New results reframe the map; picking one of them does not, so the view
+  // doesn't jump under the thumb while comparing.
+  const routeSetKey = routes.map((r) => r.id).join(",");
+  React.useEffect(() => {
+    if (!map) return;
+    const bounds = boundsOf(routes);
+    if (!bounds) return;
+    map.fitBounds(bounds, { padding: { top: 96, bottom: 280, left: 40, right: 40 }, duration: 900 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- reframe per result set, not per render of the same set
+  }, [map, routeSetKey]);
 
   if (!webgl) {
     return (
