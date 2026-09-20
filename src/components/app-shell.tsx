@@ -11,6 +11,19 @@ import { TabBar } from "./ui/shell/tab-bar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // The planner at "/" is a full-screen map with its own floating controls,
+  // like a maps app: no header, no tab bar, nothing overlapping it.
+  if (pathname === "/") {
+    return (
+      <>
+        <SkipLink />
+        <main id="main" className="bg-bg text-text">
+          {children}
+        </main>
+      </>
+    );
+  }
+
   // Consoles, the public family page, sign-in and the demo driver bring their own chrome.
   const isExcludedRoute =
     pathname.startsWith("/rescue") ||
@@ -30,8 +43,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // The public landing page has its own header and footer, and no tab bar.
-  if (pathname === "/") {
+  // The public marketing page has its own header and footer, and no tab bar.
+  if (pathname === "/about") {
     return (
       <div className="flex min-h-dvh flex-col bg-bg text-text">
         <SkipLink />

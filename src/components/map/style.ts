@@ -24,6 +24,37 @@ export function getDiagramStyle(): StyleSpecification {
   };
 }
 
+const RASTER_ATTRIBUTION = "© OpenStreetMap contributors, © CARTO";
+
+/**
+ * Country-wide raster basemap for the planner screen: zero-cost, needs network,
+ * dark so it matches the tokens. The trekker screens keep the PMTiles style,
+ * which is the one that works offline.
+ */
+export function getRasterStyle(): StyleSpecification {
+  return {
+    version: 8,
+    glyphs: GLYPHS,
+    sources: {
+      carto: {
+        type: "raster",
+        tiles: [
+          "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+          "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+          "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png",
+        ],
+        tileSize: 256,
+        maxzoom: 19,
+        attribution: RASTER_ATTRIBUTION,
+      },
+    },
+    layers: [
+      { id: "background", type: "background", paint: { "background-color": token("surface-2") } },
+      { id: "carto", type: "raster", source: "carto" },
+    ],
+  };
+}
+
 /** Full basemap over `pmtilesUrl` (a remote .pmtiles URL or a local pack's key). */
 export function getMapStyle(pmtilesUrl?: string): StyleSpecification {
   if (!pmtilesUrl) return getDiagramStyle();
