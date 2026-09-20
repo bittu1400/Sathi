@@ -160,6 +160,19 @@ export async function fetchPoisAlong(
   const bbox = bboxOf(line, radiusM);
   if (!bbox || line.length < 2) return [];
   const pois = await runQuery(bbox, interests, limit);
+  return poisNear(pois, coordinates, radiusM);
+}
+
+/**
+ * Which of these places one particular line passes. Alternatives between the
+ * same two points share a corridor, so they are fetched once and then split up
+ * with this rather than with a query each. Exported for its test.
+ */
+export function poisNear(pois: Poi[], coordinates: number[][], radiusM: number): Poi[] {
+  // Denser than the 60 points a bbox needs: at 60, a 300 km line is sampled
+  // every 5 km and a place 2 km off the trail falls between two samples.
+  const line = decimate(coordinates, 400);
+  if (line.length < 2) return [];
   return pois.filter((poi) => line.some((point) => haversineKm(point, poi) * 1000 <= radiusM));
 }
 

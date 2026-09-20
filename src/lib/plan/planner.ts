@@ -1,8 +1,8 @@
 import { haversineKm } from "@/lib/geo";
 import { toDayLegs } from "./daysplit";
-import type { InterestId } from "./interests";
+import { interestLabel, type InterestId } from "./interests";
 import { fetchCandidates, fetchThrough } from "./ors";
-import { fetchPoisAlong } from "./overpass";
+import { fetchPoisAlong, poisNear } from "./overpass";
 import { poisAround, regionFor } from "./pois";
 import { buildTourVariants } from "./tour";
 import type { LatLng, PlanKind, PlannedRoute, PlanRequest, PlanResult, Poi } from "./types";
@@ -74,13 +74,62 @@ async function planTrek({ start, end, days, interests }: PlanRequest): Promise<P
   const first = candidates[0];
   if (!first) return [];
 
-  const pois = await fetchPoisAlong(first.geometry.coordinates, 2_000, wanted);
-  const stays = pois.filter((poi) => poi.interest === "teahouses" || poi.interest === "villages");
+  // Alternatives run down the same corridor, so one query covers them all and
+  // each line is then given the places it actually passes.
+  const pois = await fetchPoisAlong(
+    candidates.flatMap((route) => route.geometry.coordinates),
+    2_000,
+    wanted,
+  );
 
   if (candidates.length > 1) {
-    return candidates.map((route) => withDays(route, days, pois, stays));
+    const taken = new Set<InterestId>();
+    return candidates
+      .map((route) => {
+        const near = poisNear(pois, route.geometry.coordinates, 2_000);
+        return { route, near, score: scorePois(near, wanted) };
+      })
+      // The line that passes most of what they asked for leads the carousel.
+      .sort((a, b) => b.score - a.score)
+      .map(({ route, near }, index) => {
+        const top = topInterest(near, wanted, taken);
+        if (top) taken.add(top);
+        return {
+          ...withDays(route, days, near, staysIn(near)),
+          label: top ? `Most ${interestLabel(top).toLowerCase()}` : index === 0 ? "Fastest" : `Alternative ${index}`,
+        };
+      });
   }
-  return paceVariants(first, days, pois, stays);
+  return paceVariants(first, days, pois, staysIn(pois));
+}
+
+/** Somewhere to sleep: a teahouse if there is one, else any named settlement. */
+function staysIn(pois: Poi[]): Poi[] {
+  return pois.filter((poi) => poi.interest === "teahouses" || poi.interest === "villages");
+}
+
+/**
+ * How well a line matches what the trekker picked: one point per place it
+ * passes, two when OSM marks the place notable. Exported for its test.
+ */
+export function scorePois(pois: Poi[], wanted: InterestId[]): number {
+  const want = new Set<string>(wanted);
+  return pois.reduce((total, poi) => (want.has(poi.interest) ? total + (poi.notable ? 2 : 1) : total), 0);
+}
+
+/**
+ * The interest this line has most of, skipping any another line already took:
+ * three cards all called "Most villages" would say nothing about the choice.
+ * Exported for its test.
+ */
+export function topInterest(pois: Poi[], wanted: InterestId[], taken: Set<InterestId>): InterestId | null {
+  const counts = new Map<InterestId, number>();
+  for (const poi of pois) {
+    if (!wanted.includes(poi.interest)) continue;
+    counts.set(poi.interest, (counts.get(poi.interest) ?? 0) + (poi.notable ? 2 : 1));
+  }
+  const ranked = [...counts.entries()].sort((a, b) => b[1] - a[1]);
+  return ranked.find(([id]) => !taken.has(id))?.[0] ?? null;
 }
 
 function withDays(route: PlannedRoute, days: number, pois: Poi[], stays: Poi[]): PlannedRoute {
