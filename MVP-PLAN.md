@@ -1,6 +1,6 @@
 # MVP-PLAN — map-first route recommender
 
-Last updated 2026-09-20, end of the fourth session. Last code commit: `316d3b3`. `origin/main`
+Last updated 2026-09-20, end of the fifth session. Last code commit: `3d0bf01`. `origin/main`
 is at `e06b2ad`, so **the fourth session's three commits are still local** (§13 step 0).
 
 This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the
@@ -295,7 +295,13 @@ road times, reach the SOS number. `81923db` is pushed; **`a2ac1e8` is not** (§1
 point-to-point routes and the places they pass · `0627f32` a trek starts at its trailhead ·
 `1cf788b` three ways to walk it and the treks we already hold · `b61fb7f` the three
 bugs the browser run found · `db6b1f5` a map-label token · `316d3b3` pins that say what the place
-is. **None of the six is pushed** (§13 step 0).
+is. **Nothing from sessions 4 or 5 is pushed** (§13 step 0).
+
+*Session 5 (the rest of the front end, in the browser throughout):* `1b40806` a light palette ·
+`34f71dc` the theme switch · `32b1a96` premium green for light · `5677d78` the front page says
+what the app does now · `1c2f69c` honest SOS wording + the theme script on next/script ·
+`6070d88` a menu on the map · `4f9745e` the PWA opens on the map · `22b080d` service-worker
+precache · `f3cc15e` the rail rides the sheet · `3d0bf01` the consoles get the switch.
 
 *Session 2 (first browser run, then the fixes it found):* `3eb8277` hydration fix (C1) ·
 `e91dbe7` pick a start when location is off (C2) · `98af32c` country-wide place search (C3, G1) ·
@@ -355,6 +361,10 @@ docs.
 - ~~**G8 — Payload size.**~~ **Closed** (`7c352a4`): Douglas–Peucker at 10 m, server-side, after
   the day split. Kathmandu → Namobuddha, three options: 1,703 + 1,464 + 2,324 points and 153 KB
   became 510 + 371 + 605 points and 44 KB, with the distances and day plans unchanged.
+- ~~**G9a — The rail sat on the results.**~~ **Closed** (`f3cc15e`): the map rail was placed with
+  two hardcoded offsets (70 dvh expanded, 9 rem otherwise) and the results sheet is neither — it
+  grows with its cards, so the SOS button covered the first one. The rail is now anchored to the
+  sheet's own top edge and clears it at every height.
 - **G9 — The sheet has fixed heights** (peek / 70 dvh), no drag handle, and it is not swipeable
   by touch. The locate button used to sit *under* it; it now rides above whichever height the
   sheet has (`9930ea6`). The results carousel is a horizontal scroller — cards are selected by
@@ -491,6 +501,30 @@ Walked in the browser at the end of session 4 (375×812, live APIs, the user's o
 | Bugs the run found | `onSubmit={findRoutes}` passed the click event where the variant kind goes, so **every** "Find routes" failed with "Couldn't reach the route service" and no request left the page; an empty result read "0 routes"; one plan's cards had no places because Overpass 504'd. All three fixed in `b61fb7f` |
 | Still ugly | a stop can be called "नेपाल" (G13 — OSM names leak into the list) |
 | Re-run after the pin labels landed (`316d3b3`) | pins read "Keshar Mahal / Monument", "सिद्धि बिनायक / Place of worship", "Lion statue / Attraction"; the card list reads the same with the kind in brackets |
+
+### Light and dark (fifth session)
+The app was dark only. Both palettes now live in `globals.css`, each written once, picked by
+`data-theme` on the html element: an inline `next/script` with `beforeInteractive` sets it before
+the first paint from the stored choice, falling back to the phone's own setting, and
+`ThemeToggle` reads it back through `useSyncExternalStore` so two toggles can never disagree.
+Until the first tap the phone decides, including a change while the app is open; after it, the
+choice is stored. Light is a **premium green**: deep emerald accent on paper with a green
+whisper, its own leaf green for "fine" so brand and status are not one colour, and in light the
+map route joins the palette while the stop pins stay orange. The switch is in the planner rail,
+the app header, the landing header and the console header.
+
+### What the front end says it has (fifth session)
+Everything that claimed a feature nobody can use was either corrected or marked:
+- the landing leads with the recommender and sends you to the map; its capability table gained
+  routes, day plans, pinned places and the community boards, each with an honest offline line;
+- the tabs are Map · Routes · Trek · Community, the map's menu button opens the rest of the app
+  (it used to reach only `/about`), and the command palette lost the pre-pivot `/plan`;
+- nothing can be bought — no pass screen, no payment route — so the paid tiers are **Upcoming**
+  with no button, and the agency console says it has no accounts to sign in with;
+- the SOS sheet, the emergency page and the landing step no longer say "sent" to someone who is
+  signed out: on the MVP path nothing leaves the phone until a human presses Send (G16);
+- the PWA's `start_url` was `/trek`, so an installed Sathi opened on a sign-in gate; it opens the
+  map now, with "Plan a route" beside the Trek and SOS shortcuts.
 
 ## 9. Files
 
