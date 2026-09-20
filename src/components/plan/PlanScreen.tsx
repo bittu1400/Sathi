@@ -7,7 +7,7 @@ import { ArrowRight, Crosshair, Menu, Search, SlidersHorizontal, X } from "lucid
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { usePosition } from "@/lib/plan/position";
+import { usePosition, type PositionStatus } from "@/lib/plan/position";
 import type { InterestId } from "@/lib/plan/interests";
 import type { PlannedRoute, PlanResult } from "@/lib/plan/types";
 import { DestinationSearch, type Destination } from "./DestinationSearch";
@@ -19,12 +19,21 @@ const PlanMap = dynamic(() => import("@/components/map/PlanMapInner"), {
   loading: () => <Skeleton className="h-full w-full rounded-none" />,
 });
 
-type SheetState = "peek" | "search" | "trip" | "results";
+type SheetState = "peek" | "search" | "start" | "trip" | "results";
 
-const LOCATE_LABEL: Record<string, string> = {
+const LOCATE_LABEL: Record<PositionStatus, string> = {
   idle: "Use my location",
   locating: "Finding your location…",
   ready: "Recentre on my location",
+  denied: "Location permission is off",
+  unavailable: "Location is unavailable",
+};
+
+/** What the trip form says about a start we do not have. */
+const START_LABEL: Record<PositionStatus, string> = {
+  idle: "Finding your location…",
+  locating: "Finding your location…",
+  ready: "Your location",
   denied: "Location permission is off",
   unavailable: "Location is unavailable",
 };
@@ -38,6 +47,8 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
   const { status, coords, locate } = usePosition();
   const [sheet, setSheet] = React.useState<SheetState>("peek");
   const [destination, setDestination] = React.useState<Destination | null>(null);
+  /** Set only when the trekker picks a start by hand, e.g. location is off. */
+  const [manualStart, setManualStart] = React.useState<Destination | null>(null);
   const [days, setDays] = React.useState(3);
   const [interests, setInterests] = React.useState<InterestId[]>([]);
   const [routes, setRoutes] = React.useState<PlannedRoute[]>([]);
@@ -55,6 +66,19 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
     if (coords) mapRef.current?.flyTo({ center: [coords.lng, coords.lat], zoom: 14, duration: 700 });
   };
 
+  const startPoint = manualStart
+    ? { lat: manualStart.lat, lng: manualStart.lng }
+    : coords
+      ? { lat: coords.lat, lng: coords.lng }
+      : null;
+
+  const pickStart = (picked: Destination) => {
+    setManualStart(picked);
+    setRoutes([]);
+    setError(null);
+    setSheet("trip");
+  };
+
   const pick = (picked: Destination) => {
     setDestination(picked);
     setRoutes([]);
@@ -64,7 +88,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
   };
 
   const findRoutes = async () => {
-    if (!destination || !coords) return;
+    if (!destination || !startPoint) return;
     setBusy(true);
     setError(null);
     try {
@@ -72,7 +96,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          start: { lat: coords.lat, lng: coords.lng },
+          start: startPoint,
           end: { lat: destination.lat, lng: destination.lng },
           days,
           interests,
@@ -103,7 +127,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
     }
   };
 
-  const expanded = sheet === "search" || sheet === "trip";
+  const expanded = sheet === "search" || sheet === "start" || sheet === "trip";
   const selectedRoute = routes.find((route) => route.id === selectedId) ?? null;
 
   return (
@@ -173,6 +197,25 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
           </div>
         )}
 
+        {sheet === "start" && (
+          <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+            <SheetHeader title="Start from" onClose={() => setSheet(destination ? "trip" : "peek")} />
+            {coords && (
+              <button
+                type="button"
+                onClick={() => {
+                  setManualStart(null);
+                  setSheet("trip");
+                }}
+                className="flex min-h-12 items-center gap-3 px-1 text-left text-body text-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+              >
+                <Crosshair className="size-5 shrink-0" aria-hidden /> Your location
+              </button>
+            )}
+            <DestinationSearch destinations={destinations} onPick={pickStart} />
+          </div>
+        )}
+
         {sheet === "search" && (
           <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
             <SheetHeader title="Where to?" onClose={() => setSheet(destination ? "trip" : "peek")} />
@@ -185,7 +228,9 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
             <SheetHeader title="Your trip" onClose={() => setSheet("peek")} />
             <TripForm
               destination={destination}
-              hasStart={coords !== null}
+              startLabel={manualStart ? manualStart.name : coords ? "Your location" : START_LABEL[status]}
+              startHint={manualStart ? manualStart.detail : startPoint ? null : "Tap to pick a starting point."}
+              hasStart={startPoint !== null}
               days={days}
               interests={interests}
               busy={busy}
@@ -193,6 +238,7 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
               onDaysChange={setDays}
               onInterestsChange={setInterests}
               onChangeDestination={() => setSheet("search")}
+              onChangeStart={() => setSheet("start")}
               onSubmit={findRoutes}
             />
           </div>

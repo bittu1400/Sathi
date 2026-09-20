@@ -41,7 +41,11 @@ export const MAX_DAYS = 21;
 
 export interface TripFormProps {
   destination: Destination;
-  /** Null while the device has no fix: the form says so instead of guessing. */
+  /** "Your location", or the name of the place picked by hand. */
+  startLabel: string;
+  /** Why there is no start yet; null once there is one. */
+  startHint: string | null;
+  /** False until there is a start to plan from. */
   hasStart: boolean;
   days: number;
   interests: InterestId[];
@@ -50,11 +54,14 @@ export interface TripFormProps {
   onDaysChange: (days: number) => void;
   onInterestsChange: (interests: InterestId[]) => void;
   onChangeDestination: () => void;
+  onChangeStart: () => void;
   onSubmit: () => void;
 }
 
 export function TripForm({
   destination,
+  startLabel,
+  startHint,
   hasStart,
   days,
   interests,
@@ -63,6 +70,7 @@ export function TripForm({
   onDaysChange,
   onInterestsChange,
   onChangeDestination,
+  onChangeStart,
   onSubmit,
 }: TripFormProps) {
   const toggle = (id: InterestId) =>
@@ -88,12 +96,17 @@ export function TripForm({
 
         <div>
           <p className="text-small text-text-muted">From</p>
-          <p className="text-body text-text">{hasStart ? "Your location" : "Waiting for your location…"}</p>
-          {!hasStart && (
-            <p className="mt-1 text-small text-text-muted">
-              Turn location on, or Sathi can&apos;t work out where you are starting from.
-            </p>
-          )}
+          <button
+            type="button"
+            onClick={onChangeStart}
+            className="flex min-h-12 w-full items-center gap-2 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          >
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-body text-text">{startLabel}</span>
+              {startHint && <span className="block text-small text-text-muted">{startHint}</span>}
+            </span>
+            <Search className="size-5 shrink-0 text-text-muted" aria-hidden />
+          </button>
         </div>
 
         <div>
