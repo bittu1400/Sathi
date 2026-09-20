@@ -7,14 +7,14 @@ function flatLine(points: number, ele = 1000): number[][] {
   return Array.from({ length: points }, (_, i) => [85.3, 27.7 + i * 0.01, ele]);
 }
 
-const poi = (name: string, lat: number, lng = 85.3): Poi => ({
+const poi = (name: string, lat: number, lng = 85.3, notable = false): Poi => ({
   id: name,
   name,
   lat,
   lng,
   interest: "culture",
   kind: "temple",
-  notable: false,
+  notable,
 });
 
 describe("walkingHours", () => {
@@ -91,5 +91,21 @@ describe("toDayLegs", () => {
   it("leaves the overnight name null when nothing is near", () => {
     const legs = toDayLegs(flatLine(11), 1, [], [poi("Far away", 29)]);
     expect(legs[0]?.endName).toBeNull();
+  });
+});
+
+describe("toDayLegs highlights", () => {
+  it("lists the places OSM marks notable before the rest", () => {
+    const line = flatLine(20);
+    const pois = [
+      poi("Jorpati Main Road", 27.71),
+      poi("A lane", 27.72),
+      poi("Another lane", 27.73),
+      poi("Scarf of life", 27.74),
+      poi("Boudhanath", 27.75, 85.3, true),
+    ];
+    const [day] = toDayLegs(line, 1, pois, []);
+    expect(day?.highlights[0]).toBe("Boudhanath");
+    expect(day?.highlights).toHaveLength(4);
   });
 });

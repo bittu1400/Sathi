@@ -80,7 +80,9 @@ export function nearestPoi(point: LatLng, pois: Poi[], withinKm: number): Poi | 
 
 /**
  * Legs plus the names that make them readable: where the day ends, and what it
- * passes. Highlights are the POIs within 2 km of that day's stretch.
+ * passes. Highlights are the POIs within 2 km of that day's stretch, the ones
+ * OSM marks notable first — otherwise a day past Boudhanath is listed as
+ * "Jorpati Main Road", whichever Overpass happened to send back first.
  */
 export function toDayLegs(
   coordinates: number[][],
@@ -98,6 +100,7 @@ export function toDayLegs(
         const [lng, lat] = c;
         return typeof lng === "number" && typeof lat === "number" && haversineKm({ lat, lng }, poi) <= 2;
       }))
+      .sort((a, b) => Number(b.notable) - Number(a.notable))
       .slice(0, 4)
       .map((poi) => poi.name);
     const stay = nearestPoi(leg.end, stayPois, 5);
