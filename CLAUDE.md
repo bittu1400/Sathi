@@ -15,19 +15,19 @@ An offline-first trekking safety PWA for Nepal: route intelligence, altitude-sic
 
 Guards: `.gitignore`, `.githooks/pre-commit` (installed by `pnpm install`), a CI check, and `.claude/settings.json` deny rules. Don't work around any of them.
 
-## Rule one: always work on a branch, never on `main`
-`main` is protected on GitHub (PR + 1 approval + green `check`, no direct pushes, no force pushes), and the pre-commit hook blocks commits on `main`.
-- Start every task with: `git switch main && git pull && git -C docs pull && git switch -c <a|b|c>/<TASK-ID>-<slug>` (A = Aarif, B = Pwan, C = Suraj).
-- Push your branch (`git push -u origin HEAD`) and open a PR. Never push to `main`, never force-push, never merge your own PR without an approval.
+## Rule one: work directly on `main`, fast-forward only
+No task branches, no PRs. Commit on `main` and push it straight to `origin/main`; history stays linear.
+- Start every task with: `git switch main && git pull --ff-only && git -C docs pull`.
+- Commit small, one task per commit (Conventional Commits). Before every push: `git pull --ff-only` (or `git fetch && git rebase origin/main` if someone pushed first), run `pnpm check`, then `git push origin main`.
+- Never force-push, never `git push --force-with-lease`, never merge-commit into `main`, never rewrite pushed history. If the push is rejected, rebase onto `origin/main` and push again.
 
-## Rule two: small PRs into `main`, so merges never conflict
-The full protocol is `docs/MERGE-PLAN.md` Part 1 (read it before every task); what to do next is `docs/TODO.md` → "NEXT". The short version:
-- **One task = one branch = one PR**, about 400 changed lines at most. The PR base is always `main`, never another feature branch. Never commit on someone else's branch.
-- **Branch prefix = lane of the files you change** (`a/`, `b/`, `c/`), not a person's name.
-- **Contract files** change only in a small dedicated PR that merges first: `src/lib/types.ts`, `src/lib/database.types.ts`, `supabase/migrations/*`, `package.json`, `pnpm-lock.yaml`, `src/app/globals.css`, `src/app/layout.tsx`, `CLAUDE.md`, `.github/*`.
+## Rule two: small commits, so teammates never conflict
+Read `docs/TODO.md` → "NEXT" for what to do next (`docs/MERGE-PLAN.md` Part 1 is the older PR protocol; its branch and PR steps no longer apply).
+- **One task = one commit** (or a few), about 400 changed lines at most. Pull before you start and before you push.
+- **Lane = the files you change** (`a`, `b`, `c` under "Layout & ownership"), not a person's name.
+- **Contract files** change only in a small dedicated commit that lands first: `src/lib/types.ts`, `src/lib/database.types.ts`, `supabase/migrations/*`, `package.json`, `pnpm-lock.yaml`, `src/app/globals.css`, `src/app/layout.tsx`, `CLAUDE.md`, `.github/*`.
 - **Migrations are append-only.** Never edit a merged one. Name new ones with an all-digit UTC timestamp (Supabase skips anything else): `supabase/migrations/20260919153000_<slug>.sql`.
-- **Before the first push:** `git fetch origin && git rebase origin/main`, then `pnpm check`. After the PR exists, update it with `git merge origin/main` or GitHub's "Update branch" button (never force-push).
-- **Conflict in a file your lane doesn't own:** abort the rebase/merge and ask the owner. Never resolve it by taking your version.
+- **Conflict in a file your lane doesn't own:** abort the rebase and ask the owner. Never resolve it by taking your version.
 - **Every Supabase call checks `error`** and shows it. Never show success on a failed write.
 
 ### ⚠ HUMAN NEEDED
@@ -35,7 +35,7 @@ When a step needs a person, don't do it. Print one line, then carry on with anyt
 ```
 ⚠ HUMAN NEEDED (<Aarif|Pwan|Suraj|any>): <what> — <why> — <exact command / URL / click path>
 ```
-Use it for: approving/merging PRs · Supabase dashboard work (hosted migrations, auth, storage) · env vars or secrets · GitHub settings · verifying real-world facts (phone numbers, coordinates, prices, safety wording not in `ams-copy.ts`) · editing another lane's files · conflicts in files you don't own · anything destructive (deleting data or branches, `reset --hard`) · adding a dependency.
+Use it for: Supabase dashboard work (hosted migrations, auth, storage) · env vars or secrets · GitHub settings · verifying real-world facts (phone numbers, coordinates, prices, safety wording not in `ams-copy.ts`) · editing another lane's files · conflicts in files you don't own · anything destructive (deleting data or branches, `reset --hard`) · adding a dependency.
 
 ## Where the specs are
 The full specs live in **`docs/`** (see rule zero). **Before writing any code, read the files your task names**:
@@ -102,4 +102,4 @@ Each teammate owns folders. **Only edit files in the current task's scope.** If 
 2. Reply with a short plan (files to touch + approach) and **wait for the human's OK**.
 3. Implement within scope. Run `pnpm check`.
 4. Tell the human exactly how to verify each acceptance criterion in the browser (URL, clicks, expected result), including the offline case where relevant.
-5. Commit with Conventional Commits (`feat(sos): offline SMS panel`). The PR title is `<TASK-ID>: <title>`.
+5. Commit on `main` with Conventional Commits (`feat(sos): offline SMS panel`), then `git pull --ff-only && git push origin main`.
