@@ -197,9 +197,16 @@ On a phone, mobile data on:
   bites, swap that one function for a Nepal PMTiles extract. The current `ebc.json` `tilesUrl`
   still points at a daily planet build on `build.protomaps.com`, a download endpoint rather than a
   tile-serving one — separate problem, part of the A-13 work.
-- **`foot-hiking` over long distances.** ORS refuses very long foot routes. The `driving-car`
-  fallback in §5 step A2 needs a real test on a Kathmandu → Lukla-scale request before P4 is
-  called done.
+- **Alternatives are rarer than the plan assumed** (measured 2026-09-20 against the live API).
+  ORS only runs the alternative algorithm under 100 km, and even inside it a sparse mountain
+  network yields one line: Lukla → Pheriche returned 1 route at every `share_factor` /
+  `weight_factor` we tried, while Kathmandu → Nagarkot returned 3 on both profiles. Kathmandu →
+  Pokhara (239 km) returns 1 route with the alternatives dropped. **So the day-plan variants of
+  §5 step F are the main source of three options on real treks, not the fallback.** Build P6
+  before the demo, and consider forcing distinct geometries by routing through a scenic
+  intermediate waypoint (the interest data of P5 gives the candidates).
+- **Payload size.** A 239 km route comes back as ~9,300 coordinates. Fine for MapLibre, heavy
+  over the wire; simplify server-side if the results step feels slow on a phone.
 - **Overpass latency.** 2–5 s per query is normal and can blow the 8 s budget in §8 step 4.
   If it does, bake a Nepal POI extract into `src/data/` with a script and drop the live call.
 - **The uncommitted A-13 offline-basemap work** in the tree is untouched by this plan and still
