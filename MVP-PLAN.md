@@ -1,6 +1,6 @@
 # MVP-PLAN — map-first route recommender
 
-Last updated 2026-09-20, end of the fourth session. Last code commit: `b61fb7f`. `origin/main`
+Last updated 2026-09-20, end of the fourth session. Last code commit: `316d3b3`. `origin/main`
 is at `e06b2ad`, so **the fourth session's three commits are still local** (§13 step 0).
 
 This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the
@@ -239,9 +239,16 @@ A card used to show one time: whatever ORS answered with. A long trip falls back
 
 ### The places on the line (fourth session)
 A line route now carries `stops`: the POIs matching the chosen interests that the line passes,
-notable first, at most eight, ordered by how far along the line they are reached. The map already
-pins and numbers `stops`, and the card already lists them, so a trek stops being a bare line and
-says what the trekker is actually going to walk past. Day highlights are unchanged.
+notable first, at most eight, ordered by how far along the line they are reached. A trek stops
+being a bare line and says what the trekker is going to walk past. Day highlights are unchanged.
+
+Each pin carries **the name and what kind of place it is** — a numbered dot alone said only the
+order. `placeWord()` in `interests.ts` turns the OSM tag the place arrived on into one or two
+words ("Stupa", "Viewpoint", "Guest house"), falling back to the interest it matched when the tag
+has no word. It never decides that a `place_of_worship` is a temple — OSM does not say which, so
+neither do we. On the map the name sits under the dot and gives way when two pins collide; the
+dot always stays. The card's stop list reads the same, `Name (Kind)`, with a screen-reader line
+saying the order is the walking order.
 
 ### Before the response leaves (both shapes) — `src/lib/plan/simplify.ts`
 Every geometry goes through Douglas–Peucker at 10 m, **last**, after the day split has measured
@@ -287,7 +294,8 @@ road times, reach the SOS number. `81923db` is pushed; **`a2ac1e8` is not** (§1
 *Session 4 (the recommender itself, **and the first browser run since session 2**):* `d355f60`
 point-to-point routes and the places they pass · `0627f32` a trek starts at its trailhead ·
 `1cf788b` three ways to walk it and the treks we already hold · `b61fb7f` the three
-bugs the browser run found. **None of the four is pushed** (§13 step 0).
+bugs the browser run found · `db6b1f5` a map-label token · `316d3b3` pins that say what the place
+is. **None of the six is pushed** (§13 step 0).
 
 *Session 2 (first browser run, then the fixes it found):* `3eb8277` hydration fix (C1) ·
 `e91dbe7` pick a start when location is off (C2) · `98af32c` country-wide place search (C3, G1) ·
@@ -482,6 +490,7 @@ Walked in the browser at the end of session 4 (375×812, live APIs, the user's o
 | Thamel Chowk → **Everest Base Camp**, Suggest, 3 days | **3 different lines, all starting at Lukla**: 50.5 km / +4,987 m, 66 km via Thame, 58.1 km via Green Valley Lodge. Each card: "The walk starts at Lukla — no road reaches it." Stops: Phakding · Monjo · नाम्चे बजार · Khumjung · Tengboche · Pangboche · Kala Patthar |
 | Bugs the run found | `onSubmit={findRoutes}` passed the click event where the variant kind goes, so **every** "Find routes" failed with "Couldn't reach the route service" and no request left the page; an empty result read "0 routes"; one plan's cards had no places because Overpass 504'd. All three fixed in `b61fb7f` |
 | Still ugly | a stop can be called "नेपाल" (G13 — OSM names leak into the list) |
+| Re-run after the pin labels landed (`316d3b3`) | pins read "Keshar Mahal / Monument", "सिद्धि बिनायक / Place of worship", "Lion statue / Attraction"; the card list reads the same with the kind in brackets |
 
 ## 9. Files
 
