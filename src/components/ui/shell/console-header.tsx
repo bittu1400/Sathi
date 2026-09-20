@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "../button";
 import { Logo } from "../logo";
 import { Status } from "../status";
+import { ThemeToggle } from "../theme-toggle";
 import { toast } from "../toast";
 
 export interface ConsoleHeaderProps {
@@ -36,6 +37,7 @@ export function ConsoleHeader({ product, name, role, live, children }: ConsoleHe
       <span className="text-label text-text-muted">{product}</span>
       <Status tone={live ? "ok" : "warning"}>{live ? "Live" : "Reconnecting"}</Status>
       <div className="ml-auto flex flex-wrap items-center gap-2">
+        <ThemeToggle className="size-10" />
         <span className="hidden text-small text-text-muted sm:inline">
           {name} · {role}
         </span>
