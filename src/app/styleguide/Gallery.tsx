@@ -21,6 +21,12 @@ import { Progress, Spinner } from "@/components/ui/spinner";
 import { Logo } from "@/components/ui/logo";
 import { ElevationProfile } from "@/components/trek/ElevationProfile";
 import { AltitudeLadder } from "@/components/trek/AltitudeLadder";
+import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { toast } from "@/components/ui/toast";
+import { runWithUndo } from "@/components/ui/use-undo";
+import { SaveState } from "@/components/ui/save-state";
 
 const waypoints = [
   { id: "1", name: "Lukla", altitudeM: 2860, distanceKm: 0 },
@@ -84,6 +90,7 @@ export function Gallery() {
   const [chip, setChip] = React.useState(true);
   const [seg, setSeg] = React.useState(1);
   const [sort, setSort] = React.useState<{ key: string; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
+  const [confirm, setConfirm] = React.useState(false);
   const sorted = [...rows].sort((a, b) => {
     const k = sort.key as keyof Row;
     return (a[k] < b[k] ? -1 : 1) * (sort.dir === "asc" ? 1 : -1);
@@ -275,7 +282,56 @@ export function Gallery() {
         </div>
       </Section>
 
-      <Section n={10} title="Trek components">
+      <Section n={10} title="Overlays and feedback">
+        <div className="flex flex-wrap items-center gap-3">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="secondary">Dialog</Button>
+            </DialogTrigger>
+            <DialogContent title="Dialog" description="Centred from 768 px, a bottom sheet below.">
+              <Button>Primary action</Button>
+            </DialogContent>
+          </Dialog>
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button variant="secondary">Sheet</Button>
+            </SheetTrigger>
+            <SheetContent title="Sheet" description="Bottom sheet on mobile, right panel on desktop.">
+              <p className="text-text-muted">Check-in, filters, marker details.</p>
+            </SheetContent>
+          </Sheet>
+          <Button variant="danger" onClick={() => setConfirm(true)}>
+            Confirm dialog
+          </Button>
+          <ConfirmDialog
+            open={confirm}
+            onOpenChange={setConfirm}
+            title="Delete my data?"
+            body="This removes your profile and treks. It can't be undone."
+            confirmLabel="Delete data"
+            tone="danger"
+            requireText="DELETE"
+            onConfirm={() => undefined}
+          />
+          <Button variant="secondary" onClick={() => toast.success("Link copied")}>
+            Toast
+          </Button>
+          <Button variant="secondary" onClick={() => toast.error("Couldn't sync — will retry")}>
+            Error toast
+          </Button>
+          <Button variant="secondary" onClick={() => runWithUndo({ apply: () => undefined, revert: () => undefined, commit: () => undefined, message: "Pack removed" })}>
+            Undo toast
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-6">
+          <SaveState state="saving" />
+          <SaveState state="saved" />
+          <SaveState state="queued" />
+          <SaveState state="error" onRetry={() => undefined} />
+        </div>
+      </Section>
+
+      <Section n={11} title="Trek components">
         <ElevationProfile waypoints={waypoints} currentDistanceKm={38.5} />
         <AltitudeLadder nights={nights} />
       </Section>
