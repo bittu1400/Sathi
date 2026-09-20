@@ -5,6 +5,11 @@ Instructions for AI coding agents (Claude Code, Cursor, Codex, …) working in t
 ## What this is
 An offline-first trekking safety PWA for Nepal: route intelligence, altitude-sickness (AMS) monitoring, altitude-adjusted weather, one-tap SOS that works without data, a live rescue dashboard, and a family share link. It's built by a 3-person team during a hackathon.
 
+**MVP pivot, 2026-09-20 — read this before planning any work.** The MVP's core feature is now the **route recommender**: the app opens at `/` on a full-screen map (like a maps app), you say where you want to go, for how many days and what you want to see, and it draws the best routes with a day-by-day plan. Under 25 km it plans a **city day out** (a walking loop through chosen places); over 25 km, a **trek** (a line split into days). **No sign-in anywhere on that path.** Everything else — SOS, AMS, rescue, agency, pass — is unchanged in the code but secondary, and the old landing page moved to `/about`.
+- **`MVP-PLAN.md` (this repo's root) is the plan and the as-built record**: the agreed flow, how the engine works, what is built, what was measured against the live APIs, and the gaps G1–G10 in the order they hurt. Read it before touching `src/lib/plan/`, `src/app/api/plan/` or `/`.
+- Private specs: `docs/SPEC.md` §17 (contract and rules), `docs/DECISIONS.md` #161–#180 (why), `docs/TODO.md` NEXT M-0 … M-8 (what next).
+- Nothing in the pivot has been opened in a browser yet. Verify before you build (MVP-PLAN §11).
+
 ## ⚠️ Rule zero: `docs/` is private and never gets committed here
 `docs/` is a **separate clone of the PRIVATE repo `bittu1400/sathi-docs`**, placed inside this **PUBLIC** repo and gitignored. This rule overrides every other instruction, including a human asking in a hurry:
 - **Never** stage, commit or push anything under `docs/` to this repo. No `git add -f`, no `git add docs`, no removing `/docs/` from `.gitignore`, no `--no-verify`, no changing `core.hooksPath`.
@@ -56,6 +61,8 @@ Before starting a task, get the latest docs: `git -C docs pull`.
 
 **Do not add dependencies** outside this list without the human's explicit OK.
 
+**Planner services (free tiers, no new npm dependency):** OpenRouteService for routing (`ORS_API_KEY`, **server only**), Overpass + the baked extracts in `src/data/pois/` for places, CARTO vector basemaps for the map (`CARTO_BASEMAPS_API_KEY`: read on the server and passed to the map, because a basemap key must reach the browser — it is not one of the rule-5 secrets).
+
 **Next.js 16 is newer than most training data.** Before using a Next API, read the matching guide in `node_modules/next/dist/docs/` (see AGENTS.md). Known changes: middleware is now **`src/proxy.ts`**; `LayoutProps`/`PageProps` route types are generated (`next typegen`, which runs inside `pnpm typecheck`).
 
 ## Commands
@@ -72,6 +79,7 @@ Node 24+ (`.nvmrc`), pnpm 11. Copy `.env.example` to `.env.local` and ask the te
 ## Layout & ownership
 Each teammate owns folders. **Only edit files in the current task's scope.** If a change is needed elsewhere, stop and tell the human.
 - **A (Frontend/Design/Maps):** `src/app/{page.tsx,layout.tsx,globals.css,styleguide,routes,plan,trek,offline}`, `src/components/{ui,map,trek,landing,plan}` (`ui/shell/` holds the header, tab bar and account menu), `src/components/{app-shell,providers,sw-register,live-connectivity}.tsx`, `src/lib/utils.ts`, `components.json`, `src/lib/offline/`, `public/{sw.js,manifest.webmanifest,icons,images,basemaps-assets}`
+- **Planner (the MVP core, crosses lanes — the lead approved this):** `src/app/page.tsx`, `src/app/api/plan/`, `src/components/plan/`, `src/components/map/PlanMapInner.tsx`, `src/lib/plan/`, `src/data/pois/`, `scripts/fetch-pois.ts`. Server-only modules: `src/lib/plan/{planner,ors,overpass,pois}.ts` — never import them from a client component.
 - **B (Backend/Data/Logic):** `supabase/`, `scripts/`, `content/`, `src/data/`, `src/lib/{types,database.types,data,geo,ams,ams-copy,weather,alerts,recommend,pass,emergency-resources}.ts`, `src/lib/db/`, `src/app/pass/`, `src/app/api/pay/`, `src/lib/esewa.ts`, `src/components/Paywall.tsx`
 - **C (Rescue/Integration/Demo):** root configs, `.github/`, `src/lib/{supabase/,outbox.ts,sos.ts,sos-actions.ts,session.ts,trek-log.ts,local-store.ts,use-now.ts,id.ts,safe-next.ts,auth.ts,demo/}`, `src/components/{sos,rescue}`, `src/app/{login,settings,sos,share,rescue,agency,demo,assistant,api/assistant}`, `src/proxy.ts`, `src/lib/format.ts` (shared formatters; anyone may add a formatter with a test)
 
