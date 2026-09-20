@@ -1,28 +1,39 @@
 import { layers, namedFlavor } from "@protomaps/basemaps";
 import type { StyleSpecification } from "maplibre-gl";
 
-export function getMapStyle(tilesUrl?: string): StyleSpecification {
-  const flavor = "dark";
-  const sourceUrl = tilesUrl ? `pmtiles://${tilesUrl}` : undefined;
+const FLAVOR = "dark";
+// Self-hosted: protomaps.github.io is cross-origin, so the service worker can't
+// cache it and labels/icons would vanish offline. /basemaps-assets/* is cache-first.
+const GLYPHS = "/basemaps-assets/fonts/{fontstack}/{range}.pbf";
+// MapLibre rejects a relative sprite URL, so it gets our origin.
+const sprite = () => new URL(`/basemaps-assets/sprites/v4/${FLAVOR}`, location.origin).href;
+const ATTRIBUTION = "© OpenStreetMap contributors, Protomaps";
 
-  const styleLayers = layers("protomaps", namedFlavor(flavor), { lang: "en" });
+function token(name: string): string {
+  return getComputedStyle(document.documentElement).getPropertyValue(`--${name}`).trim();
+}
 
+/** Trail diagram: no tile source, so this style can never fail to load. */
+export function getDiagramStyle(): StyleSpecification {
   return {
     version: 8,
-    glyphs: "https://protomaps.github.io/basemaps-assets/fonts/{fontstack}/{range}.pbf",
-    sprite: `https://protomaps.github.io/basemaps-assets/sprites/v4/${flavor}`,
-    sources: sourceUrl
-      ? {
-          protomaps: {
-            type: "vector",
-            url: sourceUrl,
-            attribution: "© OpenStreetMap contributors, Protomaps",
-          },
-        }
-      : {},
-    // Without tiles the route still draws on a themed background.
-    layers: sourceUrl
-      ? styleLayers
-      : [{ id: "background", type: "background", paint: { "background-color": getComputedStyle(document.documentElement).getPropertyValue("--surface-2").trim() } }],
+    glyphs: GLYPHS,
+    sprite: sprite(),
+    sources: {},
+    layers: [{ id: "background", type: "background", paint: { "background-color": token("surface-2") } }],
+  };
+}
+
+/** Full basemap over `pmtilesUrl` (a remote .pmtiles URL or a local pack's key). */
+export function getMapStyle(pmtilesUrl?: string): StyleSpecification {
+  if (!pmtilesUrl) return getDiagramStyle();
+  return {
+    version: 8,
+    glyphs: GLYPHS,
+    sprite: sprite(),
+    sources: {
+      protomaps: { type: "vector", url: `pmtiles://${pmtilesUrl}`, attribution: ATTRIBUTION },
+    },
+    layers: layers("protomaps", namedFlavor(FLAVOR), { lang: "en" }),
   };
 }

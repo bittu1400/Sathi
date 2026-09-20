@@ -1,5 +1,20 @@
 import { get, set, del, keys } from "idb-keyval";
 
+/**
+ * A route ships without tiles until they're uploaded. Anything that isn't an
+ * absolute http(s) URL — empty, relative, or an `example.` placeholder — would
+ * only make the basemap fail, so it counts as "no tiles".
+ */
+export function isUsableTilesUrl(url?: string | null): url is string {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return /^https?:$/.test(parsed.protocol) && !parsed.hostname.startsWith("example.");
+  } catch {
+    return false;
+  }
+}
+
 export interface PackMeta {
   routeId: string;
   sizeBytes: number;

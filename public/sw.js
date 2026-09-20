@@ -2,7 +2,7 @@
 // Offline model: HTML pages network-first with cache fallback; static assets cache-first.
 // Client-side (RSC) navigations that fail offline fall back to a full page load in
 // Next.js, which then hits the cached HTML below.
-const CACHE_NAME = "sathi-v2";
+const CACHE_NAME = "sathi-v3";
 const PAGES = ["/", "/trek", "/sos", "/routes", "/routes/ebc", "/plan", "/settings", "/offline"];
 const STATIC = ["/manifest.webmanifest", "/favicon.ico", "/icons/icon-192.png", "/icons/icon-512.png"];
 
@@ -48,6 +48,7 @@ self.addEventListener("fetch", (event) => {
   if (
     url.pathname.startsWith("/_next/static/") ||
     url.pathname.startsWith("/basemaps-assets/") ||
+    url.pathname.startsWith("/maplibre/") ||
     url.pathname.startsWith("/images/") ||
     url.pathname.startsWith("/icons/")
   ) {

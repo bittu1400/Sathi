@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { CheckCircle2, Download, Trash2 } from "lucide-react";
-import { downloadPack, getPack, deletePack } from "@/lib/offline/packs";
+import { downloadPack, getPack, deletePack, isUsableTilesUrl } from "@/lib/offline/packs";
 import { Button } from "../ui/button";
 import { Panel } from "../ui/panel";
 import { Progress } from "../ui/spinner";
@@ -39,6 +39,17 @@ export function PackButton({ routeId, tilesUrl, tilesBytes }: PackButtonProps) {
     });
 
   const megabytes = Math.round(tilesBytes / (1024 * 1024));
+
+  // No tiles published for this route yet: don't offer a download that can only fail.
+  if (!isUsableTilesUrl(tilesUrl)) {
+    return (
+      <Panel title="Offline map pack">
+        <p className="text-small text-text-muted">
+          Not available for this route yet. The trail, waypoints and emergency contacts still work offline.
+        </p>
+      </Panel>
+    );
+  }
 
   return (
     <Panel title="Offline map pack" meta={megabytes > 0 ? `${megabytes} MB` : undefined} className="space-y-3">

@@ -13,6 +13,7 @@ function setData(map: MapLibreMap, id: string, data: GeoJSON.GeoJSON) {
 }
 
 export function addRouteLayers(map: MapLibreMap, route: RouteDetail) {
+  if (!route.line) return;
   setData(map, "route", { type: "Feature", properties: {}, geometry: route.line });
   setData(map, "waypoints", {
     type: "FeatureCollection",
@@ -65,11 +66,7 @@ export function addRouteLayers(map: MapLibreMap, route: RouteDetail) {
   });
 }
 
-export function addResourceLayers(
-  map: MapLibreMap,
-  resources: Resource[],
-  onResourceClick?: (r: Resource) => void,
-) {
+export function addResourceLayers(map: MapLibreMap, resources: Resource[]) {
   setData(map, "resources", {
     type: "FeatureCollection",
     features: resources.map((r) => ({
@@ -100,11 +97,6 @@ export function addResourceLayers(
       "circle-stroke-width": 2,
       "circle-stroke-color": token("bg"),
     },
-  });
-  map.on("click", "resources-markers", (e) => {
-    const id = e.features?.[0]?.properties?.id;
-    const target = resources.find((r) => r.id === id);
-    if (target) onResourceClick?.(target);
   });
 }
 
