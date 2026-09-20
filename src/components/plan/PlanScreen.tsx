@@ -3,10 +3,11 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { ArrowRight, Crosshair, Menu, Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Crosshair, Menu, Search, SlidersHorizontal, Users, X } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { SosButton } from "@/components/sos/SosButton";
 import { usePosition, type PositionStatus } from "@/lib/plan/position";
 import type { InterestId } from "@/lib/plan/interests";
 import type { PlannedRoute, PlanResult } from "@/lib/plan/types";
@@ -164,10 +165,18 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
 
       {/* Right rail, kept clear of the sheet: at 70 dvh it used to sit under it. */}
       <div
-        className={`absolute right-3 flex flex-col gap-2 transition-[bottom] duration-[var(--dur-base)] motion-reduce:transition-none ${
+        className={`absolute right-3 flex flex-col items-end gap-2 transition-[bottom] duration-[var(--dur-base)] motion-reduce:transition-none ${
           expanded ? "bottom-[calc(70dvh+0.75rem)]" : "bottom-[calc(9rem+env(safe-area-inset-bottom))]"
         }`}
       >
+        <Link
+          href="/community"
+          aria-label="Community boards"
+          title="Community boards"
+          className="flex size-12 items-center justify-center rounded-full border border-line bg-surface shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        >
+          <Users className="size-5 text-text-muted" aria-hidden />
+        </Link>
         <button
           type="button"
           onClick={recentre}
@@ -180,6 +189,8 @@ export function PlanScreen({ destinations, basemapKey }: PlanScreenProps) {
             aria-hidden
           />
         </button>
+        {/* The app-wide FAB, placed in the rail so the sheet never covers it. */}
+        <SosButton className="static shadow-lg" />
       </div>
 
       {/* One bottom sheet, three heights. The map stays interactive behind it. */}
