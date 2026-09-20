@@ -1,18 +1,18 @@
 import * as React from "react";
 import { LandingHero } from "@/components/landing/LandingHero";
-import { LandingPillars } from "@/components/landing/LandingPillars";
-import { LandingOfflineSteps } from "@/components/landing/LandingOfflineSteps";
+import { LandingCapabilities } from "@/components/landing/LandingCapabilities";
+import { LandingSos } from "@/components/landing/LandingSos";
+import { LandingAgencies } from "@/components/landing/LandingAgencies";
 import { LandingPricing } from "@/components/landing/LandingPricing";
-import { LandingFooter } from "@/components/landing/LandingFooter";
 
 export default function HomePage() {
   return (
-    <div className="space-y-4">
+    <>
       <LandingHero />
-      <LandingPillars />
-      <LandingOfflineSteps />
+      <LandingCapabilities />
+      <LandingSos />
+      <LandingAgencies />
       <LandingPricing />
-      <LandingFooter />
-    </div>
+    </>
   );
 }
