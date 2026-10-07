@@ -1,30 +1,33 @@
 # MVP-PLAN — map-first route recommender
 
-Last updated 2026-09-20, end of the fifth session. Last code commit: `3d0bf01`. `origin/main`
-is at `e06b2ad`, so **the fourth session's three commits are still local** (§13 step 0).
+Last updated 2026-09-20, end of the **fifth** session. Last code commit: `8c27c35`.
+**`origin/main` is at that same commit — everything described here is pushed** (checked with
+`git ls-remote origin main`, not from memory). The private `docs/` repo is pushed too.
 
-This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the
-flow) is what we agreed to build and §6 says exactly how much of it exists. Nothing below
-describes intentions as if they were code.
+This is the plan **and** the as-built record for the MVP pivot. Where they differ, §4 (the flow)
+is what the app does today and §6 says how much of each phase exists. Nothing here describes an
+intention as if it were code, and nothing claims a screen was seen that was not.
 
-**Starting a session? Read §13 (what to do next), then §12 (how to verify things), then the
-gap in §7 you are about to touch.** §8 holds every number we have measured — keep adding to it
+**Starting a session? Read §13 (what to do next), then §12 (how to verify things), then the gap
+in §7 you are about to touch.** §8 holds every number measured against the live APIs — add to it
 rather than re-measuring.
 
-**The fourth session changed the recommender itself**, on the lead's report that only the city
-day out worked: a trip now has a **shape** the trekker picks (Suggest · Day out · **Point to
-point**), a trek is planned **from its trailhead** rather than from the trekker's doorstep, and
-the three options differ by a **toggle** — different ways, different paces, or the treks we hold
-our own data for. Line routes also carry the chosen places they pass, which the map pins. The session
-**did** have a browser pane, so §11 steps 13–16 were walked at 375×812 against the live APIs —
-the first UI verification since session 2. It found three bugs, all fixed in `b61fb7f`.
+**What the last two sessions changed, in one place:**
 
-**The third session added two things beside the planner** (community boards, an SOS button on
-the map) and changed three things inside it (both ends of a trip are pickable, "Your location"
-is offered before the browser has given a fix, and a card shows walking **and** road time).
-None of it has been seen in a browser: §12 explains why this session had no browser at all.
+- **Session 4 — the recommender itself.** A trip now has a **shape** the trekker picks (Suggest ·
+  Day out · **Point to point**); a trek is planned **from its trailhead** instead of from the
+  trekker's doorstep; the three options differ by a **toggle** (Different ways · Different paces ·
+  Known treks); and a line route carries the **places it passes**, pinned on the map with their
+  name and what kind of place they are. Walked in the browser at 375×812 (§11 steps 13–16).
+- **Session 5 — the rest of the front end.** A **light theme** ("premium green") beside the dark
+  one, chosen by the phone until the trekker taps the switch; the landing page, the tabs, the map
+  menu, the PWA manifest and the command palette now describe the app that exists; features with
+  no working backing are **disabled and marked Upcoming** rather than deleted; and six real
+  defects found in the browser were fixed (§11 steps 17–20, §7 G9a).
 
-Private specs live in `docs/` (see CLAUDE.md rule zero) and are not quoted here.
+Private specs live in `docs/` (CLAUDE.md rule zero) and are not quoted here. `docs/SPEC.md` §17
+is the planner contract, §18 the community boards, §9.1 what an SOS really does;
+`docs/DECISIONS.md` is why each choice was made (#161–#221); `docs/TODO.md` → NEXT is the board.
 
 ## 1. The pivot in one paragraph
 
@@ -72,6 +75,14 @@ Decisions taken by the lead in the **fourth** session (2026-09-20, later still):
 | D17 | What a long trek should be | **Three foot routes from the trailhead**: "if they want to trek, they will start from the base camp, not from all the way from kathmandu". Trailhead from curated data first, then a roadhead probe — **never** an invented coordinate (the lead picked "Curated + roadhead fallback") |
 | D18 | How three options are made | **All three, as a toggle**: different ways, different paces, known treks — "make it toggle, which one they want". Plus: "mark what exactly is the attraction that they chose to see is in that path", which is the `stops` a line route now carries |
 
+Decisions taken by the lead in the **fifth** session (2026-09-20, last):
+
+| # | Question | Decision |
+|---|---|---|
+| D19 | Light mode | **Follow the system, with a toggle that sticks** ("Follow system + toggle"). This **reverses REDESIGN R4**, which had removed the theme toggle, the `sathi-theme` storage key and the light palette to make the app dark only. The lead asked for light back; the same storage key is used again |
+| D20 | Which light palette | **"Use the premium green palette for the light mode… kinda like that premium green."** Deep emerald accent on paper with a green whisper; status keeps a separate leaf green |
+| D21 | What to do with features that have no backing | **"By remove I meant just disable the button and make it upcoming."** Nothing is deleted: the pages and the code stay, the entry points go, and the panel says **Upcoming** |
+
 ## 3. Services and keys
 
 | Need | Service | Free-tier limit | Key | Where the key lives |
@@ -85,35 +96,69 @@ Decisions taken by the lead in the **fourth** session (2026-09-20, later still):
 **No new npm dependency was added.** Everything is `fetch` plus the MapLibre already in the repo.
 ORS returns GeoJSON directly, so no polyline decoder is needed.
 
-## 4. The user flow (the spec we agreed)
+## 4. The user flow (as built, walked in a browser at 375×812)
 
-**Step 1 — Map (`/`).** Opens straight onto a full-screen map. Position is requested on mount and
-a refusal is a normal state: the map stays on Nepal and the sheet says so. Current position is a
-dot; the first fix flies the map to it, later fixes only move the dot (so it never yanks itself
-back while you pan). Controls: the menu (→ `/about`) top-left, a **From / To card** beside it,
-and a right rail of three round controls — **community** (→ `/community`), **locate**, and the
-**SOS** button (D12). The rail rides above the sheet at whatever height the sheet has.
+**Step 1 — Map (`/`).** Opens straight onto a full-screen map, chrome-free: no header, no tab
+bar. Position is requested on mount and a refusal is a normal state — the map stays on Nepal and
+the sheet says so. The current position is a dot; the first fix flies the map to it, later fixes
+only move the dot (so it never yanks itself back while you pan). Controls:
 
-**Step 2 — Either end of the trip.** The top card is two rows. **To** (or "Go somewhere" in the
-peek sheet) opens the destination search; **From** opens the same search for the start, with
-"Your location" offered at the top of it. The curated treks match offline; two letters or more
-also search the whole country through `/api/places` (ORS autocomplete, debounced 300 ms).
-Curated matches stay on top. Either end may be picked first: choosing a start with no
-destination yet moves straight on to the destination search.
+- **top-left, the menu** — a dropdown to the rest of the app: Trekking routes · Trek mode ·
+  Community · Settings · About Sathi. (Until session 5 this button was a plain link to `/about`
+  and there was no other way off the map.)
+- **top, the From / To card** — two 48 px rows, either end tappable.
+- **right rail, four round controls, top to bottom** — **theme switch** (sun/moon), **community**
+  (→ `/community`), **locate**, and the 72 px **SOS** button. The rail is anchored to the top
+  edge of the bottom sheet, so it clears the sheet at every height including the results sheet,
+  which grows with its cards (that was G9a).
 
-**Step 3 — Trip.** To (tap to change) · From (tap to change: device fix by default, or any
-place from the same search when location is off) · Days (stepper, 1–21, default 3) ·
-"What do you want to see?" (ten icon chips, multi-select, none required) · **Find routes**.
+**Step 2 — Either end of the trip.** **To** (or "Go somewhere" in the peek sheet) opens the
+destination search; **From** opens the same search for the start, with "Your location" offered at
+the top whatever the permission state. Curated treks match offline; two letters or more also
+search the whole country through `/api/places` (ORS autocomplete, debounced 300 ms). Curated
+matches stay on top. Either end may be picked first: choosing a start with no destination yet
+moves straight on to the destination search.
+
+**Step 3 — Trip.** To (tap to change) · From (tap to change) · **Shape of the trip** ·
+Days (stepper, 1–21, default 3) · "What do you want to see?" (ten icon chips, multi-select, none
+required) · **Find routes**.
+
+**Shape of the trip** is three chips and it decides what the planner is allowed to do (D16):
+
+| Chip | Sends | What it means |
+|---|---|---|
+| **Suggest** (default) | `mode: "auto"` | The planner's own rule: ≤ 25 km apart, or a destination inside a baked POI region, is a day out; anything else is a trek |
+| **Day out** | `mode: "tour"` | A walking loop through places, back where it began, whatever the distance |
+| **Point to point** | `mode: "direct"` | The exact line between the two points, no loop and no trailhead snapping. This is the one a local asks for, and the rule above used to take it away from them inside a city |
+
+A hint under the chips says which is which ("Straight from where you start to where you end." /
+"A loop through places, back where it began."). There is no hint under **Suggest**.
 
 **Step 4 — Results.** The map fits all options; the selected route is drawn in the route colour,
-the others recede. The sheet becomes a swipeable carousel, one card per option with its label,
-day count, distance, climb, **walking time and road time** (D15) and its stops. A card expands
-into the day-by-day plan. The selected route's stops appear on the map as numbered pins in
-visiting order.
+the others recede. The sheet shows, in order:
+
+1. a heading — "3 routes to Everest Base Camp", "1 route…", or "No routes…" when a toggle came
+   back with none;
+2. the **variants toggle** (D18), three chips that re-plan on tap and grey out while busy:
+   **Different ways** (default) · **Different paces** · **Known treks**. It is **hidden for a day
+   out**, which builds its own three sets of stops;
+3. any error, in `text-danger`, with the toggle still usable — so "Known treks" answering "We
+   don't hold a known trek that reaches there yet." is a dead end you can back out of;
+4. the horizontally scrolling cards, one per option.
+
+A card carries: its label, day count, distance, climb, **walking time** (always) and **road
+time** (when a road joins the ends), the **places it passes** as `Name (Kind)`, the note **"The
+walk starts at <trailhead> — no road reaches it."** when the trek was planned from a trailhead,
+the "Road route — too far to walk end to end" note when ORS could only drive it, and **See the
+days** which expands the day-by-day plan. A card is **tapped**, not swiped (G9).
+
+On the map, the selected route's places are **numbered pins carrying the place's name and what
+kind of place it is** on two lines — "Boudhanath / Stupa", "Tengboche Village / Village". The
+number is the walking order. The name label gives way when two pins collide; the dot never does.
 
 **Step 5 — Nothing else in the planner.** No booking, no login, no saving. Out of scope.
 
-**Beside the planner, reachable from the rail** (added in the third session, D12/D14):
+**Beside the planner** (third session, D12/D14):
 
 - **Community** (→ `/community`) — five static boards named after places (Pokhara, Everest Base
   Camp, Kathmandu, Annapurna Circuit, Langtang). A board lists its posts, highest score first,
@@ -122,27 +167,63 @@ visiting order.
 - **SOS** — the app's existing 72 px SOS button, which opens the existing sheet: 5-second
   countdown → the offline panel, because signed out nothing can reach coordination. The panel
   offers **Send SMS**, **Call** and **WhatsApp** to the configured number, plus the message text
-  and a Copy button. **Nothing transmits by itself** (G16); every one of those opens an app with
-  the message ready and the human presses Send.
+  and a Copy button. **Nothing transmits by itself** (G16); each of those opens an app with the
+  message ready and the human presses Send. Since session 5 the sheet **says so before the fact**
+  too: signed out it reads "Your SOS is prepared when the countdown ends, ready for you to send"
+  and "Preparing SOS…", not "sent".
+
+**Light and dark (D19, D20).** Every screen has both. The theme is an attribute on the html
+element, set before the first paint by an inline `next/script` (`beforeInteractive`) from
+`localStorage["sathi-theme"]`, falling back to the phone's own setting. Until the first tap the
+phone decides — including a change made while the app is open — and after it the choice is stored
+per device. The switch is in the planner rail, the app header, the landing header and the console
+header. Light is **premium green**: deep emerald accent (`#0a6b4d`) on paper with a green whisper,
+its own leaf green for "fine" so brand and status are not one colour, and in light the map route
+is green while the stop pins stay orange.
+
+**The rest of the app, beside the MVP path.** Tabs (every screen except the map, which has the
+menu instead): **Map · Routes · Trek · Community**; Settings lives in the account menu. `/about`
+is the landing page and now leads with the recommender. Features with no working backing are
+visible but **Upcoming**, never clickable (D21): the paid tiers (there is no pass screen and no
+payment route at all — `src/app/pass/` and `src/app/api/pay/*` are empty placeholders) and the
+agency console (it needs agency accounts nobody has created). `/plan` is the pre-pivot preference
+finder: still there, no longer linked from anywhere.
 
 **States that must exist** (all built, all seen in a browser): permission refused (the sheet says
 so and the From row offers a manual start) · offline (the error names the connection and keeps
 the drawn route) · fewer options than three (show what exists, never pad — Kathmandu → Pokhara
-really does return two) · engine failure (the message from the server is shown in `text-danger`
-and **Find routes** can simply be pressed again; there is no separate retry control) · busy state
-on the button.
+really does return two) · engine failure (the server's message in `text-danger`, and **Find
+routes** can simply be pressed again; there is no separate retry control) · busy state on the
+button and on the variants toggle.
 
 ## 5. How the engine works (as built)
 
 `POST /api/plan`, zod-validated, no auth, no PII.
 
 ```ts
-{ start: {lat,lng}, end: {lat,lng}, days: 1..21, interests: InterestId[] }
-  → { kind: "tour" | "trek", routes: PlannedRoute[] }
+{
+  start: {lat,lng}, end: {lat,lng},
+  days: 1..21,
+  interests: InterestId[],
+  mode:     "auto" | "direct" | "tour",   // zod default "auto"
+  variants: "ways" | "paces" | "treks",   // zod default "ways"
+}
+  → { kind: "tour" | "trek" | "direct", routes: PlannedRoute[] }
 ```
 
+`PlannedRoute` carries `id`, `label`, `source` (`hiking` | `driving` | `curated`), `kind`,
+`distanceM`, `durationS`, `footHours`, `carDurationS | null`, **`trailhead: {name,lat,lng} |
+null`**, `ascentM | null`, `geometry`, **`stops: Poi[]`** and `days: DayLeg[]`.
+
 Guards, in order: zod → a 1-hour in-process cache keyed by start/end rounded to 3 decimals +
-days + interests → Nepal bbox (a point outside gets 400 before any request is spent).
+days + **mode** + **variants** + interests → Nepal bbox (a point outside gets 400 before any
+request is spent). **A repeated identical request proves nothing**: change an input or restart
+`pnpm dev`.
+
+Error statuses the handler can return: **400** (zod, or a point outside Nepal), **404** (no route
+between those points, or "We don't hold a known trek that reaches there yet." under
+`variants: "treks"`), **502** (ORS refused, or our key was rejected), **503** (`ORS_API_KEY`
+missing).
 
 **Shape** — `mode` on the request (`auto` · `tour` · `direct`), chosen with three chips in the
 trip form. `auto` is the rule below. `tour` and `direct` are obeyed as given: a local who asks
@@ -169,6 +250,42 @@ trips to it are planned.
    destination itself when the city is far away — then ORS `foot-walking` is asked for one route
    through `[base, …stops, base]`: a day out ends where it began.
 4. The line is split into days (below).
+
+### A line — a trek, or a point-to-point trip (`planLine`)
+Both shapes run the same function; `kind` only changes whether the trailhead step may fire.
+
+1. **Where the line starts** (`lineCandidates`). For a `trek` only: if a curated trek's own
+   bounding box holds the destination and the trekker is **more than 25 km** from that trek's
+   trailhead, the line is planned **from the trailhead** (see the next block). Otherwise
+   `fetchCandidates(start, end)`: ORS `foot-hiking` with `alternative_routes {target_count: 3,
+   share_factor: 0.6, weight_factor: 1.6}`; on refusal, the same profile **without** alternatives;
+   then `driving-car` the same way. A 401/403 fails fast (that is our key, not the request).
+   `source` records which profile answered, and the card says so when it is a road route.
+   If that came back road-only — or threw — a **roadhead probe** runs (next block). If ORS can
+   route to the destination at all and a curated trek reaches it, the curated trek is returned
+   instead of an error.
+2. **Places along it.** `fetchPoisAlong(…, 8 km, interests)` — **one** query over every
+   candidate's coordinates at once, because alternatives share a corridor. The band is 8 km, not
+   2 km, because a detour is by definition somewhere the direct line misses; `poisNear(…, 2 km)`
+   narrows it back down for each line's day plan and its pinned stops.
+3. **What the three options are** (`variants`):
+   - **`paces`**, or any request the engine answered with a single geometry and
+     `variants: "paces"`: the same line as asked / one day faster / one day easier.
+   - **`ways`** with more than one ORS geometry: each becomes an option, **scored** by how many
+     of the chosen places it passes (notable ones count double). The best match leads and each
+     card is named after what that line has most of ("Most temples & culture"); a line with
+     nothing distinctive falls back to "Fastest" / "Alternative n".
+   - **`ways`** with one geometry: "Most direct", plus up to **two detours** — a walk through a
+     place off the line that matches the chosen interests. `detourPicks` takes the 8 km band
+     minus what the line already passes, orders it along the line, splits it in half and takes
+     the best of each half in turn, preferring a place you can walk to (villages, teahouses,
+     culture, viewpoints, parks) over a summit. **Four are tried, the first two that route are
+     kept** — ORS refuses any point with no way within 350 m, which is most peaks.
+   - **`treks`**: every curated trek whose own line passes within **10 km** of the destination,
+     with its own length, climb and **stage-by-stage days** from the file. 404 when none does.
+4. **Stops.** Each line keeps up to **eight** places it passes: notable first, then ordered by
+   how far along the line they are reached (`stopsAlong` → `orderAlong`). These are the numbered
+   pins and the card's list.
 
 ### Where a trek starts — `src/lib/plan/trailhead.ts` (fourth session)
 Asked for the Khumbu from Kathmandu, ORS answers with a 294 km walking line out of the city.
@@ -203,21 +320,6 @@ A destination ORS cannot route to **at all** — Base Camp itself has no way wit
 is why every request for it used to end in an error — falls back to a curated trek that reaches
 it when we hold one.
 
-### Trek (a line between two points)
-1. `fetchCandidates`: ORS `foot-hiking` with `alternative_routes {target_count: 3,
-   share_factor: 0.6, weight_factor: 1.6}`; on refusal, the same profile **without** alternatives;
-   then `driving-car` the same way. A 401/403 fails fast (that's our key, not the request).
-   `source` records which profile answered, and the card says so when it's a road route.
-2. `fetchPoisAlong(…, 2 km, interests)` for the day highlights and overnight names — **one**
-   query over every candidate's coordinates at once, because alternatives share a corridor.
-3. If ORS returned more than one geometry, each becomes an option, **scored** by how many of the
-   chosen places it passes (notable ones count double). The best match leads the carousel and
-   each card is named after what that line has most of ("Most temples & culture"); a line with
-   nothing distinctive left falls back to "Fastest" / "Alternative n". The alternatives share a
-   corridor, so one Overpass query covers them all and `poisNear()` splits the result per line.
-4. If it returned one — which is most of the high mountains — the options are three **paces** of
-   the same line: as asked, one day faster, one day easier.
-
 ### Travel times (both shapes) — added in the third session (D15)
 A card used to show one time: whatever ORS answered with. A long trip falls back to
 `driving-car`, so a long trip read as car-only, which is what the lead saw.
@@ -227,10 +329,12 @@ A card used to show one time: whatever ORS answered with. A long trip falls back
   and the day list can then never disagree, and a walking figure exists even when the engine
   only managed to drive. For a road route the card says so: "the walking time is for that same
   road."
-- **Road time** (`carDurationS`, nullable) is ORS `driving-car` between the trip's two ends:
-  free when a candidate already drove, otherwise **one** extra request per plan, shared by
-  every alternative (they share endpoints). **Null when there is no road** — Kathmandu → Lukla
-  has none — and the card then shows no road row rather than a guess.
+- **Road time** (`carDurationS`, nullable) is ORS `driving-car` from the start to **wherever the
+  walking begins**: the destination normally, the **trailhead** when the trek was planned from
+  one (session 4), because the rest of it cannot be driven. Free when a candidate already drove,
+  otherwise **one** extra request per plan, shared by every alternative (they share endpoints).
+  **Null when there is no road** — Kathmandu → Lukla has none — and the card then shows no road
+  row rather than a guess.
 - **Tours don't have one.** A day out is a walking loop whose two ends are the same point; a
   road time between them would mean nothing, so it is not requested. `carDurationS` is null on
   every tour route.
@@ -262,6 +366,12 @@ day gets its distance, climb, hours, up to four highlights within 2 km of that d
 the places OSM marks notable first — and an overnight name from the nearest teahouse/village
 within 5 km (null when there is none — never invented).
 
+**One exception: a curated trek under "Known treks" uses its file's own stages**, night by night,
+with the waypoint each day ends at. Two reasons: a curated line has too few points for the effort
+split to cut it into the asked-for number of days (a 9-day request came back as 5), and the
+stages are the schedule people actually walk. Such a card therefore shows the trek's day count,
+not the trekker's.
+
 ## 6. Status of every phase
 
 | # | Phase | State |
@@ -277,8 +387,9 @@ within 5 km (null when there is none — never invented).
 | — | CARTO light basemap, icon controls | **done** (`621c69e`, tokens in `1cf4ad0`) |
 | P7 | Every state reachable | **done**; §11 steps 1–8 verified in the browser pane (step 7 with a stubbed fetch) |
 | P8 | Bug bash on real phones | **not started** — verified at 375×812 in the desktop browser only |
-| P10 | Trip shape, trailhead-anchored treks, the variants toggle | **done and seen in a browser** (`d355f60`, `0627f32`, `1cf788b`, `b61fb7f`) — §11 steps 13–16 walked at 375×812 against the live APIs |
-| P9 | Community boards, SOS on the map, both travel times | **built, never seen in a browser** (`81923db`, `a2ac1e8`) — `pnpm check` green and the planner numbers measured against the live API by `curl`; the UI itself is unverified (§12) |
+| P10 | Trip shape, trailhead-anchored treks, the variants toggle, labelled pins | **done and seen in a browser** (`d355f60`, `0627f32`, `1cf788b`, `b61fb7f`, `db6b1f5`, `316d3b3`) — §11 steps 13–16 walked at 375×812 against the live APIs |
+| P11 | Light + dark, and a front end that matches the app | **done and seen in a browser** (`1b40806` … `3d0bf01`) — §11 steps 17–20; both themes walked across `/`, `/about`, `/routes`, `/routes/ebc`, `/trek`, `/sos`, `/settings`, `/community`, `/community/[slug]`, `/offline`, `/login`, `/share/*`, `/rescue`, `/demo`, `/styleguide` |
+| P9 | Community boards, SOS on the map, both travel times | **built; seen in a browser in session 5 except the SOS panel** — `/community` and a board render, the From/To card and both times on a card were used throughout sessions 4–5; **the rail's SOS button has still never been tapped anywhere** (§11 step 12) (`81923db`, `a2ac1e8`) — `pnpm check` green and the planner numbers measured against the live API by `curl`; the UI itself is unverified (§12) |
 
 Commits, oldest first.
 
@@ -295,13 +406,16 @@ road times, reach the SOS number. `81923db` is pushed; **`a2ac1e8` is not** (§1
 point-to-point routes and the places they pass · `0627f32` a trek starts at its trailhead ·
 `1cf788b` three ways to walk it and the treks we already hold · `b61fb7f` the three
 bugs the browser run found · `db6b1f5` a map-label token · `316d3b3` pins that say what the place
-is. **Nothing from sessions 4 or 5 is pushed** (§13 step 0).
+is.
 
 *Session 5 (the rest of the front end, in the browser throughout):* `1b40806` a light palette ·
 `34f71dc` the theme switch · `32b1a96` premium green for light · `5677d78` the front page says
 what the app does now · `1c2f69c` honest SOS wording + the theme script on next/script ·
 `6070d88` a menu on the map · `4f9745e` the PWA opens on the map · `22b080d` service-worker
 precache · `f3cc15e` the rail rides the sheet · `3d0bf01` the consoles get the switch.
+
+**Everything above is on `origin/main` (`8c27c35`).** The push that sessions 3 and 4 could not
+make has happened; §13 no longer starts with it.
 
 *Session 2 (first browser run, then the fixes it found):* `3eb8277` hydration fix (C1) ·
 `e91dbe7` pick a start when location is off (C2) · `98af32c` country-wide place search (C3, G1) ·
@@ -342,19 +456,21 @@ docs.
   for a whole afternoon. **Chitwan has no wildlife POIs**: OSM holds the national park as one
   huge polygon whose centre is ~25 km from Sauraha, outside the day-out radius. Anywhere not on
   the list still falls back to live Overpass.
-- **G6 — Partly closed, and everything from the third session is outside it.** §11 steps 1–8
-  were run at 375×812 in the Claude desktop app's own browser pane, against the live APIs, and
-  pass. Three bugs were found there and fixed (`3eb8277`, `e91dbe7`, `9930ea6`): a hydration
-  mismatch on every load, a dead end when location is refused, and a locate button buried under
-  the sheet. **What a browser pane cannot do**, and what therefore has still never happened: a
-  real phone, a real geolocation permission prompt (every fix below came from the stub in §12),
-  and a real radio switched off (step 7 used a stubbed `fetch`). The Chrome extension is still
-  unusable ("the OAuth token belongs to a different claude.ai account").
-  **New in the third session:** it ran in the Claude Code CLI, which has **no browser pane
-  either**, so the From/To card, the rail's community and SOS buttons, the community pages and
-  the two times on a card have **never been rendered anywhere**. Their behaviour is backed by
-  `pnpm check` and by `curl` against the live API and the new routes (§8, §12). §11 steps 9–12
-  are written but unrun.
+- **G6 — What has been seen in a browser, and what has not.** Sessions 1–2 ran §11 steps 1–8 at
+  375×812 in the Claude desktop app's browser pane against the live APIs, and found and fixed
+  three bugs (`3eb8277`, `e91dbe7`, `9930ea6`). Session 3 had **no** browser at all (Claude Code
+  CLI) and said so. Sessions 4 and 5 had the pane again and used it throughout: steps 13–20 pass,
+  and six more real defects were found and fixed there (§11).
+  **Seen since:** the From/To card, both times on a card, `/community` and a board, the shape
+  chips, the variants toggle, the trailhead note, the labelled pins, both themes on fifteen
+  routes, the map menu.
+  **Still never seen anywhere:** a **real phone**, a **real geolocation permission prompt**
+  (every located run used the stub in §12), a **real radio switched off** (step 7 used a stubbed
+  `fetch`), the **SOS countdown, sheet and offline panel** (never opened in any session — §11
+  step 12), and every **signed-in** screen (`/trek`, `/settings`, `/rescue`, `/agency`, `/demo`
+  past the gate, `/share/<valid token>`), because no session has had an account. The Chrome
+  extension is still unusable ("the OAuth token belongs to a different claude.ai account").
+
 - **G7 — The planner needs network.** Offline it shows "Route planning needs a connection", which
   is honest but means the MVP path is online-only. The trekker screens keep their offline
   behaviour.
@@ -369,8 +485,27 @@ docs.
   by touch. The locate button used to sit *under* it; it now rides above whichever height the
   sheet has (`9930ea6`). The results carousel is a horizontal scroller — cards are selected by
   tapping, and §11 step 6's "swipe" means scrolling that row.
-- **G10 — `/plan`, `/routes`, `/trek` and the rest still exist** and are unchanged. Only `/` and
-  the old landing page (now `/about`) moved.
+- **G10 — The pre-pivot screens are all still there**, unchanged in behaviour: `/routes`,
+  `/routes/[id]`, `/trek`, `/sos`, `/settings`, `/login`, `/share/[token]`, `/rescue`, `/agency`,
+  `/demo`, `/offline`, `/styleguide`, `/plan`. Since session 5 they are reachable in a way that
+  matches what works: the tabs are **Map · Routes · Trek · Community**, Settings sits in the
+  account menu, and **`/plan` (the pre-pivot preference finder) is linked from nowhere** — not
+  the tabs, not the footer, not the command palette, not the service worker's precache. It was
+  kept, not deleted (D21).
+- **G22 — Two "features" in the pitch have no code at all.** `src/app/pass/`, `src/app/assistant/`
+  and `src/app/api/assistant/` hold only `.gitkeep`; `src/app/api/pay/esewa/` and
+  `src/app/api/pay/mock/` are empty directories. There is no `Paywall` component in the tree and
+  nothing imports one. `.env.local` has no `ESEWA_SECRET_KEY`, no `ANTHROPIC_API_KEY` and no
+  `SUPABASE_SERVICE_ROLE_KEY`. Session 5 therefore marked the paid tiers and the agency console
+  **Upcoming** with no button rather than pretending (D21). Anyone re-reading the older specs
+  should treat pass/eSewa and the assistant as **not built**.
+- **G23 — The theme is per device, not per account.** `localStorage["sathi-theme"]`; a signed-in
+  trekker who switches phones gets the phone's setting again. There is no theme row in
+  `/settings`. Fine for the demo, worth knowing before anyone writes "your preferences".
+- **G24 — Light was checked on every screen a signed-out session can reach, and only those.**
+  The signed-in states of `/trek`, `/settings`, `/rescue`, `/agency` and a real `/share/<token>`
+  have never been rendered in light (G6). The palette is token-only, so the risk is contrast in
+  places tuned by eye for dark — the console severity rows and the trek Today panel most of all.
 - **G19 — "Known treks" has one trek in it.** `curatedFor` walks every route in
   `src/data/routes`, but only `ebc.json` carries a line, waypoints and stages; the other five are
   summaries. The same shortage limits the curated trailhead (§5) to Everest. Adding a trek means
@@ -526,6 +661,19 @@ Everything that claimed a feature nobody can use was either corrected or marked:
 - the PWA's `start_url` was `/trek`, so an installed Sathi opened on a sign-in gate; it opens the
   map now, with "Plan a route" beside the Trek and SOS shortcuts.
 
+Measured in session 5 (2026-09-20, last) — the browser pane at 375×812, live APIs:
+
+| Check | Result |
+|---|---|
+| Fresh tab, `/routes`, console | clean: no errors, no 404s. (Before this session every client navigation logged "Encountered a script tag while rendering React component" — the theme script was a plain `<script>` inside the React tree; `next/script` `beforeInteractive` fixed it) |
+| Light theme across `/`, `/about`, `/routes`, `/routes/ebc`, `/trek`, `/sos`, `/settings`, `/community`, `/community/kathmandu`, `/offline`, `/login`, `/share/nope`, `/rescue`, `/demo`, `/styleguide` | renders on all of them; no unreadable pair found by eye. `/settings`, `/trek`, `/rescue` and `/agency` show their **sign-in gates** — the screens behind them were not reachable (G24) |
+| Theme persistence | switch on `/about` → navigate to `/` → still light; reload → still light, no dark flash |
+| Thamel Chowk → Everest Base Camp, Suggest, 3 days, in light | 3 lines from **Lukla** — 50.5 km / +4,987 m / 20 h, 66 km via Thame, 58.1 km via Green Valley Lodge — green route line, orange numbered pins labelled "Phakding / Village", "Tengboche / Village", "Kala Patthar / Peak" |
+| Thamel Chowk → Bhaktapur, **Point to point**, 3 days, no interests | 2 lines (ORS gave two): 14 km / +194 m / 3.4 h on foot / 20 min by road, and 16 km / 4.0 h. Stops read "Keshar Mahal (Monument) · King Tribhuvan Statue (Monument) · Arun Thapa Chok (Memorial) · सिद्धि बिनायक (Place of worship)…" |
+| The same trip, **Different paces** / **Known treks** | 3 paces of the 14 km line in ~15 s · "No routes to Bhaktapur" plus "We don't hold a known trek that reaches there yet.", toggle still usable |
+| Defects found and fixed in the browser this session | `onSubmit={findRoutes}` handed React's click event to the new variant argument, so **every** "Find routes" died in the catch with "Couldn't reach the route service" and no request left the page · "0 routes to Bhaktapur" for an empty result · one plan's cards had no places at all (`Overpass returned 504`, cached for an hour) · the SOS button sat on the first results card · the theme script warning above · `start_url: "/trek"` in the manifest |
+| Repo tests | **179** (`pnpm check`), of which **60** are the planner: `planner` 15 · `daysplit` 12 · `tour` 9 · `ors` 9 · `simplify` 5 · `interests` 4 · `curated` 4 · `trailhead` 2 |
+
 ## 9. Files
 
 Everything the pivot added, as it stands at `1cf788b`:
@@ -577,17 +725,54 @@ Changed in the third session:
 | `src/components/sos/OfflineSosPanel.tsx` | Call and WhatsApp beside Send SMS, plus the message text and a Copy button |
 | `.env.local` (not committed) | `NEXT_PUBLIC_SOS_SMS_NUMBER=+9779703080105` (D13) |
 
-Tests: `ors.test.ts` (9), `daysplit.test.ts` (12), `tour.test.ts` (9), `planner.test.ts` (9),
-`simplify.test.ts` (5) — 44 planner tests, plus `community.test.ts` (3) and one more in
-`sos.test.ts` — **163 in the repo** after the third session.
+Added in the **fourth** session (`d355f60`, `0627f32`, `1cf788b`, `b61fb7f`, `db6b1f5`, `316d3b3`):
 
-Changed outside the planner: `src/components/app-shell.tsx` (`/` is chrome-free, `/about` gets
-the marketing header), `src/components/map/style.ts` (`getBasemapUrl`), `src/app/globals.css`
-(three map tokens), `.env.example`.
+| File | What it is |
+|---|---|
+| `src/lib/plan/trailhead.ts` | `curatedTrailhead` (free, from the route files) and `roadhead` (up to three `driving-car` probes at settlements near the destination) |
+| `src/lib/plan/curated.ts` | the treks we hold data for as routes: `curatedDetails`, `curatedFor`, `lineLengthM`, `toCuratedRoute`, `stageDays` |
+| `src/lib/plan/trailhead.test.ts`, `curated.test.ts`, `interests.test.ts` | 2 + 4 + 4 tests |
+
+Changed in the fourth session: `planner.ts` (`planKind(start,end,mode)`, `planLine`,
+`lineCandidates`, `wayVariants`, `detourPicks`, `curatedRoutes`, `stopsAlong`) · `types.ts`
+(`PlanMode`, `VariantKind`, `PlanKind` gained `"direct"`, `PlannedRoute` gained `trailhead`,
+`stops` documented) · `overpass.ts` (`orderAlong`, and a single retry after a failed or
+`remark`-carrying query) · `ors.ts` (`toPlannedRoutes` fills `trailhead: null`) ·
+`api/plan/route.ts` (`mode`, `variants`, both in the cache key) · `interests.ts` (`placeWord`) ·
+`PlanScreen.tsx` (mode + variants state, the toggle row, `onSubmit={() => void findRoutes()}`) ·
+`TripForm.tsx` (the shape chips) · `RouteCards.tsx` (the trailhead note, `Name (Kind)`) ·
+`DayPlan.tsx` ("Night" only for a trek) · `PlanMapInner.tsx` (the `plan-stops-name` layer) ·
+`globals.css` (`--map-label`).
+
+Added in the **fifth** session (`1b40806` … `3d0bf01`):
+
+| File | What it is |
+|---|---|
+| `src/components/ui/theme-toggle.tsx` | the sun/moon switch: reads `data-theme` through `useSyncExternalStore`, writes `localStorage["sathi-theme"]`, follows the phone until the first tap |
+| `src/components/plan/MapMenu.tsx` | the map's dropdown to Routes · Trek · Community · Settings · About |
+
+Changed in the fifth session: `globals.css` (the whole light palette under
+`:root[data-theme="light"]`; dark moved to `:root, :root[data-theme="dark"]`) · `layout.tsx`
+(the `next/script` theme script, `themeColor` per scheme, `suppressHydrationWarning`) ·
+`app-header.tsx`, `marketing.tsx`, `console-header.tsx` (the switch; `marketing` CTA → `/`,
+footer → Plan a route · Routes · Community · SOS · Offline) · `nav.ts` + `tab-bar.tsx` (Map ·
+Routes · Trek · Community, exact match for `/`) · `command-palette.tsx` (Plan a route, Community;
+`/plan` dropped) · `LandingHero/Capabilities/Pricing/Agencies/Sos.tsx` (the recommender-first
+copy, three new capability rows, Upcoming badges, the honest SOS steps) · `sos/SosSheet.tsx` +
+`app/sos/page.tsx` (signed-out wording) · `PlanScreen.tsx` (the rail moved inside the sheet,
+"No routes", the menu) · `styleguide/Gallery.tsx` (no longer "dark only") ·
+`public/manifest.webmanifest` (`start_url: "/"`, a Plan shortcut, new description) ·
+`public/sw.js` (cache `sathi-v4`, `/plan` dropped from the precache) · `not-found.tsx`,
+`error.tsx`.
+
+Tests after the fifth session: **179 in the repo**, of which 60 are the planner —
+`planner.test.ts` (15), `daysplit.test.ts` (12), `tour.test.ts` (9), `ors.test.ts` (9),
+`simplify.test.ts` (5), `interests.test.ts` (4), `curated.test.ts` (4), `trailhead.test.ts` (2).
 
 Server-only modules — never import these from a client component: `ors.ts`, `overpass.ts`,
-`pois.ts`, `planner.ts`. (`simplify.ts` is pure and would work anywhere, but only the planner
-uses it.)
+`pois.ts`, `planner.ts`, `trailhead.ts`, `curated.ts`. (`simplify.ts`, `interests.ts` and
+`types.ts` are pure; `interests.ts` is imported by client components for `placeWord` and the
+chips, which is why the Overpass filters in it must stay data-only.)
 
 ## 10. Running and checking it
 
@@ -596,7 +781,7 @@ cp .env.example .env.local     # then fill ORS_API_KEY, CARTO_BASEMAPS_API_KEY
                                # and NEXT_PUBLIC_SOS_SMS_NUMBER (the SOS panel needs it, D13)
 pnpm install
 pnpm dev                       # http://localhost:3000
-pnpm check                     # typecheck + lint + 163 tests + data validation + build
+pnpm check                     # typecheck + lint + 179 tests + data validation + build
 pnpm tsx scripts/fetch-pois.ts chitwan   # re-bake one region (~5 min, needs network)
 pnpm tsx scripts/fetch-pois.ts           # or all five (~25 min, and Overpass may refuse)
 ```
@@ -619,16 +804,32 @@ A trek: `"end":{"lat":27.5724,"lng":85.5857}` (Namobuddha) gives `kind: "trek"` 
 ORS alternatives in ~16 s. **Do not use Pokhara for this any more** — since `e2ac4f0` it is a
 baked region, so Kathmandu → Pokhara is a `tour` (that is G4 working, not a bug).
 
-Both travel times on one card (a trek with a road at both ends):
+**Point to point** — the same two city points the rule would loop, and the shape that stops it:
 
 ```bash
 curl -s -X POST http://localhost:3000/api/plan -H 'Content-Type: application/json' \
-  -d '{"start":{"lat":27.7172,"lng":85.324},"end":{"lat":26.4525,"lng":87.2718},
-       "days":4,"interests":["villages"]}' | grep -o '"footHours":[0-9.]*\|"carDurationS":[^,]*'
+  -d '{"start":{"lat":27.7154,"lng":85.3123},"end":{"lat":27.671,"lng":85.4298},
+       "days":3,"interests":[],"mode":"direct","variants":"ways"}'
 ```
 
-Expect `footHours` on every route and `carDurationS` a number. Swap the end for Lukla
-(`27.6869, 86.7314`) and `carDurationS` is `null` — there is no road, and that is correct.
+`kind` must be `"direct"`, every `geometry.coordinates` must **end on the destination**, and
+`stops` must be non-empty. Drop `"mode"` and the same request comes back `"tour"` with loops.
+
+**A trek from its trailhead**, and the three kinds of option:
+
+```bash
+for v in ways paces treks; do
+  curl -s -X POST http://localhost:3000/api/plan -H 'Content-Type: application/json' \
+    -d "{\"start\":{\"lat\":27.7172,\"lng\":85.324},\"end\":{\"lat\":27.9812,\"lng\":86.8281},
+         \"days\":9,\"interests\":[\"mountains\",\"teahouses\"],\"variants\":\"$v\"}"
+done
+```
+
+Expect, in order: three different lines all with `"trailhead":{"name":"Lukla"…}` and
+`carDurationS: null` · three paces of one line · one `"source":"curated"` route with 9 stage
+days. Base Camp itself (`27.9881, 86.925`) is **not routable in ORS** — "Could not find routable
+point within a radius of 350.0 meters" on both profiles — and comes back as the curated trek
+whatever `variants` says. That is the fallback working, not a bug.
 
 The community boards need no key and no network:
 
@@ -643,53 +844,68 @@ word to force a real call, or restart `pnpm dev`.
 
 ## 11. The demo, step by step (the acceptance test)
 
-On a phone, mobile data on (steps 1–6 last run 2026-09-20 in the app's browser at 375×812,
-with a stubbed position — see G6):
+Status of every step is marked. "pane" = the Claude desktop app's browser pane at 375×812
+against the live APIs; **no step has ever run on a real phone** (G6).
+
+**Core flow — steps 1–8 (pane, pass, sessions 1–2):**
 1. Open the app → the map fills the screen, light, with your blue dot, within ~3 s.
 2. Tap "Go somewhere" → type two letters → curated treks and real places both appear → pick one.
 3. From = Your location (or tap From and pick a start when location is off). Days = 2. Chips:
    Temples & culture, Villages & squares, Forests & parks.
-4. **Find routes** → three cards, three distinct lines, numbered pins on the selected one.
+4. **Find routes** → up to three cards, distinct lines, numbered pins on the selected one.
 5. Expand a card → day 1 and day 2, each with distance, hours, highlights and where it ends.
-6. Swipe to another card → the map redraws that option's line and pins.
+6. Tap another card → the map redraws that option's line and pins. (Cards are **tapped**; the row
+   scrolls horizontally, G9.)
 7. Airplane mode → a new search says planning needs a connection; results already on screen stay.
-   Verified with `navigator.onLine` forced false and `/api/*` fetches rejected, not with a real
-   radio off: the copy appears in `text-danger` and the drawn route stays on the map.
-8. No crash, no console error, no login prompt anywhere in 1–7. Verified in a fresh tab: the
-   console is empty apart from CARTO tile fetches when the network drops.
+   Verified with `navigator.onLine` forced false and `/api/*` fetches rejected, **not** with a
+   real radio off: the copy appears in `text-danger` and the drawn route stays on the map.
+8. No crash, no console error, no login prompt anywhere in 1–7. Re-verified in a fresh tab in
+   session 5: the console is empty.
 
-**Steps 9–12 were added in the third session and have never been run anywhere** (G6) — run them
-first next time:
+**Both ends, both times, community, SOS — steps 9–12 (session 3 built them; 9–11 seen in
+sessions 4–5, 12 has never been run anywhere):**
 
-9. Tap **From** (the top row of the card) with no destination picked → the start search opens,
-   "Your location" is the first row *whatever* the permission state, and picking a place moves
-   on to the destination search rather than an empty sheet.
-10. On a results card, both times are there: a footprint figure always, a car figure whenever a
-    road joins the two ends. Kathmandu → Lukla must show **only** the footprint one.
-11. Tap the **community** icon in the rail → five boards → tap one → its posts, highest score
-    first. Back returns to the map. No sign-in anywhere.
-12. Tap the **SOS** button in the rail → 5-second countdown → the panel with **Send SMS**,
-    **Call** and **WhatsApp**. On a phone each opens the right app with the message filled in.
-    Nothing is sent until you press Send *there* (G16).
+9. *(seen)* Tap **From** with no destination picked → the start search opens, "Your location" is
+   the first row *whatever* the permission state, and picking a place moves on to the destination
+   search rather than an empty sheet.
+10. *(seen)* On a results card, both times are there: a footprint figure always, a car figure
+    whenever a road joins the two ends. Kathmandu → Lukla shows **only** the footprint one.
+11. *(seen)* Tap the **community** icon in the rail → five boards → tap one → its posts, highest
+    score first. Back returns to the map. No sign-in anywhere.
+12. **⚠ NEVER RUN.** Tap the **SOS** button in the rail → 5-second countdown → the panel with
+    **Send SMS**, **Call** and **WhatsApp**. On a phone each opens the right app with the message
+    filled in. Nothing is sent until you press Send *there* (G16). Signed out the sheet must say
+    "Your SOS is prepared when the countdown ends" and "Preparing SOS…", never "sent".
 
-Steps 1–8 pass in the browser pane; 9–12 are unrun. A real phone, a real permission prompt and
-a real radio off are still unrun (G6). Two caveats a demo driver should know: the destination
-search needs two letters before it calls the country-wide search, and a card is *tapped*, not
-swiped (G9).
-
-**Steps 13–16 (fourth session — walked at 375×812 in the browser pane against the live APIs,
-and they pass; the three bugs they found are fixed in `b61fb7f`):**
+**The recommender — steps 13–16 (pane, pass, session 4):**
 
 13. On the trip sheet, **Shape of the trip** shows three chips (Suggest · Day out · Point to
     point) and the hint under them changes. Pick two places inside the valley, choose **Point to
-    point**, Find routes: three cards, and the line on the map ends at the destination instead of
-    curling back to the start.
+    point**, Find routes: the lines end at the destination instead of curling back to the start.
 14. Kathmandu → a Khumbu destination, Suggest: the cards say **"The walk starts at Lukla — no
     road reaches it."**, and the drawn line starts at Lukla, not in Kathmandu.
 15. Over the results, the toggle row (Different ways · Different paces · Known treks) re-plans on
     tap, greys out while busy, and is **absent for a day out**. "Known treks" outside the Khumbu
     shows the 404 text in the results sheet with the toggle still usable.
-16. A trek card now lists the places it passes and the map pins them, numbered, in walking order.
+16. A trek card lists the places it passes as `Name (Kind)` and the map pins them, numbered, in
+    walking order, each pin labelled with its name and kind.
+
+**Themes and the rest of the app — steps 17–20 (pane, pass, session 5):**
+
+17. Tap the sun/moon in the rail (or either header) → the whole screen changes theme, the map
+    route colour with it. Navigate anywhere → it holds. Reload → it holds, with no dark flash.
+    With no stored choice, the app matches the phone's own setting.
+18. The map's menu button opens a menu: Trekking routes · Trek mode · Community · Settings ·
+    About Sathi. Each goes somewhere real.
+19. `/about` leads with "Say where you want to go. We draw the way.", its primary button goes to
+    the map, and the capability table lists the recommender, day plans, places and community. The
+    paid tiers say **Upcoming** and have **no** button; the agency panel says it has no accounts
+    to sign in with.
+20. The tab bar reads Map · Routes · Trek · Community and highlights the one you are on.
+
+**A demo driver should also know:** the destination search needs two letters before it calls the
+country-wide search; a long trek takes ~20–25 s with nothing but a busy button (G11); and the
+first plan of a cold server is slower than the rest.
 
 ## 12. How to verify it yourself (what worked, so nobody re-invents it)
 
@@ -701,12 +917,12 @@ and they pass; the three bugs they found are fixed in `b61fb7f`):**
 | **Claude Code CLI** (session 3) | **no** — there is no pane, and the Chrome extension tool returns "the OAuth token belongs to a different claude.ai account" | you cannot see the UI. Verify what you can by `curl` against `pnpm dev` and by `pnpm check`, and **say in the commit and the docs that the UI was never rendered** |
 
 Session 3 took the second row: every claim it makes about the planner's numbers comes from
-`curl` (§8), and every claim about layout was deliberately **not** made. Do not upgrade those
-claims without rendering the page.
+`curl` (§8), and every claim about layout was deliberately **not** made. Sessions 4 and 5 had the
+pane and used it. Do not upgrade an unrendered claim without rendering the page.
 
-The Chrome extension could not connect in any session so far. What works is the **built-in
-browser pane** of the Claude desktop app (`preview_start`, `navigate`, `read_page`, `computer`,
-`read_console_messages`, `read_network_requests`).
+The Chrome extension has never connected in any session. What works is the **built-in browser
+pane** of the Claude desktop app (`navigate`, `read_page`, `get_page_text`, `computer`,
+`find`, `javascript_tool`, `read_console_messages`, `read_network_requests`, `resize_window`).
 
 1. **The dev server may already be running.** `.claude/launch.json` starts `pnpm dev` on 3000;
    if a server is up, Next refuses a second one and the preview dies with exit 1 — just
@@ -735,62 +951,95 @@ browser pane** of the Claude desktop app (`preview_start`, `navigate`, `read_pag
 5. **The console keeps old messages across navigations.** After fixing something, open a *new
    tab* before claiming the error is gone, or check the server HTML with `curl` — that is how
    the hydration fix was confirmed (`curl -s localhost:3000 | grep aria-label`).
-6. **Long calls:** a trek to EBC takes ~25 s. Wait in chunks and screenshot, don't assume a hang.
+6. **Long calls:** a trek to EBC takes ~20–25 s. Wait in chunks and screenshot, don't assume a
+   hang. A `ways` plan that has to try detours can add a few seconds more.
+7. **`read_network_requests` does not show POST `fetch`es** in this pane — `/api/plan` never
+   appears in the list. To prove a request left the page, run the same `fetch` from
+   `javascript_tool` and read the status, or watch the dev server log
+   (`.next/dev/logs/next-development.log`). This is how session 5 caught "Find routes" sending
+   nothing at all.
+8. **Two toggles on one page must agree.** The theme lives on `document.documentElement.dataset
+   .theme`; read it there rather than trusting a component's state.
+9. **The 1-hour route cache hides changes.** A repeated identical request answers instantly from
+   memory and proves nothing — change an input or restart `pnpm dev`. The cache key now includes
+   `mode` and `variants`, so those are cheap ways to force a real call.
+10. **Signed-in screens need an account nobody has in a session.** `/trek`, `/settings`,
+    `/rescue`, `/agency` redirect to `/login`; a plain `/share/<token>` shows "This link is
+    invalid or was turned off". Verify their gates and say the rest is unverified (G6, G24).
 
 ## 13. Next session, in order
 
-0. **Push what is local.** `origin/main` is at `e06b2ad`; the fourth session's four code commits
-   (`d355f60`, `0627f32`, `1cf788b`, `b61fb7f`) and the docs commits on top of them are not pushed — the
-   sandbox refuses `git push` here. `git status -sb`, then
-   `git pull --ff-only && git push origin main`. Check this before anything else — `81923db`
-   and `a2ac1e8` are one feature between them, and a teammate with only the first gets a map
-   whose SOS panel has no Call or WhatsApp button and cards with one travel time. (The private
-   `docs/` repo is already pushed.)
-1. **Render what session 3 built** (§11 steps 9–12, G6). Session 4's own work (steps 13–16) was
-   walked in the browser, but session 3's was not: the From/To card, the rail's two new buttons,
-   the community pages, both times on a card. Risks worth looking for, since they are untested: Nothing from that session has been
-   seen in a browser: the From/To card, the rail's two new buttons, the community pages, both
-   times on a card. Start `pnpm dev`, open `/` at 375×812 and walk steps 9–12, then the whole
-   of §11. Specific risks worth looking for, since they are untested:
-   - the From/To card is two 48 px rows plus the menu button — check it does not crowd the top
-     of a small screen, and that the rail (three controls, the SOS one 72 px) still clears the
-     sheet at 70 dvh;
-   - `SosButton` is the app-wide FAB reused with `className="static"`, relying on `cn` being a
-     tailwind-merge drop-in to beat its own `fixed`. If it floats or overlaps, that is why;
-   - a card with no road time must simply omit that row.
-2. **A real phone** on mobile data: the real permission prompt, the real radio off, real tap
-   targets. Every other line of §11 steps 1–8 has been run in the browser pane; this has not
-   (G6). It is the last thing between "it works" and "we watched it work".
-3. **G16 — decide what "SOS notification" means for the demo.** As built, a human presses Send
-   in Messages / WhatsApp / the dialler. If the lead wants it to fire by itself, that is an SMS
-   gateway (paid key, a server route, a new secret, a `⚠ HUMAN NEEDED` for the account) —
-   ask before building. Either way `NEXT_PUBLIC_SOS_SMS_NUMBER` has to reach Vercel, or the
-   deployed app's SOS panel says "No SMS number set".
-4. **G11 — the ~25 s wait** on a long trek, the worst thing left in the demo. Measure before
-   optimising: time `fetchCandidates` and `fetchPoisAlong` separately (a `console.time` in
-   `planTrek` is enough) and find out whether it is ORS or Overpass. Smaller payloads (G8) did
-   not move it. Candidate fixes once it is known: skip Overpass when the line is longer than
-   ~100 km, or stream the route first and the day plan after. Note the second mode adds **one**
-   ORS request to a trek — if the wait got worse, that is where to look first.
-5. **G15 / G14 — the search's rough edges.** A county centroid that ORS cannot route from still
-   appears in the list and 404s on "Find routes"; subtitles can read "locality". Both are small
-   and both are visible in a demo.
-6. **G5 — more regions**, if the demo will visit anywhere outside Kathmandu, Pokhara, Chitwan,
-   Lumbini or Bandipur. Remember the list is also G4's definition of a city. And decide what to
-   do about Chitwan's wildlife: OSM's park polygon centre is ~25 km from Sauraha, so a wildlife
-   day out there finds hotels and temples.
-7. **G17 — community content.** Five boards, 22 posts, all written by us. If it stays in the
-   demo, keep saying so out loud; if it should become real, that is a table, RLS, auth and
-   moderation — a separate piece of work nobody has scoped.
-8. **G3 — curated treks as candidates.** Thin while only EBC has waypoints (TODO N-9), so do it
-   with, not before, more curated route data.
-9. **Deliberately not doing** (say so if asked, don't "fix" them silently): G12, the pace is the
-   trekker's to choose and the hours are shown per day and per route; G13, OSM names are what
-   OSM has and notable ones already sort first; G7, the planner is online-only by design while
-   the trekker screens keep their offline behaviour; G18, a tour has no road time because its
-   two ends are the same point.
+**Start here.** `git switch main && git pull --ff-only && git -C docs pull`. Nothing is waiting
+to be pushed: `main` and `origin/main` are both `8c27c35`. `pnpm dev` may already be running on
+3000 — Next refuses a second server, so just use the one that is up (§12).
 
-Where the rest of the documentation lives: `docs/SPEC.md` §17 is the contract and behaviour,
-`docs/SPEC.md` §18 is the community boards and §9.1 is what an SOS really does,
-`docs/DECISIONS.md` #161–#203 is why each choice was made, `docs/TODO.md` NEXT M-0 … M-15 is the
-task board. This file is the only one with the measurements.
+1. **⚠ A real phone, on mobile data.** The only thing between "it works" and "we watched it
+   work". Everything below the §11 line has been seen in a browser pane; a phone is where the
+   real permission prompt, the real radio and real tap targets live. Walk §11 steps 1–20 and
+   write every defect down before fixing anything.
+2. **⚠ §11 step 12 — the SOS panel, anywhere at all.** The countdown, the sheet and the offline
+   panel have **never been opened in any session**, in any browser. On a laptop `sms:` does
+   nothing, so use WhatsApp to prove the message is real. This is the one demo path with no
+   evidence behind it (G6, G16).
+3. **G16 — decide what "SOS notification" means for the demo** (lead's call, `docs/TODO.md`
+   M-14). As built a human presses Send. Automatic delivery = an SMS gateway: a paid account, a
+   server route, a new secret, and a `⚠ HUMAN NEEDED` for the account. Ask before building.
+   Either way `NEXT_PUBLIC_SOS_SMS_NUMBER` must reach Vercel or the deployed panel says "No SMS
+   number set".
+4. **⚠ Vercel keys** (`docs/TODO.md` M-7): `ORS_API_KEY`, `CARTO_BASEMAPS_API_KEY`,
+   `NEXT_PUBLIC_SOS_SMS_NUMBER`. Without the first, production answers "Route planning is not
+   configured yet."; without the second, the keyless basemap.
+5. **G11 — the ~20–25 s wait** on a long trek, the worst thing left in the demo. **Measure
+   before optimising**: time `fetchCandidates`, `fetchPoisAlong` and each detour separately
+   inside `planLine` and find out which service costs what. Smaller payloads (G8) did not move
+   it. Candidates once it is known: skip Overpass beyond ~100 km, return the line first and the
+   day plan after, or drop to one detour. Note that a `ways` plan with detours now costs **up to
+   four extra ORS calls**, so if the wait got worse since session 4, that is where to look.
+6. **G24 — light on the signed-in screens.** Everything a signed-out session can reach was
+   checked in both themes; `/trek`, `/settings`, `/rescue`, `/agency` and a real `/share/<token>`
+   were only seen as gates. Whoever has an account should open each one in light and look for
+   contrast the dark palette was tuned for — the console severity rows and the trek Today panel
+   first.
+7. **G19 / G3 — "Known treks" has one trek in it.** Only `ebc.json` carries a line, waypoints
+   and stages; the other five routes are summaries, so the toggle 404s everywhere but the Khumbu
+   and the curated trailhead only exists for Lukla. Adding a trek means **real** coordinates for
+   its waypoints and stages — `⚠ HUMAN NEEDED` to verify each one (CLAUDE.md rule 6), never
+   invented. `docs/TODO.md` N-9 is the same task from the pre-pivot side.
+8. **G15 / G14 — the search's rough edges.** A county centroid ORS cannot route from ("Nuwakot",
+   27.8734, 85.1891) is still offered and 404s on Find routes; a subtitle can read "locality".
+   Both are visible in a demo.
+9. **G5 — more regions**, if the demo will visit anywhere outside Kathmandu, Pokhara, Chitwan,
+   Lumbini or Bandipur. The list is also what `planKind` calls a city. And decide what to do
+   about Chitwan's wildlife: OSM's park polygon centre is ~25 km from Sauraha, so a wildlife day
+   out there finds hotels and temples.
+10. **G17 — community content.** Five boards, 22 posts, all written by us. If it stays in the
+    demo, keep saying so out loud; making it real is a table, RLS, auth and moderation — nobody
+    has scoped it.
+11. **G22 — the pitch still mentions things with no code**: the pass/eSewa flow and the AI
+    assistant are empty directories. Session 5 marked them Upcoming on the landing page. If they
+    are meant to exist for the demo, they are new work, not a fix.
+
+**Deliberately not doing** (say so if asked; don't "fix" them silently):
+
+- **G12** — day counts are taken at face value; the pace is the trekker's to choose (D10) and
+  the hours are shown per day and per route.
+- **G13** — OSM names are what OSM has ("नेपाल" can be a stop); notable ones already sort first.
+- **G7** — the planner is online-only by design; the trekker screens keep their offline
+  behaviour.
+- **G18** — a tour has no road time, because its two ends are the same point.
+- **G23** — the theme is per device, not per account.
+- **G21** — a detour may buy nothing on a trail with no parallel path; two options are then the
+  honest answer.
+
+**Three traps that have each cost a session:**
+
+1. Both route handlers hold a **1-hour in-process cache** — a repeated request proves nothing.
+2. The region list in `src/lib/plan/pois.ts` **is** the definition of a city, so editing it
+   changes how trips are planned (G4).
+3. `src/lib/community.ts` is **content we invented** (real place names, fictional posts) — never
+   present it as real user data (G17).
+
+Where the rest of the documentation lives: `docs/SPEC.md` §17 is the planner contract and
+behaviour, §18 the community boards, §9.1 what an SOS really does; `docs/DECISIONS.md` #161–#221
+is why each choice was made; `docs/TODO.md` → NEXT is the task board; `docs/REDESIGN.md` §14 is
+the light theme that reversed R4. This file is the only one with the measurements.
